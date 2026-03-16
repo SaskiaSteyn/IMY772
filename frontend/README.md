@@ -2,6 +2,29 @@
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
+## Requirements
+
+- **Node.js 24** (or Node 22) is required for the component library dependencies to work properly.
+
+## Getting Started
+
+Install dependencies:
+```bash
+yarn install
+```
+
+Run the development server:
+```bash
+yarn dev
+```
+
+## Running Tests
+
+To run tests:
+```bash
+yarn test
+```
+
 Currently, two official plugins are available:
 
 - [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
