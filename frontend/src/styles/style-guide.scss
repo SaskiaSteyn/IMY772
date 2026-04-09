@@ -1,0 +1,56 @@
+@import './variables';
+
+.btn-div {
+    display: flex;
+    flex-direction: row;
+    gap: 1rem;
+    padding: 1rem;
+}
+
+.group {
+    // padding: 1rem;
+    border: 1px solid $border-color;
+    border-radius: $border-radius;
+    margin: 1rem 0;
+}
+
+.header {
+    border-bottom: 1px solid $border-color;
+    padding: 0.5rem;
+}
+
+.header h2 {
+    margin-bottom: 0px;
+}
+
+.inner-group {
+    padding: 0rem 1rem;
+}
+
+.group h2 {
+    margin-top: 0;
+}
+
+.color-grid {
+    padding: 1rem;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    width: 100%;
+}
+
+.color-grid p {
+    margin: 0px;
+}
+
+.color-name {
+    display: flex;
+    width: 300px;
+    justify-content: space-between;
+}
+
+.icon-div {
+    display: flex;
+    gap: 1rem;
+    padding-bottom: 1rem;
+}
