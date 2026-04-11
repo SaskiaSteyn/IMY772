@@ -6,6 +6,7 @@ import { Pool } from 'pg'
 import amrResistanceGenesRouter from './routes/amrresistancegenes.routes.js'
 import authRouter from './routes/auth.routes.js'
 import metagenomicRouter from './routes/metagenomic.routes.js'
+import mockDataRouter from './routes/mockdata.routes.js'
 import samplesRouter from './routes/samples.routes.js'
 import virulenceGenesRouter from './routes/virulencegenes.routes.js'
 import wgsRouter from './routes/wgs.routes.js'
@@ -32,6 +33,7 @@ app.use('/api/metagenomic', metagenomicRouter)
 app.use('/api/wgs', wgsRouter)
 app.use('/api/amr-resistance-genes', amrResistanceGenesRouter)
 app.use('/api/virulence-genes', virulenceGenesRouter)
+app.use('/api', mockDataRouter)
 
 // Simple connection pool
 const pool = new Pool({
