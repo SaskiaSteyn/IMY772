@@ -78,7 +78,7 @@ export default function Login() {
             <div className="auth-card">
                 <div className="auth-brand">
                     <img src="/favicon.svg" alt="MicroTrack" />
-                    <Text size="lg"><strong>Mirco</strong>Track</Text>
+                    <Text size="lg"><strong>Micro</strong>Track</Text>
                 </div>
 
                 <Title order={2} className="auth-title">
