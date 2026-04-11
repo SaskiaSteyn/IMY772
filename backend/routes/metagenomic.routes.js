@@ -176,9 +176,7 @@ router.put(
     }
 )
 
-// ─── DELETE /api/metagenomic/:id - Delete metagenomic record ────────────────
-
-router.delete(sample /: sampleID / sequence /: sequenceName - Delete metagenomic
+// ─── DELETE /api/metagenomic/sample/:sampleID/sequence/:sequenceName - Delete metagenomic
 
 router.delete(
     '/sample/:sampleID/sequence/:sequenceName',
@@ -193,17 +191,18 @@ router.delete(
 
         try {
             await prisma.metagenomic.delete({
-                where: {
-                    sampleID_sequence_name: { sampleID: parseInt(sampleID), sequence_name: sequenceName }
-            return res.json({ message: 'Metagenomic record deleted successfully' })
-                } catch(err) {
-                    if (err.code === 'P2025') {
-                        return res.status(404).json({ message: 'Metagenomic record not found' })
-                    }
-                    console.error('Delete metagenomic error:', err)
-                    return res.status(500).json({ message: 'Failed to delete metagenomic record' })
-                }
-            }
-            )
+                where: { sampleID_sequence_name: { sampleID: parseInt(sampleID), sequence_name: sequenceName } },
+            })
 
-            export default router
+            return res.json({ message: 'Metagenomic record deleted successfully' })
+        } catch (err) {
+            if (err.code === 'P2025') {
+                return res.status(404).json({ message: 'Metagenomic record not found' })
+            }
+            console.error('Delete metagenomic error:', err)
+            return res.status(500).json({ message: 'Failed to delete metagenomic record' })
+        }
+    }
+)
+
+export default router
