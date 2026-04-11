@@ -6,3 +6,21 @@ datasource db {
   provider = "postgresql"
   url      = env("PRISMA_DATABASE_URL")
 }
+
+// ─── Auth models ────────────────────────────────────────────────────────────
+// NOTE: The DB team is adding the remaining tables (measurements, metagenomic,
+// wgs, amrResistanceGenes, virulenceGenes) in their next push. Do not add them
+// here until they share the final SQL so we stay in sync.
+
+model User {
+  userID        Int      @id @default(autoincrement())
+  username      String   @unique @db.VarChar(100)
+  name          String   @db.VarChar(100)
+  surname       String   @db.VarChar(100)
+  email         String   @unique @db.VarChar(255)
+  password_hash String   @db.VarChar(255)
+  role          String   @default("logged_in_user") @db.VarChar(50)
+  created_at    DateTime @default(now())
+
+  @@map("users")
+}
