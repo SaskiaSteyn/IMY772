@@ -6,8 +6,8 @@ To run the Express backend server, use the following commands in the `backend` d
 
 ```
 cd backend
-npm install   # Only needed once to install dependencies
-npm start
+yarn install   # Only needed once to install dependencies
+yarn start
 ```
 
 This will start the backend server using Node.js.
