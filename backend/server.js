@@ -11,7 +11,7 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // Middleware
-app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }));
+app.use(cors({origin: process.env.FRONTEND_URL, credentials: true}));
 app.use(express.json());
 app.use(cookieParser());
 
@@ -70,20 +70,20 @@ app.get('/get-samples', async (req, res) => {
 
 
 
-// Get Water Endpoint
+// Get Metagenomics Endpoint
 
-app.get('/get-water', async (req, res) => {
+app.get('/get-metagenomic', async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM water');
+        const result = await pool.query('SELECT * FROM metagenomic');
         res.json({
-            message: 'Water retrieved successfully',
-            water: result.rows
+            message: 'Metagenomic data retrieved successfully',
+            metagenomics: result.rows
         });
 
     } catch (err) {
         console.error(err);
         res.status(500).json({
-            message: 'Failed to retrieve water',
+            message: 'Failed to retrieve metagenomic data',
             error: err.message
         });
     }
@@ -91,20 +91,60 @@ app.get('/get-water', async (req, res) => {
 
 
 
-// Get Proteins Endpoint
+// Get WGS Endpoint
 
-app.get('/get-proteins', async (req, res) => {
+app.get('/get-wgs', async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM proteins');
+        const result = await pool.query('SELECT * FROM wgs');
         res.json({
-            message: 'Proteins retrieved successfully',
-            proteins: result.rows
+            message: 'WGS data retrieved successfully',
+            wgs: result.rows
         });
 
     } catch (err) {
         console.error(err);
         res.status(500).json({
-            message: 'Failed to retrieve proteins',
+            message: 'Failed to retrieve WGS data',
+            error: err.message
+        });
+    }
+});
+
+
+// Get AMR resistance genes Endpoint
+
+app.get('/get-amrResistanceGenes', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM amrResistanceGenes');
+        res.json({
+            message: 'AMR resistance genes retrieved successfully',
+            amrResistanceGenes: result.rows
+        });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({
+            message: 'Failed to retrieve AMR resistance genes',
+            error: err.message
+        });
+    }
+});
+
+
+// Get Virulence genes Endpoint
+
+app.get('/get-virulenceGenes', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM virulenceGenes');
+        res.json({
+            message: 'Virulence genes retrieved successfully',
+            virulenceGenes: result.rows
+        });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({
+            message: 'Failed to retrieve virulence genes',
             error: err.message
         });
     }
