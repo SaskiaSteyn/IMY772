@@ -1,6 +1,10 @@
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const prisma = new PrismaClient()
 
 async function main() {
@@ -123,11 +127,69 @@ async function main() {
 
         console.log('✓ Created 3 metagenomic records')
 
+        // ─── Load mock data ──────────────────────────────────────────────────────────
+        const mockDataPath = path.join(__dirname, '..', 'mock-data.json')
+        const mockDataContent = fs.readFileSync(mockDataPath, 'utf-8')
+        const mockData = JSON.parse(mockDataContent)
+
+        let mockSamplesCreated = 0
+        let mockMetagenomicsCreated = 0
+
+        for (const mockSample of mockData.samples) {
+            const sample = await prisma.sample.create({
+                data: {
+                    water_temperature: mockSample.water_temperature,
+                    ph: mockSample.ph,
+                    tds: mockSample.tds,
+                    do: mockSample.do,
+                    sample_analysis_type: mockSample.sample_analysis_type,
+                    isolation_source: mockSample.isolation_source,
+                    collection_date: new Date(mockSample.collection_date),
+                    location_name: mockSample.location_name,
+                    latitude: mockSample.latitude,
+                    longitude: mockSample.longitude,
+                    collected_by: mockSample.collected_by,
+                    predicted_sir_profile: mockSample.predicted_sir_profile,
+                },
+            })
+            mockSamplesCreated++
+
+            // Load metagenomic data if present
+            if (mockSample.metagenomic && Array.isArray(mockSample.metagenomic)) {
+                for (const metaItem of mockSample.metagenomic) {
+                    await prisma.metagenomic.create({
+                        data: {
+                            sampleID: sample.sampleID,
+                            sequence_name: metaItem.sequence_name,
+                            element_type: metaItem.element_type,
+                            class: metaItem.class,
+                            subclass: metaItem.subclass,
+                        },
+                    })
+                    mockMetagenomicsCreated++
+
+                    // Load AMR resistance genes if present
+                    if (metaItem.amr_resistance_genes && Array.isArray(metaItem.amr_resistance_genes)) {
+                        for (const gene of metaItem.amr_resistance_genes) {
+                            await prisma.aMRResistanceGene.create({
+                                data: {
+                                    sampleID: sample.sampleID,
+                                    geneSymbol: gene,
+                                },
+                            })
+                        }
+                    }
+                }
+            }
+        }
+
+        console.log(`✓ Loaded ${mockSamplesCreated} mock samples`)
+        console.log(`✓ Loaded ${mockMetagenomicsCreated} mock metagenomic records`)
+
         console.log('✅ Seed completed successfully!')
         console.log('\n📋 Summary:')
-        console.log('   Users: 2')
-        console.log('   Samples: 3')
-        console.log('   Metagenomic records: 3')
+        console.log(`   Samples: ${3 + mockSamplesCreated}`)
+        console.log(`   Metagenomic records: ${3 + mockMetagenomicsCreated}`)
     } catch (error) {
         console.error('❌ Error during seed:', error)
         process.exit(1)
