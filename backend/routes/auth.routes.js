@@ -34,15 +34,8 @@ async function findOrCreateGoogleUser({ email, given_name, family_name, sub: goo
     let user = await prisma.user.findUnique({ where: { email } });
 
     if (!user) {
-        let username = email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_');
-        const usernameExists = await prisma.user.findUnique({ where: { username } });
-        if (usernameExists) {
-            username = `${username}_${googleSub.slice(-4)}`;
-        }
-
         user = await prisma.user.create({
             data: {
-                username,
                 name: given_name || 'Google',
                 surname: family_name || 'User',
                 email,
@@ -59,7 +52,6 @@ async function findOrCreateGoogleUser({ email, given_name, family_name, sub: goo
 router.post(
     '/register',
     [
-        body('username').trim().notEmpty().withMessage('Username is required'),
         body('name').trim().notEmpty().withMessage('Name is required'),
         body('surname').trim().notEmpty().withMessage('Surname is required'),
         body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
@@ -73,22 +65,19 @@ router.post(
             return res.status(400).json({ errors: errors.array() });
         }
 
-        const { username, name, surname, email, password } = req.body;
+        const { name, surname, email, password } = req.body;
 
         try {
-            const existing = await prisma.user.findFirst({
-                where: { OR: [{ email }, { username }] },
-            });
+            const existing = await prisma.user.findUnique({ where: { email } });
 
             if (existing) {
-                const field = existing.email === email ? 'email' : 'username';
-                return res.status(409).json({ message: `That ${field} is already in use` });
+                return res.status(409).json({ message: 'That email is already in use' });
             }
 
             const password_hash = await bcrypt.hash(password, 12);
 
             const user = await prisma.user.create({
-                data: { username, name, surname, email, password_hash },
+                data: { name, surname, email, password_hash },
             });
 
             issueTokenCookie(res, { userID: user.userID, email: user.email, role: user.role });

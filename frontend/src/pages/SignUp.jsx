@@ -14,7 +14,6 @@ import {
 import { useForm } from '@mantine/form';
 import { useGoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../context/AuthContext.jsx';
-import logo from '../assets/hero.png';
 import './auth.scss';
 
 function GoogleIcon() {
@@ -37,7 +36,6 @@ export default function SignUp() {
 
     const form = useForm({
         initialValues: {
-            username: '',
             name: '',
             surname: '',
             email: '',
@@ -46,8 +44,6 @@ export default function SignUp() {
             rememberMe: false,
         },
         validate: {
-            username: (v) =>
-                v.trim().length > 0 ? null : 'Username is required',
             name: (v) => (v.trim().length > 0 ? null : 'Name is required'),
             surname: (v) => (v.trim().length > 0 ? null : 'Surname is required'),
             email: (v) => (/^\S+@\S+$/.test(v) ? null : 'Please enter a valid email'),
@@ -63,7 +59,6 @@ export default function SignUp() {
         setError('');
         try {
             await register(
-                values.username,
                 values.name,
                 values.surname,
                 values.email,
@@ -98,20 +93,13 @@ export default function SignUp() {
     return (
         <div className="auth-page">
             <div className="auth-card">
-                {/* Mini logo */}
-                <div className="auth-logo">
-                    <img src={logo} alt="MicroTrack" />
+                <div className="auth-brand">
+                    <img src="/favicon.svg" alt="MicroTrack" />
+                    <Text size="lg"><strong>Mirco</strong>Track</Text>
                 </div>
 
                 <form onSubmit={form.onSubmit(handleSubmit)} style={{ width: '100%' }}>
                     <Stack gap="sm">
-                        <TextInput
-                            label="Username"
-                            placeholder="Create a username"
-                            classNames={{ input: 'auth-input' }}
-                            {...form.getInputProps('username')}
-                        />
-
                         <Title order={2} className="auth-title">
                             Sign up
                         </Title>

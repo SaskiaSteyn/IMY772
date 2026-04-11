@@ -17,10 +17,10 @@ async function request(path, options = {}) {
 }
 
 export const authApi = {
-    register: (username, name, surname, email, password) =>
+    register: (name, surname, email, password) =>
         request('/api/auth/register', {
             method: 'POST',
-            body: JSON.stringify({ username, name, surname, email, password }),
+            body: JSON.stringify({ name, surname, email, password }),
         }),
 
     login: (email, password) =>

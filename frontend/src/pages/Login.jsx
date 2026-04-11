@@ -14,7 +14,6 @@ import {
 import { useForm } from '@mantine/form';
 import { useGoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../context/AuthContext.jsx';
-import logo from '../assets/hero.png';
 import './auth.scss';
 
 function GoogleIcon() {
@@ -77,9 +76,9 @@ export default function Login() {
     return (
         <div className="auth-page">
             <div className="auth-card">
-                {/* Mini logo */}
-                <div className="auth-logo">
-                    <img src={logo} alt="MicroTrack" />
+                <div className="auth-brand">
+                    <img src="/favicon.svg" alt="MicroTrack" />
+                    <Text size="lg"><strong>Mirco</strong>Track</Text>
                 </div>
 
                 <Title order={2} className="auth-title">
