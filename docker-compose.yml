@@ -28,7 +28,7 @@ services:
             - /app/node_modules
         ports:
             - '3000:3000'
-        entrypoint: sh /app/entrypoint.sh
+        command: sh -c "yarn install && npx prisma migrate deploy && yarn start"
         depends_on:
             db:
                 condition: service_healthy
