@@ -3,7 +3,12 @@ import cors from 'cors'
 import dotenv from 'dotenv'
 import express from 'express'
 import { Pool } from 'pg'
+import amrResistanceGenesRouter from './routes/amrresistancegenes.routes.js'
 import authRouter from './routes/auth.routes.js'
+import metagenomicRouter from './routes/metagenomic.routes.js'
+import samplesRouter from './routes/samples.routes.js'
+import virulenceGenesRouter from './routes/virulencegenes.routes.js'
+import wgsRouter from './routes/wgs.routes.js'
 
 dotenv.config()
 
@@ -11,12 +16,22 @@ const app = express()
 const port = process.env.PORT || 3000
 
 // Middleware
-app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }))
+const corsOptions =
+    process.env.NODE_ENV === 'production'
+        ? { origin: process.env.FRONTEND_URL, credentials: true }
+        : { origin: true, credentials: true } // Allow all origins in development
+
+app.use(cors(corsOptions))
 app.use(express.json())
 app.use(cookieParser())
 
-// Auth routes
+// API routes
 app.use('/api/auth', authRouter)
+app.use('/api/samples', samplesRouter)
+app.use('/api/metagenomic', metagenomicRouter)
+app.use('/api/wgs', wgsRouter)
+app.use('/api/amr-resistance-genes', amrResistanceGenesRouter)
+app.use('/api/virulence-genes', virulenceGenesRouter)
 
 // Simple connection pool
 const pool = new Pool({

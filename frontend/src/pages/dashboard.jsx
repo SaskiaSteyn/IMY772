@@ -1,5 +1,6 @@
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { useEffect, useState } from 'react';
 import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet';
 import DashboardNavbar from '../components/dashboard-navbar.jsx';
 import './dashboard.scss';
@@ -39,18 +40,70 @@ const createCustomIcon = (color = '#52C41A') => {
     });
 };
 
-// Sample locations in South Africa (you can modify these)
-const locations = [
-    { id: 1, name: 'Johannesburg', lat: -26.2023, lng: 28.0436 },
-    { id: 2, name: 'Cape Town', lat: -33.9249, lng: 18.4241 },
-    { id: 3, name: 'Durban', lat: -29.8587, lng: 31.0218 },
-    { id: 4, name: 'Pretoria', lat: -25.7461, lng: 28.2293 },
-    { id: 5, name: 'Bloemfontein', lat: -29.12, lng: 25.5169 },
-];
-
 export default function Dashboard() {
+    const [samples, setSamples] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    // Fetch samples from the API
+    useEffect(() => {
+        const fetchSamples = async () => {
+            try {
+                setLoading(true);
+                const response = await fetch(
+                    'http://localhost:3000/api/samples',
+                    {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        credentials: 'include',
+                    },
+                );
+
+                if (!response.ok) {
+                    const errorData = await response.text();
+                    console.error(
+                        'Server response:',
+                        response.status,
+                        errorData,
+                    );
+                    throw new Error(`HTTP ${response.status}: ${errorData}`);
+                }
+
+                const data = await response.json();
+                setSamples(data.samples || []);
+            } catch (err) {
+                console.error('Error fetching samples:', err);
+                setError(err.message);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchSamples();
+    }, []);
+
     // Center coordinates for South Africa
     const centerCoord = [-30.5, 22.5];
+
+    if (loading) {
+        return (
+            <div className='dashboard-container'>
+                <DashboardNavbar />
+                <div className='loading'>Loading map data...</div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className='dashboard-container'>
+                <DashboardNavbar />
+                <div className='error'>Error loading samples: {error}</div>
+            </div>
+        );
+    }
 
     return (
         <div className='dashboard-container'>
@@ -66,17 +119,56 @@ export default function Dashboard() {
                         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                         url='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
                     />
-                    {locations.map((location) => (
+                    {samples.map((sample) => (
                         <Marker
-                            key={location.id}
-                            position={[location.lat, location.lng]}
+                            key={sample.sampleID}
+                            position={[
+                                parseFloat(sample.latitude),
+                                parseFloat(sample.longitude),
+                            ]}
                             icon={createCustomIcon('#7db344')}
                         >
                             <Popup>
                                 <div className='popup-content'>
-                                    <h3>{location.name}</h3>
-                                    <p>Lat: {location.lat.toFixed(4)}</p>
-                                    <p>Lng: {location.lng.toFixed(4)}</p>
+                                    <h3>{sample.location_name}</h3>
+                                    <p>
+                                        <strong>Sample ID:</strong>{' '}
+                                        {sample.sampleID}
+                                    </p>
+                                    <p>
+                                        <strong>Analysis Type:</strong>{' '}
+                                        {sample.sample_analysis_type || 'N/A'}
+                                    </p>
+                                    <p>
+                                        <strong>Collection Date:</strong>{' '}
+                                        {sample.collection_date
+                                            ? new Date(
+                                                  sample.collection_date,
+                                              ).toLocaleDateString()
+                                            : 'N/A'}
+                                    </p>
+                                    <p>
+                                        <strong>Collected By:</strong>{' '}
+                                        {sample.collected_by || 'N/A'}
+                                    </p>
+                                    <p>
+                                        <strong>Water Temperature:</strong>{' '}
+                                        {sample.water_temperature || 'N/A'}°C
+                                    </p>
+                                    <p>
+                                        <strong>pH:</strong>{' '}
+                                        {sample.ph || 'N/A'}
+                                    </p>
+                                    <p>
+                                        <strong>Lat:</strong>{' '}
+                                        {parseFloat(sample.latitude).toFixed(4)}
+                                    </p>
+                                    <p>
+                                        <strong>Lng:</strong>{' '}
+                                        {parseFloat(sample.longitude).toFixed(
+                                            4,
+                                        )}
+                                    </p>
                                 </div>
                             </Popup>
                         </Marker>
