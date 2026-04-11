@@ -1,0 +1,224 @@
+{
+    "samples": [
+        {
+            "sampleID": 1,
+            "water_temperature": 18.4,
+            "ph": 7.1,
+            "tds": 420.0,
+            "do": 8.3,
+            "sample_analysis_type": "metagenomic",
+            "isolation_source": "River water",
+            "collection_date": "2026-03-01",
+            "location_name": "Crocodile River Site A",
+            "latitude": -25.662341,
+            "longitude": 27.765432,
+            "collected_by": "user_002",
+            "predicted_sir_profile": "resistant"
+        },
+        {
+            "sampleID": 2,
+            "water_temperature": 21.2,
+            "ph": 6.8,
+            "tds": 310.5,
+            "do": 7.9,
+            "sample_analysis_type": "metagenomic",
+            "isolation_source": "Holding dam water",
+            "collection_date": "2026-03-01",
+            "location_name": "Holding Dam B",
+            "latitude": -25.712345,
+            "longitude": 27.812345,
+            "collected_by": "user_002",
+            "predicted_sir_profile": "intermediate"
+        },
+        {
+            "sampleID": 3,
+            "water_temperature": 17.8,
+            "ph": 7.4,
+            "tds": 280.0,
+            "do": 9.1,
+            "sample_analysis_type": "metagenomic",
+            "isolation_source": "Soil",
+            "collection_date": "2026-03-02",
+            "location_name": "Farm Plot C",
+            "latitude": -25.689012,
+            "longitude": 27.790123,
+            "collected_by": "user_003",
+            "predicted_sir_profile": "susceptible"
+        },
+        {
+            "sampleID": 4,
+            "water_temperature": 23.5,
+            "ph": 7.0,
+            "tds": 500.75,
+            "do": 6.8,
+            "sample_analysis_type": "metagenomic",
+            "isolation_source": "Water reservoir",
+            "collection_date": "2026-03-02",
+            "location_name": "Reservoir Site D",
+            "latitude": -25.741234,
+            "longitude": 27.84321,
+            "collected_by": "user_002",
+            "predicted_sir_profile": "resistant"
+        },
+        {
+            "sampleID": 5,
+            "water_temperature": 19.9,
+            "ph": 6.5,
+            "tds": 390.0,
+            "do": 7.2,
+            "sample_analysis_type": "metagenomic",
+            "isolation_source": "Pivot Point",
+            "collection_date": "2026-03-03",
+            "location_name": "Pivot Irrigation Point E",
+            "latitude": -25.698712,
+            "longitude": 27.776543,
+            "collected_by": "user_003",
+            "predicted_sir_profile": "intermediate"
+        },
+        {
+            "sampleID": 6,
+            "water_temperature": 16.3,
+            "ph": 7.3,
+            "tds": 260.25,
+            "do": 9.4,
+            "sample_analysis_type": "metagenomic",
+            "isolation_source": "Spinach at harvest",
+            "collection_date": "2026-03-03",
+            "location_name": "Harvest Field F",
+            "latitude": -25.723456,
+            "longitude": 27.801234,
+            "collected_by": "user_004",
+            "predicted_sir_profile": "susceptible"
+        },
+        {
+            "sampleID": 7,
+            "water_temperature": 20.7,
+            "ph": 7.2,
+            "tds": 345.0,
+            "do": 8.0,
+            "sample_analysis_type": "wgs",
+            "isolation_source": "Unwashed spinach at receival",
+            "collection_date": "2026-03-04",
+            "location_name": "Processing Facility G",
+            "latitude": -25.754321,
+            "longitude": 27.832109,
+            "collected_by": "user_004",
+            "predicted_sir_profile": "resistant"
+        },
+        {
+            "sampleID": 8,
+            "water_temperature": 22.1,
+            "ph": 6.9,
+            "tds": 480.0,
+            "do": 7.5,
+            "sample_analysis_type": "wgs",
+            "isolation_source": "Treated wastewater",
+            "collection_date": "2026-03-04",
+            "location_name": "Treatment Plant H",
+            "latitude": -25.734567,
+            "longitude": 27.821098,
+            "collected_by": "user_005",
+            "predicted_sir_profile": "resistant"
+        }
+    ],
+    "metagenomic": [
+        {
+            "sampleID": 1,
+            "sequence_name": "subclass B3 metallo-beta-lactamase",
+            "element_type": "AMR",
+            "class": "BETA-LACTAM",
+            "subclass": "BETA-LACTAM"
+        },
+        {
+            "sampleID": 1,
+            "sequence_name": "23S ribosomal RNA methyltransferase Erm",
+            "element_type": "AMR",
+            "class": "MACROLIDE",
+            "subclass": "MACROLIDE"
+        },
+        {
+            "sampleID": 2,
+            "sequence_name": "class A beta-lactamase",
+            "element_type": "AMR",
+            "class": "BETA-LACTAM",
+            "subclass": "BETA-LACTAM"
+        },
+        {
+            "sampleID": 2,
+            "sequence_name": "arsinothricin resistance N-acetyltransferase ArsN1 family B",
+            "element_type": "STRESS",
+            "class": "ARSENIC",
+            "subclass": "ARSENIC"
+        },
+        {
+            "sampleID": 3,
+            "sequence_name": "AAC(3)-I family aminoglycoside 3-N-acetyltransferase",
+            "element_type": "AMR",
+            "class": "AMINOGLYCOSIDE",
+            "subclass": "GENTAMICIN"
+        },
+        {
+            "sampleID": 4,
+            "sequence_name": "NAD(+)--rifampin ADP-ribosyltransferase",
+            "element_type": "AMR",
+            "class": "RIFAMYCIN",
+            "subclass": "RIFAMYCIN"
+        },
+        {
+            "sampleID": 5,
+            "sequence_name": "vancomycin resistance response regulator transcription factor VanR",
+            "element_type": "AMR",
+            "class": "GLYCOPEPTIDE",
+            "subclass": "VANCOMYCIN"
+        },
+        {
+            "sampleID": 6,
+            "sequence_name": "arsenic resistance N-acetyltransferase ArsN2",
+            "element_type": "STRESS",
+            "class": "ARSENIC",
+            "subclass": "ARSENIC"
+        },
+        {
+            "sampleID": 6,
+            "sequence_name": "class A beta-lactamase",
+            "element_type": "AMR",
+            "class": "BETA-LACTAM",
+            "subclass": "BETA-LACTAM"
+        }
+    ],
+    "amrResistanceGenes": [
+        { "sampleID": 1, "geneSymbol": "bla" },
+        { "sampleID": 1, "geneSymbol": "aac(3)-I" },
+        { "sampleID": 1, "geneSymbol": "erm" },
+        { "sampleID": 2, "geneSymbol": "bla" },
+        { "sampleID": 2, "geneSymbol": "arsN1" },
+        { "sampleID": 3, "geneSymbol": "aac(3)-I" },
+        { "sampleID": 3, "geneSymbol": "aac(3)" },
+        { "sampleID": 4, "geneSymbol": "arr" },
+        { "sampleID": 4, "geneSymbol": "helR" },
+        { "sampleID": 5, "geneSymbol": "vanR" },
+        { "sampleID": 5, "geneSymbol": "vanA" },
+        { "sampleID": 5, "geneSymbol": "vanX" },
+        { "sampleID": 6, "geneSymbol": "arsN2" },
+        { "sampleID": 6, "geneSymbol": "bla" },
+        { "sampleID": 7, "geneSymbol": "tetA" },
+        { "sampleID": 8, "geneSymbol": "qnrA" }
+    ],
+    "wgs": [
+        {
+            "sampleID": 7,
+            "isolateID": 101,
+            "organism": "Escherichia coli"
+        },
+        {
+            "sampleID": 8,
+            "isolateID": 102,
+            "organism": "Salmonella enterica"
+        }
+    ],
+    "virulenceGenes": [
+        { "isolateID": 101, "geneSymbol": "stx1" },
+        { "isolateID": 101, "geneSymbol": "eae" },
+        { "isolateID": 102, "geneSymbol": "invA" }
+    ]
+}

@@ -5,6 +5,7 @@
     "type": "module",
     "scripts": {
         "start": "node server.js",
+        "seed": "dotenv -e ../.env -- node prisma/seed.js",
         "prisma:generate": "dotenv -e ../.env -- prisma generate",
         "prisma:pull": "dotenv -e ../.env -- prisma db pull",
         "prisma:migrate:dev": "dotenv -e ../.env -- prisma migrate dev",
@@ -12,6 +13,9 @@
         "prisma:migrate:status": "dotenv -e ../.env -- prisma migrate status",
         "prisma:migrate:baseline": "sh -c 'mkdir -p prisma/migrations/0000_baseline && dotenv -e ../.env -- prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script > prisma/migrations/0000_baseline/migration.sql'",
         "prisma:migrate:resolve-baseline": "dotenv -e ../.env -- prisma migrate resolve --applied 0000_baseline"
+    },
+    "prisma": {
+        "seed": "node prisma/seed.js"
     },
     "dependencies": {
         "@prisma/client": "^6.6.0",

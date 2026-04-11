@@ -29,6 +29,14 @@ const theme = createTheme({
         fontFamily: "'Roboto', sans-serif",
     },
     primaryColor: 'themeColors',
+    components: {
+        Button: {
+            defaultProps: {
+                radius: 'xl',
+                px: 'xl',
+            },
+        },
+    },
 });
 
 createRoot(document.getElementById('root')).render(
