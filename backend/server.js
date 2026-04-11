@@ -1,11 +1,22 @@
 import express from 'express';
 import {Pool} from 'pg';
 import dotenv from 'dotenv';
+import cors from 'cors';
+import cookieParser from 'cookie-parser';
+import authRouter from './routes/auth.routes.js';
 
 dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3000;
+
+// Middleware
+app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }));
+app.use(express.json());
+app.use(cookieParser());
+
+// Auth routes
+app.use('/api/auth', authRouter);
 
 // Simple connection pool
 const pool = new Pool({

@@ -12,11 +12,11 @@ function App() {
                     overview of the design elements and components used
                     throughout the app.
                 </p>
-                <div class='group'>
-                    <div class='header'>
+                <div className='group'>
+                    <div className='header'>
                         <h2>Typography</h2>
                     </div>
-                    <div class='inner-group'>
+                    <div className='inner-group'>
                         <h1>Heading 1</h1>
                         <h2>Heading 2</h2>
                         <h3>Heading 3</h3>
@@ -24,11 +24,11 @@ function App() {
                         <p>Paragraph</p>
                     </div>
                 </div>
-                <div class='group'>
-                    <div class='header'>
+                <div className='group'>
+                    <div className='header'>
                         <h2>Colors</h2>
                     </div>
-                    <div class='color-grid'>
+                    <div className='color-grid'>
                         <div>
                             <div
                                 style={{
@@ -37,7 +37,7 @@ function App() {
                                     height: '100px',
                                 }}
                             ></div>
-                            <div class='color-name'>
+                            <div className='color-name'>
                                 <p>Primary</p>
                                 <p>
                                     <code>$primary-color</code>
@@ -52,7 +52,7 @@ function App() {
                                     height: '100px',
                                 }}
                             ></div>
-                            <div class='color-name'>
+                            <div className='color-name'>
                                 <p>Secondary</p>
                                 <p>
                                     <code>$secondary-color</code>
@@ -67,7 +67,7 @@ function App() {
                                     height: '100px',
                                 }}
                             ></div>
-                            <div class='color-name'>
+                            <div className='color-name'>
                                 <p>Accent</p>
                                 <p>
                                     <code>$accent-color</code>
@@ -83,7 +83,7 @@ function App() {
                                     height: '100px',
                                 }}
                             ></div>
-                            <div class='color-name'>
+                            <div className='color-name'>
                                 <p>Success</p>
                                 <p>
                                     <code>$success-color</code>
@@ -99,7 +99,7 @@ function App() {
                                     height: '100px',
                                 }}
                             ></div>
-                            <div class='color-name'>
+                            <div className='color-name'>
                                 <p>Warning</p>
                                 <p>
                                     <code>$warning-color</code>
@@ -115,7 +115,7 @@ function App() {
                                     height: '100px',
                                 }}
                             ></div>
-                            <div class='color-name'>
+                            <div className='color-name'>
                                 <p>Error</p>
                                 <p>
                                     <code>$error-color</code>
@@ -124,11 +124,11 @@ function App() {
                         </div>
                     </div>
                 </div>
-                <div class='group'>
-                    <div class='header'>
+                <div className='group'>
+                    <div className='header'>
                         <h2>Buttons</h2>
                     </div>
-                    <div class='btn-div'>
+                    <div className='btn-div'>
                         <Button variant='default'>Default Button</Button>
                         <Button variant='filled'>Filled Button</Button>
                         <Button variant='light'>Light Button</Button>
@@ -136,11 +136,11 @@ function App() {
                         <Button variant='subtle'>Subtle Button</Button>
                     </div>
                 </div>
-                <div class='group'>
-                    <div class='header'>
+                <div className='group'>
+                    <div className='header'>
                         <h2>Icons</h2>
                     </div>
-                    <div class='inner-group'>
+                    <div className='inner-group'>
                         <p>
                             Make use of{' '}
                             <a
@@ -152,7 +152,7 @@ function App() {
                             </a>
                             . Below are some examples:
                         </p>
-                        <div class='icon-div'>
+                        <div className='icon-div'>
                             <Leaf />
                             <Droplet />
                             <ChartColumn />
