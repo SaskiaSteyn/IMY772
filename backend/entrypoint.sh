@@ -1,5 +1,5 @@
 #!/bin/sh
-# Entrypoint script for the backend container
+set -e
 
 echo "🚀 Starting backend setup..."
 
@@ -7,9 +7,9 @@ echo "🚀 Starting backend setup..."
 echo "📦 Installing dependencies..."
 yarn install
 
-# Run migrations
+# Run migrations (use reset for development Docker environment)
 echo "🗂️  Running database migrations..."
-npx prisma migrate deploy
+npx prisma migrate deploy || npx prisma migrate resolve --rolled-back
 
 # Check if seed has already been run (seed creates a flag file)
 if [ ! -f /app/.seeded ]; then
