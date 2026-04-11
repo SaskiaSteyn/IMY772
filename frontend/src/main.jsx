@@ -33,7 +33,7 @@ const theme = createTheme({
         Button: {
             defaultProps: {
                 radius: 'xl',
-                px: 'lg',
+                px: 'xl',
             },
         },
     },

@@ -1,35 +1,48 @@
-import { Button, Drawer, NavLink } from '@mantine/core';
-import { BarChart3, LogOut, MapPin, Menu, Settings } from 'lucide-react';
+import { Avatar, Button, Drawer, NavLink } from '@mantine/core';
+import {
+    ChartColumnIncreasing,
+    LayoutDashboard,
+    Menu,
+    User,
+} from 'lucide-react';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import './dashboard-navbar.scss';
 
 export default function DashboardNavbar() {
     const [drawerOpened, setDrawerOpened] = useState(false);
     const navigate = useNavigate();
-    const { logout } = useAuth();
+    const location = useLocation();
+    const { user, logout } = useAuth();
 
     const handleLogout = () => {
         logout();
         navigate('/login');
     };
 
+    const handleLoginClick = () => {
+        navigate('/login');
+    };
+
     const menuItems = [
         {
             label: 'Dashboard',
-            icon: MapPin,
+            icon: LayoutDashboard,
             onClick: () => navigate('/dashboard'),
+            path: '/dashboard',
         },
         {
-            label: 'Analytics',
-            icon: BarChart3,
-            onClick: () => navigate('/analytics'),
+            label: 'Captured Data',
+            icon: ChartColumnIncreasing,
+            onClick: () => navigate('/captured-data'),
+            path: '/captured-data',
         },
         {
-            label: 'Settings',
-            icon: Settings,
-            onClick: () => navigate('/settings'),
+            label: 'Profile Settings',
+            icon: User,
+            onClick: () => navigate('/profile-settings'),
+            path: '/profile-settings',
         },
     ];
 
@@ -53,7 +66,29 @@ export default function DashboardNavbar() {
                     />
                 </div>
                 <div className='right-content'>
-                    <Button variant='filled'>Login</Button>
+                    {user ? (
+                        <div
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '12px',
+                            }}
+                        >
+                            <Button variant='outline' onClick={handleLogout}>
+                                Logout
+                            </Button>
+                            <Avatar
+                                src='https://api.dicebear.com/7.x/avataaars/svg?seed=Felix'
+                                alt='User avatar'
+                                radius='xl'
+                                size='md'
+                            />
+                        </div>
+                    ) : (
+                        <Button variant='filled' onClick={handleLoginClick}>
+                            Login
+                        </Button>
+                    )}
                 </div>
             </nav>
 
@@ -74,6 +109,7 @@ export default function DashboardNavbar() {
             >
                 {menuItems.map((item) => {
                     const Icon = item.icon;
+                    const isActive = location.pathname === item.path;
                     return (
                         <NavLink
                             key={item.label}
@@ -83,15 +119,10 @@ export default function DashboardNavbar() {
                                 item.onClick();
                                 setDrawerOpened(false);
                             }}
+                            active={isActive}
                         />
                     );
                 })}
-                <NavLink
-                    label='Logout'
-                    leftSection={<LogOut size={20} />}
-                    onClick={handleLogout}
-                    color='red'
-                />
             </Drawer>
         </>
     );

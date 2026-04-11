@@ -15,20 +15,10 @@ function AppRoutes() {
 
     return (
         <Routes>
-            <Route
-                path='/'
-                element={
-                    <Navigate to={user ? '/dashboard' : '/login'} replace />
-                }
-            />
+            <Route path='/' element={<Navigate to='/dashboard' replace />} />
+            <Route path='/dashboard' element={<Dashboard />} />
             <Route
                 path='/app'
-                element={
-                    user ? <Dashboard /> : <Navigate to='/login' replace />
-                }
-            />
-            <Route
-                path='/dashboard'
                 element={
                     user ? <Dashboard /> : <Navigate to='/login' replace />
                 }
@@ -49,12 +39,7 @@ function AppRoutes() {
                     user ? <Navigate to='/dashboard' replace /> : <SignUp />
                 }
             />
-            <Route
-                path='*'
-                element={
-                    <Navigate to={user ? '/dashboard' : '/login'} replace />
-                }
-            />
+            <Route path='*' element={<Navigate to='/dashboard' replace />} />
         </Routes>
     );
 }
