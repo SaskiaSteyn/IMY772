@@ -23,7 +23,7 @@ router.post(
         try {
             // Verify WGS isolate exists
             const wgs = await prisma.wgs.findFirst({
-                where: { id: parseInt(isolateID) },
+                where: { isolateID: parseInt(isolateID) },
             })
 
             if (!wgs) {
@@ -73,22 +73,22 @@ router.get('/', async (req, res) => {
     }
 })
 
-// ─── GET /api/virulence-genes/:id - Get virulence gene record by ID ────────
+// ─── GET /api/virulence-genes/isolate/:isolateID/gene/:geneSymbol - Get specific virulence gene
 
 router.get(
-    '/:id',
-    [param('id').isInt().withMessage('ID must be an integer')],
+    '/isolate/:isolateID/gene/:geneSymbol',
+    [param('isolateID').isInt().withMessage('Isolate ID must be an integer')],
     async (req, res) => {
         const errors = validationResult(req)
         if (!errors.isEmpty()) {
             return res.status(400).json({ errors: errors.array() })
         }
 
-        const { id } = req.params
+        const { isolateID, geneSymbol } = req.params
 
         try {
             const virulenceGene = await prisma.virulenceGene.findUnique({
-                where: { id: parseInt(id) },
+                where: { isolateID_geneSymbol: { isolateID: parseInt(isolateID), geneSymbol } },
                 include: {
                     wgs: {
                         include: {
@@ -143,28 +143,23 @@ router.get(
     }
 )
 
-// ─── PUT /api/virulence-genes/:id - Update virulence gene record ──────────
+// ─── PUT /api/virulence-genes/isolate/:isolateID/gene/:geneSymbol - Update virulence gene
 
 router.put(
-    '/:id',
-    [
-        param('id').isInt().withMessage('ID must be an integer'),
-        body('geneSymbol').optional().trim().isString(),
-    ],
+    '/isolate/:isolateID/gene/:geneSymbol',
+    [param('isolateID').isInt().withMessage('Isolate ID must be an integer')],
     async (req, res) => {
         const errors = validationResult(req)
         if (!errors.isEmpty()) {
             return res.status(400).json({ errors: errors.array() })
         }
 
-        const { id } = req.params
+        const { isolateID, geneSymbol } = req.params
         const updateData = {}
-
-        if (req.body.geneSymbol !== undefined) updateData.geneSymbol = req.body.geneSymbol
 
         try {
             const virulenceGene = await prisma.virulenceGene.update({
-                where: { id: parseInt(id) },
+                where: { isolateID_geneSymbol: { isolateID: parseInt(isolateID), geneSymbol } },
                 data: updateData,
                 include: {
                     wgs: {
@@ -186,22 +181,22 @@ router.put(
     }
 )
 
-// ─── DELETE /api/virulence-genes/:id - Delete virulence gene record ────────
+// ─── DELETE /api/virulence-genes/isolate/:isolateID/gene/:geneSymbol - Delete virulence gene
 
 router.delete(
-    '/:id',
-    [param('id').isInt().withMessage('ID must be an integer')],
+    '/isolate/:isolateID/gene/:geneSymbol',
+    [param('isolateID').isInt().withMessage('Isolate ID must be an integer')],
     async (req, res) => {
         const errors = validationResult(req)
         if (!errors.isEmpty()) {
             return res.status(400).json({ errors: errors.array() })
         }
 
-        const { id } = req.params
+        const { isolateID, geneSymbol } = req.params
 
         try {
             await prisma.virulenceGene.delete({
-                where: { id: parseInt(id) },
+                where: { isolateID_geneSymbol: { isolateID: parseInt(isolateID), geneSymbol } },
             })
 
             return res.json({ message: 'Virulence gene record deleted successfully' })

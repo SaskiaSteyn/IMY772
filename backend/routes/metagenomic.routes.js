@@ -71,22 +71,22 @@ router.get('/', async (req, res) => {
     }
 })
 
-// ─── GET /api/metagenomic/:id - Get metagenomic record by ID ─────────────────
+// ─── GET /api/metagenomic/sample/:sampleID/sequence/:sequenceName - Get specific metagenomic
 
 router.get(
-    '/:id',
-    [param('id').isInt().withMessage('ID must be an integer')],
+    '/sample/:sampleID/sequence/:sequenceName',
+    [param('sampleID').isInt().withMessage('Sample ID must be an integer')],
     async (req, res) => {
         const errors = validationResult(req)
         if (!errors.isEmpty()) {
             return res.status(400).json({ errors: errors.array() })
         }
 
-        const { id } = req.params
+        const { sampleID, sequenceName } = req.params
 
         try {
             const metagenomic = await prisma.metagenomic.findUnique({
-                where: { id: parseInt(id) },
+                where: { sampleID_sequence_name: { sampleID: parseInt(sampleID), sequence_name: sequenceName } },
                 include: {
                     sample: true,
                 },
@@ -133,13 +133,12 @@ router.get(
     }
 )
 
-// ─── PUT /api/metagenomic/:id - Update metagenomic record ────────────────────
+// ─── PUT /api/metagenomic/sample/:sampleID/sequence/:sequenceName - Update metagenomic
 
 router.put(
-    '/:id',
+    '/sample/:sampleID/sequence/:sequenceName',
     [
-        param('id').isInt().withMessage('ID must be an integer'),
-        body('sequence_name').optional().trim().isString(),
+        param('sampleID').isInt().withMessage('Sample ID must be an integer'),
         body('element_type').optional().trim().isString(),
         body('class').optional().trim().isString(),
         body('subclass').optional().trim().isString(),
@@ -150,17 +149,16 @@ router.put(
             return res.status(400).json({ errors: errors.array() })
         }
 
-        const { id } = req.params
+        const { sampleID, sequenceName } = req.params
         const updateData = {}
 
-        if (req.body.sequence_name !== undefined) updateData.sequence_name = req.body.sequence_name
         if (req.body.element_type !== undefined) updateData.element_type = req.body.element_type
         if (req.body.class !== undefined) updateData.class = req.body.class
         if (req.body.subclass !== undefined) updateData.subclass = req.body.subclass
 
         try {
             const metagenomic = await prisma.metagenomic.update({
-                where: { id: parseInt(id) },
+                where: { sampleID_sequence_name: { sampleID: parseInt(sampleID), sequence_name: sequenceName } },
                 data: updateData,
                 include: {
                     sample: true,
@@ -180,31 +178,32 @@ router.put(
 
 // ─── DELETE /api/metagenomic/:id - Delete metagenomic record ────────────────
 
+router.delete(sample /: sampleID / sequence /: sequenceName - Delete metagenomic
+
 router.delete(
-    '/:id',
-    [param('id').isInt().withMessage('ID must be an integer')],
+    '/sample/:sampleID/sequence/:sequenceName',
+    [param('sampleID').isInt().withMessage('Sample ID must be an integer')],
     async (req, res) => {
         const errors = validationResult(req)
         if (!errors.isEmpty()) {
             return res.status(400).json({ errors: errors.array() })
         }
 
-        const { id } = req.params
+        const { sampleID, sequenceName } = req.params
 
         try {
             await prisma.metagenomic.delete({
-                where: { id: parseInt(id) },
-            })
-
+                where: {
+                    sampleID_sequence_name: { sampleID: parseInt(sampleID), sequence_name: sequenceName }
             return res.json({ message: 'Metagenomic record deleted successfully' })
-        } catch (err) {
-            if (err.code === 'P2025') {
-                return res.status(404).json({ message: 'Metagenomic record not found' })
+                } catch(err) {
+                    if (err.code === 'P2025') {
+                        return res.status(404).json({ message: 'Metagenomic record not found' })
+                    }
+                    console.error('Delete metagenomic error:', err)
+                    return res.status(500).json({ message: 'Failed to delete metagenomic record' })
+                }
             }
-            console.error('Delete metagenomic error:', err)
-            return res.status(500).json({ message: 'Failed to delete metagenomic record' })
-        }
-    }
-)
+            )
 
-export default router
+            export default router

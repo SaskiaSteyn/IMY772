@@ -49,20 +49,19 @@ model Sample {
 }
 
 model Metagenomic {
-  id              Int     @id @default(autoincrement())
   sampleID        Int
-  sequence_name   String? @db.VarChar(255)
+  sequence_name   String  @db.VarChar(255)
   element_type    String? @db.VarChar(255)
   class           String? @db.VarChar(255)
   subclass        String? @db.VarChar(255)
 
   sample          Sample  @relation(fields: [sampleID], references: [sampleID])
 
+  @@id([sampleID, sequence_name])
   @@map("metagenomic")
 }
 
 model WGS {
-  id              Int     @id @default(autoincrement())
   sampleID        Int
   isolateID       Int
   organism        String? @db.VarChar(255)
@@ -70,25 +69,27 @@ model WGS {
   sample          Sample            @relation(fields: [sampleID], references: [sampleID])
   virulenceGenes  VirulenceGene[]
 
+  @@id([sampleID, isolateID])
   @@map("wgs")
 }
 
 model AMRResistanceGene {
-  id              Int     @id @default(autoincrement())
   sampleID        Int
-  geneSymbol      String? @db.VarChar(255)
+  geneSymbol      String  @db.VarChar(255)
 
   sample          Sample  @relation(fields: [sampleID], references: [sampleID])
 
+  @@id([sampleID, geneSymbol])
   @@map("amrResistanceGenes")
 }
 
 model VirulenceGene {
-  id              Int     @id @default(autoincrement())
+  sampleID        Int
   isolateID       Int
-  geneSymbol      String? @db.VarChar(255)
+  geneSymbol      String  @db.VarChar(255)
 
-  wgs             WGS     @relation(fields: [isolateID], references: [id])
+  wgs             WGS     @relation(fields: [sampleID, isolateID], references: [sampleID, isolateID])
 
+  @@id([sampleID, isolateID, geneSymbol])
   @@map("virulenceGenes")
 }

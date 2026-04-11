@@ -133,6 +133,43 @@ router.get(
     }
 )
 
+// ─── GET /api/wgs/:sampleID/:isolateID - Get specific WGS record ─────────────
+
+router.get(
+    '/:sampleID/:isolateID',
+    [
+        param('sampleID').isInt().withMessage('Sample ID must be an integer'),
+        param('isolateID').isInt().withMessage('Isolate ID must be an integer'),
+    ],
+    async (req, res) => {
+        const errors = validationResult(req)
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ errors: errors.array() })
+        }
+
+        const { sampleID, isolateID } = req.params
+
+        try {
+            const wgs = await prisma.wgs.findUnique({
+                where: { sampleID_isolateID: { sampleID: parseInt(sampleID), isolateID: parseInt(isolateID) } },
+                include: {
+                    sample: true,
+                    virulenceGenes: true,
+                },
+            })
+
+            if (!wgs) {
+                return res.status(404).json({ message: 'WGS record not found' })
+            }
+
+            return res.json({ wgs })
+        } catch (err) {
+            console.error('Get WGS error:', err)
+            return res.status(500).json({ message: 'Failed to retrieve WGS record' })
+        }
+    }
+)
+
 // ─── GET /api/wgs/isolate/:isolateID - Get WGS records by isolate ID ─────────
 
 router.get(
@@ -163,12 +200,13 @@ router.get(
     }
 )
 
-// ─── PUT /api/wgs/:id - Update WGS record ────────────────────────────────────
+// ─── PUT /api/wgs/:sampleID/:isolateID - Update WGS record ──────────────────
 
 router.put(
-    '/:id',
+    '/:sampleID/:isolateID',
     [
-        param('id').isInt().withMessage('ID must be an integer'),
+        param('sampleID').isInt().withMessage('Sample ID must be an integer'),
+        param('isolateID').isInt().withMessage('Isolate ID must be an integer'),
         body('organism').optional().trim().isString(),
     ],
     async (req, res) => {
@@ -177,14 +215,14 @@ router.put(
             return res.status(400).json({ errors: errors.array() })
         }
 
-        const { id } = req.params
+        const { sampleID, isolateID } = req.params
         const updateData = {}
 
         if (req.body.organism !== undefined) updateData.organism = req.body.organism
 
         try {
             const wgs = await prisma.wgs.update({
-                where: { id: parseInt(id) },
+                where: { sampleID_isolateID: { sampleID: parseInt(sampleID), isolateID: parseInt(isolateID) } },
                 data: updateData,
                 include: {
                     sample: true,
@@ -203,22 +241,25 @@ router.put(
     }
 )
 
-// ─── DELETE /api/wgs/:id - Delete WGS record ─────────────────────────────────
+// ─── DELETE /api/wgs/:sampleID/:isolateID - Delete WGS record ────────────────
 
 router.delete(
-    '/:id',
-    [param('id').isInt().withMessage('ID must be an integer')],
+    '/:sampleID/:isolateID',
+    [
+        param('sampleID').isInt().withMessage('Sample ID must be an integer'),
+        param('isolateID').isInt().withMessage('Isolate ID must be an integer'),
+    ],
     async (req, res) => {
         const errors = validationResult(req)
         if (!errors.isEmpty()) {
             return res.status(400).json({ errors: errors.array() })
         }
 
-        const { id } = req.params
+        const { sampleID, isolateID } = req.params
 
         try {
             await prisma.wgs.delete({
-                where: { id: parseInt(id) },
+                where: { sampleID_isolateID: { sampleID: parseInt(sampleID), isolateID: parseInt(isolateID) } },
             })
 
             return res.json({ message: 'WGS record deleted successfully' })

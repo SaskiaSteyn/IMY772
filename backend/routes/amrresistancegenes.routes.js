@@ -65,22 +65,22 @@ router.get('/', async (req, res) => {
     }
 })
 
-// ─── GET /api/amr-resistance-genes/:id - Get AMR record by ID ───────────────
+// ─── GET /api/amr-resistance-genes/sample/:sampleID/gene/:geneSymbol - Get specific AMR record
 
 router.get(
-    '/:id',
-    [param('id').isInt().withMessage('ID must be an integer')],
+    '/sample/:sampleID/gene/:geneSymbol',
+    [param('sampleID').isInt().withMessage('Sample ID must be an integer')],
     async (req, res) => {
         const errors = validationResult(req)
         if (!errors.isEmpty()) {
             return res.status(400).json({ errors: errors.array() })
         }
 
-        const { id } = req.params
+        const { sampleID, geneSymbol } = req.params
 
         try {
             const amrGene = await prisma.amrResistanceGene.findUnique({
-                where: { id: parseInt(id) },
+                where: { sampleID_geneSymbol: { sampleID: parseInt(sampleID), geneSymbol } },
                 include: {
                     sample: true,
                 },
@@ -127,28 +127,23 @@ router.get(
     }
 )
 
-// ─── PUT /api/amr-resistance-genes/:id - Update AMR record ────────────────────
+// ─── PUT /api/amr-resistance-genes/sample/:sampleID/gene/:geneSymbol - Update AMR record
 
 router.put(
-    '/:id',
-    [
-        param('id').isInt().withMessage('ID must be an integer'),
-        body('geneSymbol').optional().trim().isString(),
-    ],
+    '/sample/:sampleID/gene/:geneSymbol',
+    [param('sampleID').isInt().withMessage('Sample ID must be an integer')],
     async (req, res) => {
         const errors = validationResult(req)
         if (!errors.isEmpty()) {
             return res.status(400).json({ errors: errors.array() })
         }
 
-        const { id } = req.params
+        const { sampleID, geneSymbol } = req.params
         const updateData = {}
-
-        if (req.body.geneSymbol !== undefined) updateData.geneSymbol = req.body.geneSymbol
 
         try {
             const amrGene = await prisma.amrResistanceGene.update({
-                where: { id: parseInt(id) },
+                where: { sampleID_geneSymbol: { sampleID: parseInt(sampleID), geneSymbol } },
                 data: updateData,
                 include: {
                     sample: true,
@@ -166,22 +161,22 @@ router.put(
     }
 )
 
-// ─── DELETE /api/amr-resistance-genes/:id - Delete AMR record ────────────────
+// ─── DELETE /api/amr-resistance-genes/sample/:sampleID/gene/:geneSymbol - Delete AMR record
 
 router.delete(
-    '/:id',
-    [param('id').isInt().withMessage('ID must be an integer')],
+    '/sample/:sampleID/gene/:geneSymbol',
+    [param('sampleID').isInt().withMessage('Sample ID must be an integer')],
     async (req, res) => {
         const errors = validationResult(req)
         if (!errors.isEmpty()) {
             return res.status(400).json({ errors: errors.array() })
         }
 
-        const { id } = req.params
+        const { sampleID, geneSymbol } = req.params
 
         try {
             await prisma.amrResistanceGene.delete({
-                where: { id: parseInt(id) },
+                where: { sampleID_geneSymbol: { sampleID: parseInt(sampleID), geneSymbol } },
             })
 
             return res.json({ message: 'AMR resistance gene record deleted successfully' })
