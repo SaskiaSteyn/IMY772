@@ -119,6 +119,51 @@
             "longitude": 27.821098,
             "collected_by": "user_005",
             "predicted_sir_profile": "resistant"
+        },
+        {
+            "sampleID": 9,
+            "water_temperature": 19.2,
+            "ph": 6.9,
+            "tds": 445.0,
+            "do": 8.1,
+            "sample_analysis_type": "metagenomic",
+            "isolation_source": "River water",
+            "collection_date": "2026-03-08",
+            "location_name": "Crocodile River Site A",
+            "latitude": -25.662341,
+            "longitude": 27.765432,
+            "collected_by": "user_002",
+            "predicted_sir_profile": "resistant"
+        },
+        {
+            "sampleID": 10,
+            "water_temperature": 20.5,
+            "ph": 7.0,
+            "tds": 430.0,
+            "do": 8.5,
+            "sample_analysis_type": "metagenomic",
+            "isolation_source": "River water",
+            "collection_date": "2026-03-15",
+            "location_name": "Crocodile River Site A",
+            "latitude": -25.662341,
+            "longitude": 27.765432,
+            "collected_by": "user_002",
+            "predicted_sir_profile": "intermediate"
+        },
+        {
+            "sampleID": 11,
+            "water_temperature": 22.0,
+            "ph": 6.7,
+            "tds": 505.0,
+            "do": 6.9,
+            "sample_analysis_type": "metagenomic",
+            "isolation_source": "Water reservoir",
+            "collection_date": "2026-03-09",
+            "location_name": "Reservoir Site D",
+            "latitude": -25.741234,
+            "longitude": 27.84321,
+            "collected_by": "user_002",
+            "predicted_sir_profile": "resistant"
         }
     ],
     "metagenomic": [

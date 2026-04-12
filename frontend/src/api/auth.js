@@ -33,6 +33,14 @@ export const authApi = {
 
     me: () => request('/api/auth/me'),
 
+    getProfile: () => request('/api/auth/profile'),
+
+    updateProfile: (profilePayload) =>
+        request('/api/auth/profile', {
+            method: 'PUT',
+            body: JSON.stringify(profilePayload),
+        }),
+
     googleLogin: (authPayload) =>
         request('/api/auth/google', {
             method: 'POST',
