@@ -1,24 +1,24 @@
-import { Avatar, Button, Drawer, NavLink } from '@mantine/core'
+import {Avatar, Button, Drawer, NavLink} from '@mantine/core'
 import {
     ChartColumnIncreasing,
     LayoutDashboard,
     Menu,
     User,
 } from 'lucide-react'
-import { useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
-import { useAuth } from '../../context/AuthContext.jsx'
+import {useState} from 'react'
+import {useLocation, useNavigate} from 'react-router-dom'
+import {useAuth} from '../../context/AuthContext.jsx'
 import './dashboard-navbar.scss'
 
 export default function DashboardNavbar() {
     const [drawerOpened, setDrawerOpened] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
-    const { user, logout } = useAuth();
+    const {user, logout} = useAuth();
 
     const handleLogout = async () => {
         setDrawerOpened(false);
-        navigate('/dashboard', { replace: true });
+        navigate('/dashboard', {replace: true});
         await logout();
     };
 
@@ -39,19 +39,19 @@ export default function DashboardNavbar() {
         },
         ...(user
             ? [
-                  {
-                      label: 'Capture Data',
-                      icon: ChartColumnIncreasing,
-                      onClick: () => navigate('/capture-data'),
-                      path: '/capture-data',
-                  },
-                  {
-                      label: 'Profile Settings',
-                      icon: User,
-                      onClick: () => navigate('/profile-settings'),
-                      path: '/profile-settings',
-                  },
-              ]
+                {
+                    label: 'Capture Data',
+                    icon: ChartColumnIncreasing,
+                    onClick: () => navigate('/captured-data'),
+                    path: '/captured-data',
+                },
+                {
+                    label: 'Profile Settings',
+                    icon: User,
+                    onClick: () => navigate('/profile-settings'),
+                    path: '/profile-settings',
+                },
+            ]
             : []),
     ];
 
@@ -91,7 +91,7 @@ export default function DashboardNavbar() {
                                 alt='User avatar'
                                 radius='xl'
                                 size='md'
-                                style={{ cursor: 'pointer' }}
+                                style={{cursor: 'pointer'}}
                                 onClick={handleProfileClick}
                             />
                         </div>
@@ -111,7 +111,7 @@ export default function DashboardNavbar() {
                         src='/microtrack-logo.png'
                         alt='MicroTrack'
                         height='28px'
-                        style={{ cursor: 'pointer' }}
+                        style={{cursor: 'pointer'}}
                     />
                 }
                 position='left'

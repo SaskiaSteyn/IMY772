@@ -465,6 +465,13 @@
     react-textarea-autosize "8.5.9"
     type-fest "^4.41.0"
 
+"@mantine/dates@^9.0.1":
+  version "9.0.1"
+  resolved "https://registry.yarnpkg.com/@mantine/dates/-/dates-9.0.1.tgz#c02a5f08ed7a1de6caef992ebec60037d3829e32"
+  integrity sha512-+zwqqQ4D2I8o/GiEStF66Mheo3abKmS0KaL3XDtDp1D7AVhKmSH3Rz27m48aqW/Kzqb2g2t3VgPzAkpuRsWdBA==
+  dependencies:
+    clsx "^2.1.1"
+
 "@mantine/form@^9.0.1":
   version "9.0.1"
   resolved "https://registry.yarnpkg.com/@mantine/form/-/form-9.0.1.tgz#db6067edf5cb5b4439d6c3a28d04027ac5b669b4"
@@ -1167,6 +1174,11 @@ d3-timer@^3.0.1:
   resolved "https://registry.yarnpkg.com/d3-timer/-/d3-timer-3.0.1.tgz#6284d2a2708285b1abb7e201eda4380af35e63b0"
   integrity sha512-ndfJ/JxxMd3nw31uyKoY2naivF+r29V+Lc0svZxe1JvvIRmi8hUsrMvdOwgS1o6uBHmiz91geQ0ylPP0aj1VUA==
 
+dayjs@^1.11.20:
+  version "1.11.20"
+  resolved "https://registry.yarnpkg.com/dayjs/-/dayjs-1.11.20.tgz#88d919fd639dc991415da5f4cb6f1b6650811938"
+  integrity sha512-YbwwqR/uYpeoP4pu043q+LTDLFBLApUP6VxRihdfNTqu4ubqMlGDLd6ErXhEgsyvY0K6nCs7nggYumAN+9uEuQ==
+
 debug@^4.1.0, debug@^4.3.1, debug@^4.3.2, debug@^4.3.4:
   version "4.4.3"
   resolved "https://registry.yarnpkg.com/debug/-/debug-4.4.3.tgz#c6ae432d9bd9662582fce08709b038c58e9e3d6a"
@@ -1673,6 +1685,11 @@ magic-string@^0.30.5:
   integrity sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==
   dependencies:
     "@jridgewell/sourcemap-codec" "^1.5.5"
+
+mantine-datatable@^8.3.13:
+  version "8.3.13"
+  resolved "https://registry.yarnpkg.com/mantine-datatable/-/mantine-datatable-8.3.13.tgz#7bbb2878a5ead7cb6e61996f0f03335718107d69"
+  integrity sha512-MQ7FNSyKCPeijiWHSeVmFU38m7MgHkomOm/VXm1XFpCAjVxdK8ZCVHGA2e5GK/dIkPX9Sdiwt812YDOhchPiHQ==
 
 merge-stream@^2.0.0:
   version "2.0.0"

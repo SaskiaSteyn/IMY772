@@ -3,6 +3,9 @@ import {ActionIcon, Group} from '@mantine/core';
 import {Edit3, Trash2, Eye} from 'lucide-react';
 
 const SamplesTable = ({records}) => {
+
+
+
     return (
         <DataTable
             withTableBorder

@@ -1,14 +1,15 @@
-import { GoogleOAuthProvider } from '@react-oauth/google';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import {GoogleOAuthProvider} from '@react-oauth/google';
+import {Navigate, Route, Routes} from 'react-router-dom';
 import App from './App.jsx';
-import { AuthProvider, useAuth } from './context/AuthContext.jsx';
+import {AuthProvider, useAuth} from './context/AuthContext.jsx';
 import Dashboard from './pages/dashboard.jsx';
 import Login from './pages/login.jsx';
 import Profile from './pages/profile.jsx';
 import SignUp from './pages/sign-up.jsx';
+import CapturedData from './pages/captured-data/captured-data.jsx';
 
 function AppRoutes() {
-    const { user, loading } = useAuth();
+    const {user, loading} = useAuth();
 
     if (loading) {
         return null;
@@ -48,6 +49,7 @@ function AppRoutes() {
                     user ? <Navigate to='/dashboard' replace /> : <SignUp />
                 }
             />
+            <Route path='/captured-data' element={user ? <CapturedData /> : <Navigate to='/login' replace />} />
             <Route path='*' element={<Navigate to='/dashboard' replace />} />
         </Routes>
     );

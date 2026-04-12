@@ -11,7 +11,6 @@ import VirulenceGenesStep from './steps/virulence-genes-step';
 import JsonUploadStep from './steps/json-upload-step';
 
 const AddDataModal = ({opened, onClose, onAddEntry}) => {
-    // Top‑level modal steps: 0 = method selection, 1 = manual form, 2 = JSON upload
     const [topStep, setTopStep] = useState(0);
     const [stepperIndex, setStepperIndex] = useState(0);
     const [analysisType, setAnalysisType] = useState('');
@@ -73,13 +72,14 @@ const AddDataModal = ({opened, onClose, onAddEntry}) => {
     const nextStepper = () => setStepperIndex((s) => s + 1);
     const prevStepper = () => setStepperIndex((s) => Math.max(s - 1, 0));
 
-    const buildFinalData = () => ({
-        sample: {
+    const buildFinalData = () => {
+        // Base sample fields
+        const base = {
             water_temperature: formData.water_temperature,
             ph: formData.ph,
             tds: formData.tds,
             do: formData.do,
-            sample_analysis_type: formData.sample_analysis_type,
+            sample_analysis_type: formData.sample_analysis_type.toLowerCase(), // "metagenomic" or "wgs"
             isolation_source: formData.isolation_source,
             collection_date: formData.collection_date?.toISOString().split('T')[0],
             location_name: formData.location_name,
@@ -87,15 +87,39 @@ const AddDataModal = ({opened, onClose, onAddEntry}) => {
             longitude: formData.longitude,
             collected_by: formData.collected_by,
             predicted_sir_profile: formData.predicted_sir_profile,
-        },
-        metagenomic: isMetagenomic ? formData.metagenomicRecords : [],
-        wgs: !isMetagenomic ? formData.wgsRecords : [],
-        amrResistanceGenes: isMetagenomic ? formData.amrGenes.filter(g => g.trim() !== '') : [],
-        virulenceGenes: !isMetagenomic ? formData.virulenceGenes.filter(g => g.trim() !== '') : [],
-    });
+        };
+
+        if (isMetagenomic) {
+            const amrGenesList = formData.amrGenes.filter(g => g.trim() !== '');
+            const metagenomicRecords = formData.metagenomicRecords.map(record => ({
+                sequence_name: record.sequence_name,
+                element_type: record.element_type,
+                class: record.class,
+                subclass: record.subclass,
+                amr_resistance_genes: [...amrGenesList], // same genes for every record
+            }));
+            return {
+                ...base,
+                metagenomic: metagenomicRecords,
+            };
+        } else {
+            const virulenceGenesList = formData.virulenceGenes.filter(g => g.trim() !== '');
+            const wgsRecords = formData.wgsRecords.map(record => ({
+                isolateID: record.isolateID ? parseInt(record.isolateID, 10) : null,
+                organism: record.organism,
+                virulence_genes: [...virulenceGenesList],
+            })).filter(record => record.isolateID !== null);
+            return {
+                ...base,
+                wgs: wgsRecords,
+            };
+        }
+    };
 
     const handleSubmit = () => {
-        onAddEntry(buildFinalData());
+        const finalData = buildFinalData();
+        console.log('Final data being submitted:', finalData);
+        onAddEntry(finalData);
         onClose();
         resetModal();
     };

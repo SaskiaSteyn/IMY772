@@ -1,6 +1,6 @@
 import {useEffect} from 'react';
 import {SimpleGrid, TextInput, NumberInput, Select} from '@mantine/core';
-import {DateInput} from '@mantine/dates';
+import {DatePickerInput} from '@mantine/dates';
 
 const SampleInfoStep = ({formData, setFormData, analysisType, setAnalysisType}) => {
     // When analysis type changes, clear the unrelated dynamic records
@@ -54,7 +54,7 @@ const SampleInfoStep = ({formData, setFormData, analysisType, setAnalysisType}) 
                 onChange={(e) => setFormData({...formData, isolation_source: e.target.value})}
             />
 
-            <DateInput
+            <DatePickerInput
                 label="Collection Date"
                 value={formData.collection_date}
                 onChange={(date) => setFormData({...formData, collection_date: date})}
@@ -86,10 +86,12 @@ const SampleInfoStep = ({formData, setFormData, analysisType, setAnalysisType}) 
                 onChange={(e) => setFormData({...formData, collected_by: e.target.value})}
             />
 
-            <TextInput
+            <Select
                 label="Predicted SIR Profile"
+                placeholder="Select profile"
+                data={['Susceptible', 'Intermediate', 'Resistant']}
                 value={formData.predicted_sir_profile}
-                onChange={(e) => setFormData({...formData, predicted_sir_profile: e.target.value})}
+                onChange={(val) => setFormData({...formData, predicted_sir_profile: val || ''})}
             />
         </SimpleGrid>
     );

@@ -1,13 +1,14 @@
 import {useState} from 'react';
 import {Tabs, Button, Group, Title, Container} from '@mantine/core';
 import {Plus, Upload} from 'lucide-react';
-import DashboardNavbar from '../../components/dashboard-navbar';
+import DashboardNavbar from '../../components/dashboard/dashboard-navbar.jsx';
 import SamplesTable from '../../components/captured-data-components/samples-table';
 import MetagenomicTable from '../../components/captured-data-components/metagenomics-table';
 import WgsTable from '../../components/captured-data-components/wgs-table';
 import AmrGenesTable from '../../components/captured-data-components/amr-genes-table';
 import VirulenceGenesTable from '../../components/captured-data-components/virulence-genes-table';
 import AddDataModal from '../../components/captured-data-components/add-data-modal';
+import {createFullSample} from '../../api/sample-data-management.js';
 
 // Initial dummy data (copied from SamplesTable)
 const initialSamples = [
@@ -59,21 +60,20 @@ const initialSamples = [
     },
 ];
 
-let nextId = 1004;
-
 const CapturedData = () => {
     const [modalOpened, setModalOpened] = useState(false);
     const [activeTab, setActiveTab] = useState('samples');
     const [samples, setSamples] = useState(initialSamples);
 
-    const handleAddEntry = (newEntry) => {
-        const newSample = {
-            sampleID: nextId++,
-            ...newEntry.sample,
-        };
-        setSamples(prev => [newSample, ...prev]);
-        // TODO: also store metagenomic/wgs/genes separately if needed for detailed tables
-        // For now, all tables will filter from the samples array
+    const handleAddEntry = async (newEntry) => {
+        try {
+            const createdSample = await createFullSample(newEntry);
+            setSamples(prev => [createdSample, ...prev]);
+            console.log('Sample created successfully:', createdSample);
+        } catch (err) {
+            console.error('Error creating sample:', err);
+            // Optionally show a notification to the user
+        }
     };
 
     // Filter data for each tab

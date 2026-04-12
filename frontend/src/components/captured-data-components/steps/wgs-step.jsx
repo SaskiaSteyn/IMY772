@@ -1,4 +1,4 @@
-import {Button, Stack, TextInput, SimpleGrid, Paper} from '@mantine/core';
+import {Button, Stack, TextInput, NumberInput, SimpleGrid, Paper} from '@mantine/core';
 import {Trash2, Plus} from 'lucide-react';
 
 const WgsStep = ({formData, setFormData}) => {
@@ -25,10 +25,12 @@ const WgsStep = ({formData, setFormData}) => {
             {formData.wgsRecords.map((record, idx) => (
                 <Paper key={idx} withBorder p="md" radius="md">
                     <SimpleGrid cols={2} spacing="md">
-                        <TextInput
+                        <NumberInput
                             label="Isolate ID"
-                            value={record.isolateID}
-                            onChange={(e) => updateRecord(idx, 'isolateID', e.target.value)}
+                            value={record.isolateID === '' ? undefined : record.isolateID}
+                            onChange={(val) => updateRecord(idx, 'isolateID', val === '' ? undefined : val)}
+                            placeholder="Enter numeric ID"
+                            hideControls={false}
                         />
                         <TextInput
                             label="Organism"
