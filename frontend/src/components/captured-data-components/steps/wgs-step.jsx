@@ -1,4 +1,4 @@
-import {Button, Stack, TextInput, NumberInput, SimpleGrid, Paper} from '@mantine/core';
+import {Button, Stack, TextInput, NumberInput, SimpleGrid, Paper, Title} from '@mantine/core';
 import {Trash2, Plus} from 'lucide-react';
 
 const WgsStep = ({formData, setFormData}) => {
@@ -21,37 +21,47 @@ const WgsStep = ({formData, setFormData}) => {
     };
 
     return (
-        <Stack>
+        <Stack gap="md">
             {formData.wgsRecords.map((record, idx) => (
-                <Paper key={idx} withBorder p="md" radius="md">
-                    <SimpleGrid cols={2} spacing="md">
-                        <NumberInput
-                            label="Isolate ID"
-                            value={record.isolateID === '' ? undefined : record.isolateID}
-                            onChange={(val) => updateRecord(idx, 'isolateID', val === '' ? undefined : val)}
-                            placeholder="Enter numeric ID"
-                            hideControls={false}
-                        />
-                        <TextInput
-                            label="Organism"
-                            value={record.organism}
-                            onChange={(e) => updateRecord(idx, 'organism', e.target.value)}
-                        />
-                    </SimpleGrid>
-                    <Button
-                        variant="subtle"
-                        color="red"
-                        onClick={() => removeRecord(idx)}
-                        disabled={formData.wgsRecords.length === 1}
-                        mt="sm"
-                        leftSection={<Trash2 size={16} />}
-                    >
-                        Remove
-                    </Button>
+                <Paper key={idx} withBorder p="md" radius="md" style={{backgroundColor: '#f8f9fa'}}>
+                    <Stack gap="md">
+                        <Title order={5}>Record {idx + 1}</Title>
+                        <SimpleGrid cols={2} spacing="md">
+                            <NumberInput
+                                label="Isolate ID"
+                                value={record.isolateID === '' ? undefined : record.isolateID}
+                                onChange={(val) => updateRecord(idx, 'isolateID', val === '' ? undefined : val)}
+                                placeholder="Enter numeric ID"
+                                hideControls={false}
+                            />
+                            <TextInput
+                                label="Organism"
+                                placeholder="e.g., E. coli"
+                                value={record.organism}
+                                onChange={(e) => updateRecord(idx, 'organism', e.target.value)}
+                            />
+                        </SimpleGrid>
+                        {formData.wgsRecords.length > 1 && (
+                            <Button
+                                variant="light"
+                                color="red"
+                                onClick={() => removeRecord(idx)}
+                                leftSection={<Trash2 size={16} />}
+                                size="sm"
+                                w="fit-content"
+                            >
+                                Remove Record
+                            </Button>
+                        )}
+                    </Stack>
                 </Paper>
             ))}
-            <Button leftSection={<Plus size={16} />} onClick={addRecord} variant="outline">
-                Add Another WGS Record
+            <Button 
+                leftSection={<Plus size={16} />} 
+                onClick={addRecord} 
+                variant="outline"
+            >
+                Add WGS Record
             </Button>
         </Stack>
     );

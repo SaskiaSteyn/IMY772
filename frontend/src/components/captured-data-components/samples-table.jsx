@@ -1,47 +1,57 @@
-import {DataTable} from 'mantine-datatable';
-import {ActionIcon, Group} from '@mantine/core';
-import {Edit3, Trash2, Eye} from 'lucide-react';
+import { DataTable } from 'mantine-datatable';
 
-const SamplesTable = ({records}) => {
-
-
-
+const SamplesTable = ({ records }) => {
     return (
         <DataTable
-            withTableBorder
-            withColumnBorders
+            striped
             highlightOnHover
             records={records}
-            idAccessor="sampleID"
+            idAccessor='sampleID'
             columns={[
-                {accessor: 'sampleID', title: 'Sample ID', width: 100},
-                {accessor: 'water_temperature', title: 'Temp (°C)', width: 110},
-                {accessor: 'ph', title: 'pH', width: 80},
-                {accessor: 'tds', title: 'TDS', width: 90},
-                {accessor: 'do', title: 'DO', width: 80},
-                {accessor: 'sample_analysis_type', title: 'Analysis Type', width: 140},
-                {accessor: 'location_name', title: 'Location'},
-                {accessor: 'collected_by', title: 'Collected By', width: 140},
                 {
-                    accessor: 'actions',
-                    title: 'Actions',
-                    width: 120,
-                    render: (record) => (
-                        <Group gap="xs" wrap="nowrap">
-                            <ActionIcon variant="subtle" color="blue" onClick={() => console.log('View', record.sampleID)}>
-                                <Eye size={18} />
-                            </ActionIcon>
-                            <ActionIcon variant="subtle" color="orange" onClick={() => console.log('Edit', record.sampleID)}>
-                                <Edit3 size={18} />
-                            </ActionIcon>
-                            <ActionIcon variant="subtle" color="red" onClick={() => console.log('Delete', record.sampleID)}>
-                                <Trash2 size={18} />
-                            </ActionIcon>
-                        </Group>
-                    ),
+                    accessor: 'sampleID',
+                    title: 'Sample ID',
+                    width: 100,
+                    textAlignment: 'center',
                 },
+                {
+                    accessor: 'water_temperature',
+                    title: 'Temp (°C)',
+                    width: 110,
+                    textAlignment: 'center',
+                },
+                {
+                    accessor: 'ph',
+                    title: 'pH',
+                    width: 80,
+                    textAlignment: 'center',
+                },
+                {
+                    accessor: 'tds',
+                    title: 'TDS',
+                    width: 90,
+                    textAlignment: 'center',
+                },
+                {
+                    accessor: 'do',
+                    title: 'DO',
+                    width: 80,
+                    textAlignment: 'center',
+                },
+                {
+                    accessor: 'sample_analysis_type',
+                    title: 'Analysis Type',
+                    width: 140,
+                },
+                { accessor: 'location_name', title: 'Location' },
+                { accessor: 'collected_by', title: 'Collected By', width: 140 },
             ]}
-            noRecordsText="No samples found"
+            noRecordsText=''
+            noRecordsIcon={<></>}
+            minHeight={300}
+            styles={{
+                emptyState: { display: 'none' },
+            }}
         />
     );
 };

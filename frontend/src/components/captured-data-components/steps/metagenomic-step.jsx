@@ -1,4 +1,4 @@
-import {Button, Stack, TextInput, SimpleGrid, Paper} from '@mantine/core';
+import {Button, Stack, TextInput, SimpleGrid, Paper, Title} from '@mantine/core';
 import {Trash2, Plus} from 'lucide-react';
 
 const MetagenomicStep = ({formData, setFormData}) => {
@@ -24,45 +24,58 @@ const MetagenomicStep = ({formData, setFormData}) => {
     };
 
     return (
-        <Stack>
+        <Stack gap="md">
             {formData.metagenomicRecords.map((record, idx) => (
-                <Paper key={idx} withBorder p="md" radius="md">
-                    <SimpleGrid cols={4} spacing="md">
-                        <TextInput
-                            label="Sequence Name"
-                            value={record.sequence_name}
-                            onChange={(e) => updateRecord(idx, 'sequence_name', e.target.value)}
-                        />
-                        <TextInput
-                            label="Element Type"
-                            value={record.element_type}
-                            onChange={(e) => updateRecord(idx, 'element_type', e.target.value)}
-                        />
-                        <TextInput
-                            label="Class"
-                            value={record.class}
-                            onChange={(e) => updateRecord(idx, 'class', e.target.value)}
-                        />
-                        <TextInput
-                            label="Subclass"
-                            value={record.subclass}
-                            onChange={(e) => updateRecord(idx, 'subclass', e.target.value)}
-                        />
-                    </SimpleGrid>
-                    <Button
-                        variant="subtle"
-                        color="red"
-                        onClick={() => removeRecord(idx)}
-                        disabled={formData.metagenomicRecords.length === 1}
-                        mt="sm"
-                        leftSection={<Trash2 size={16} />}
-                    >
-                        Remove
-                    </Button>
+                <Paper key={idx} withBorder p="md" radius="md" style={{backgroundColor: '#f8f9fa'}}>
+                    <Stack gap="md">
+                        <Title order={5}>Record {idx + 1}</Title>
+                        <SimpleGrid cols={2} spacing="md">
+                            <TextInput
+                                label="Sequence Name"
+                                placeholder="e.g., SEQ_001"
+                                value={record.sequence_name}
+                                onChange={(e) => updateRecord(idx, 'sequence_name', e.target.value)}
+                            />
+                            <TextInput
+                                label="Element Type"
+                                placeholder="e.g., AMR"
+                                value={record.element_type}
+                                onChange={(e) => updateRecord(idx, 'element_type', e.target.value)}
+                            />
+                            <TextInput
+                                label="Class"
+                                placeholder="e.g., Beta-lactam"
+                                value={record.class}
+                                onChange={(e) => updateRecord(idx, 'class', e.target.value)}
+                            />
+                            <TextInput
+                                label="Subclass"
+                                placeholder="e.g., ESBL"
+                                value={record.subclass}
+                                onChange={(e) => updateRecord(idx, 'subclass', e.target.value)}
+                            />
+                        </SimpleGrid>
+                        {formData.metagenomicRecords.length > 1 && (
+                            <Button
+                                variant="light"
+                                color="red"
+                                onClick={() => removeRecord(idx)}
+                                leftSection={<Trash2 size={16} />}
+                                size="sm"
+                                w="fit-content"
+                            >
+                                Remove Record
+                            </Button>
+                        )}
+                    </Stack>
                 </Paper>
             ))}
-            <Button leftSection={<Plus size={16} />} onClick={addRecord} variant="outline">
-                Add Another Metagenomic Record
+            <Button 
+                leftSection={<Plus size={16} />} 
+                onClick={addRecord} 
+                variant="outline"
+            >
+                Add Metagenomic Record
             </Button>
         </Stack>
     );

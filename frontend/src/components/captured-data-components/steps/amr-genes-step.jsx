@@ -1,4 +1,4 @@
-import {Button, Stack, TextInput, SimpleGrid, Paper} from '@mantine/core';
+import {Button, Stack, TextInput, SimpleGrid, Paper, Group, Text} from '@mantine/core';
 import {Trash2, Plus} from 'lucide-react';
 
 const AmrGenesStep = ({formData, setFormData}) => {
@@ -24,30 +24,39 @@ const AmrGenesStep = ({formData, setFormData}) => {
     };
 
     return (
-        <Stack>
+        <Stack gap="md">
             {genes.map((gene, idx) => (
-                <Paper key={idx} withBorder p="md" radius="md">
-                    <SimpleGrid cols={2} spacing="md" style={{alignItems: 'flex-end'}}>
-                        <TextInput
-                            label="Gene Symbol"
-                            value={gene || ''}
-                            onChange={(e) => updateGene(idx, e.target.value)}
-                            placeholder="e.g., blaCTX-M-15"
-                        />
-                        <Button
-                            variant="subtle"
-                            color="red"
-                            onClick={() => removeGene(idx)}
-                            disabled={genes.length === 1}
-                            leftSection={<Trash2 size={16} />}
-                        >
-                            Remove
-                        </Button>
-                    </SimpleGrid>
+                <Paper key={idx} withBorder p="md" radius="md" style={{backgroundColor: '#f8f9fa'}}>
+                    <Group gap="md" align="flex-end">
+                        <div style={{flex: 1}}>
+                            <Text size="sm" fw={500} mb="xs">Gene {idx + 1}</Text>
+                            <TextInput
+                                label="Gene Symbol"
+                                value={gene || ''}
+                                onChange={(e) => updateGene(idx, e.target.value)}
+                                placeholder="e.g., blaCTX-M-15"
+                            />
+                        </div>
+                        {genes.length > 1 && (
+                            <Button
+                                variant="light"
+                                color="red"
+                                onClick={() => removeGene(idx)}
+                                leftSection={<Trash2 size={16} />}
+                                size="sm"
+                            >
+                                Remove
+                            </Button>
+                        )}
+                    </Group>
                 </Paper>
             ))}
-            <Button leftSection={<Plus size={16} />} onClick={addGene} variant="outline">
-                Add Another AMR Gene
+            <Button 
+                leftSection={<Plus size={16} />} 
+                onClick={addGene} 
+                variant="outline"
+            >
+                Add AMR Gene
             </Button>
         </Stack>
     );

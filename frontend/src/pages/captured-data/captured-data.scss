@@ -2,5 +2,31 @@
 
 .captured-data-page {
     min-height: 100vh;
-    background: $background-color;
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+}
+
+.captured-data-container {
+    width: 100%;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.data-tabs {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+
+    [role='tabpanel'] {
+        width: 100%;
+    }
+
+    .mantine-DataTable-root {
+        width: 100%;
+        table {
+            width: 100%;
+        }
+    }
 }

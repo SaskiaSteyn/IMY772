@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {Stack, Button, Text, Group, FileInput, Alert} from '@mantine/core';
+import {Stack, Button, Text, Group, FileInput, Alert, Center} from '@mantine/core';
 import {Upload, ArrowLeft} from 'lucide-react';
 
 const JsonUploadStep = ({onSubmit, onBack}) => {
@@ -29,21 +29,47 @@ const JsonUploadStep = ({onSubmit, onBack}) => {
     };
 
     return (
-        <Stack align="center" py="xl">
+        <Stack gap="lg" py="xl">
+            <Center>
+                <Text size="lg" fw={600} ta="center">
+                    Upload JSON File
+                </Text>
+            </Center>
+            
             <FileInput
-                label="Upload JSON file"
-                placeholder="Click to select"
+                label="Select a JSON file"
+                placeholder="Click to select file"
                 accept="application/json"
                 value={file}
                 onChange={setFile}
-                style={{width: '100%'}}
+                icon={<Upload size={16} />}
             />
-            {error && <Alert color="red" title="Error">{error}</Alert>}
-            <Group mt="md">
-                <Button variant="default" onClick={onBack} leftSection={<ArrowLeft size={18} />}>
+
+            {file && (
+                <Alert color="blue" title="File Selected">
+                    {file.name}
+                </Alert>
+            )}
+
+            {error && (
+                <Alert color="red" title="Error">
+                    {error}
+                </Alert>
+            )}
+
+            <Group justify="space-between" mt="lg">
+                <Button 
+                    variant="default" 
+                    onClick={onBack} 
+                    leftSection={<ArrowLeft size={18} />}
+                >
                     Back
                 </Button>
-                <Button onClick={handleUpload} leftSection={<Upload size={18} />}>
+                <Button 
+                    onClick={handleUpload} 
+                    leftSection={<Upload size={18} />}
+                    disabled={!file}
+                >
                     Upload & Add
                 </Button>
             </Group>
