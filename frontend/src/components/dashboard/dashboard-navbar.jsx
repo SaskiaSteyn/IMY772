@@ -1,14 +1,14 @@
-import { Avatar, Button, Drawer, NavLink } from '@mantine/core';
+import { Avatar, Button, Drawer, NavLink } from '@mantine/core'
 import {
     ChartColumnIncreasing,
     LayoutDashboard,
     Menu,
     User,
-} from 'lucide-react';
-import { useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext.jsx';
-import './dashboard-navbar.scss';
+} from 'lucide-react'
+import { useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext.jsx'
+import './dashboard-navbar.scss'
 
 export default function DashboardNavbar() {
     const [drawerOpened, setDrawerOpened] = useState(false);
@@ -17,8 +17,9 @@ export default function DashboardNavbar() {
     const { user, logout } = useAuth();
 
     const handleLogout = async () => {
+        setDrawerOpened(false);
+        navigate('/dashboard', { replace: true });
         await logout();
-        navigate('/dashboard');
     };
 
     const handleLoginClick = () => {
@@ -36,18 +37,22 @@ export default function DashboardNavbar() {
             onClick: () => navigate('/dashboard'),
             path: '/dashboard',
         },
-        {
-            label: 'Captured Data',
-            icon: ChartColumnIncreasing,
-            onClick: () => navigate('/captured-data'),
-            path: '/captured-data',
-        },
-        {
-            label: 'Profile Settings',
-            icon: User,
-            onClick: () => navigate('/profile-settings'),
-            path: '/profile-settings',
-        },
+        ...(user
+            ? [
+                  {
+                      label: 'Capture Data',
+                      icon: ChartColumnIncreasing,
+                      onClick: () => navigate('/capture-data'),
+                      path: '/capture-data',
+                  },
+                  {
+                      label: 'Profile Settings',
+                      icon: User,
+                      onClick: () => navigate('/profile-settings'),
+                      path: '/profile-settings',
+                  },
+              ]
+            : []),
     ];
 
     return (

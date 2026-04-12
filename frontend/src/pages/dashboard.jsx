@@ -1,8 +1,9 @@
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useState } from 'react';
-import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet';
-import DashboardNavbar from '../components/dashboard-navbar.jsx';
+import { MapContainer, Marker, TileLayer } from 'react-leaflet';
+import DashboardNavbar from '../components/dashboard/dashboard-navbar.jsx';
+import SamplePanel from '../components/dashboard/sample-panel.jsx';
 import './dashboard.scss';
 
 // Fix for default markers not showing in React Leaflet
@@ -17,25 +18,31 @@ L.Icon.Default.mergeOptions({
 });
 
 // Create custom circular marker icon
-const createCustomIcon = (color = '#52C41A') => {
+const createCustomIcon = (color = '#52C41A', isSelected = false) => {
+    const size = isSelected ? 26 : 18;
+    const anchor = isSelected ? 18 : 12;
+
     return L.divIcon({
         html: `
             <div style="
-                width: 18px;
-                height: 18px;
+                width: ${size}px;
+                height: ${size}px;
                 background-color: ${color};
                 border-radius: 50%;
+                ${isSelected ? `border: 3px solid #1890ff;` : ''}
                 box-shadow: 
-                    0 0 0 3px rgba(82, 196, 26, 0.4),
+                    0 0 0 3px rgba(125, 179, 68, 0.4),
+                    ${isSelected ? '0 0 0 8px rgba(24, 144, 255, 0.2),' : ''}
                     0 2px 8px rgba(0, 0, 0, 0.2);
                 display: flex;
                 align-items: center;
                 justify-content: center;
+                transition: all 0.2s ease;
             "></div>
         `,
-        iconSize: [18, 18],
-        iconAnchor: [12, 12],
-        popupAnchor: [0, -12],
+        iconSize: [size, size],
+        iconAnchor: [anchor, anchor],
+        popupAnchor: [0, -anchor],
         className: 'custom-marker-icon',
     });
 };
@@ -44,6 +51,8 @@ export default function Dashboard() {
     const [samples, setSamples] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [selectedLocationSamples, setSelectedLocationSamples] =
+        useState(null);
 
     // Fetch samples from the API
     useEffect(() => {
@@ -87,6 +96,24 @@ export default function Dashboard() {
     // Center coordinates for South Africa
     const centerCoord = [-30.5, 22.5];
 
+    // Get unique locations (one per location_name + coordinates)
+    const uniqueLocations = samples.reduce((acc, sample) => {
+        const exists = acc.some(
+            (loc) =>
+                loc.location_name === sample.location_name &&
+                parseFloat(loc.latitude) === parseFloat(sample.latitude) &&
+                parseFloat(loc.longitude) === parseFloat(sample.longitude),
+        );
+        if (!exists) {
+            acc.push({
+                location_name: sample.location_name,
+                latitude: sample.latitude,
+                longitude: sample.longitude,
+            });
+        }
+        return acc;
+    }, []);
+
     if (loading) {
         return (
             <div className='dashboard-container'>
@@ -119,62 +146,52 @@ export default function Dashboard() {
                         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                         url='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
                     />
-                    {samples.map((sample) => (
-                        <Marker
-                            key={sample.sampleID}
-                            position={[
-                                parseFloat(sample.latitude),
-                                parseFloat(sample.longitude),
-                            ]}
-                            icon={createCustomIcon('#7db344')}
-                        >
-                            <Popup>
-                                <div className='popup-content'>
-                                    <h3>{sample.location_name}</h3>
-                                    <p>
-                                        <strong>Sample ID:</strong>{' '}
-                                        {sample.sampleID}
-                                    </p>
-                                    <p>
-                                        <strong>Analysis Type:</strong>{' '}
-                                        {sample.sample_analysis_type || 'N/A'}
-                                    </p>
-                                    <p>
-                                        <strong>Collection Date:</strong>{' '}
-                                        {sample.collection_date
-                                            ? new Date(
-                                                  sample.collection_date,
-                                              ).toLocaleDateString()
-                                            : 'N/A'}
-                                    </p>
-                                    <p>
-                                        <strong>Collected By:</strong>{' '}
-                                        {sample.collected_by || 'N/A'}
-                                    </p>
-                                    <p>
-                                        <strong>Water Temperature:</strong>{' '}
-                                        {sample.water_temperature || 'N/A'}°C
-                                    </p>
-                                    <p>
-                                        <strong>pH:</strong>{' '}
-                                        {sample.ph || 'N/A'}
-                                    </p>
-                                    <p>
-                                        <strong>Lat:</strong>{' '}
-                                        {parseFloat(sample.latitude).toFixed(4)}
-                                    </p>
-                                    <p>
-                                        <strong>Lng:</strong>{' '}
-                                        {parseFloat(sample.longitude).toFixed(
-                                            4,
-                                        )}
-                                    </p>
-                                </div>
-                            </Popup>
-                        </Marker>
-                    ))}
+                    {uniqueLocations.map((location) => {
+                        const isSelected =
+                            selectedLocationSamples?.location_name ===
+                            location.location_name;
+                        return (
+                            <Marker
+                                key={`${location.location_name}-${location.latitude}-${location.longitude}`}
+                                position={[
+                                    parseFloat(location.latitude),
+                                    parseFloat(location.longitude),
+                                ]}
+                                icon={createCustomIcon('#7db344', isSelected)}
+                                eventHandlers={{
+                                    click: () => {
+                                        const locationSamples = samples
+                                            .filter(
+                                                (s) =>
+                                                    s.location_name ===
+                                                    location.location_name,
+                                            )
+                                            .sort(
+                                                (a, b) =>
+                                                    new Date(
+                                                        b.collection_date,
+                                                    ) -
+                                                    new Date(a.collection_date),
+                                            );
+                                        setSelectedLocationSamples({
+                                            location_name:
+                                                location.location_name,
+                                            latitude: location.latitude,
+                                            longitude: location.longitude,
+                                            samples: locationSamples,
+                                        });
+                                    },
+                                }}
+                            />
+                        );
+                    })}
                 </MapContainer>
             </div>
+
+            <SamplePanel
+                locationData={selectedLocationSamples}
+                onClose={() => setSelectedLocationSamples(null)}
+            />
         </div>
     );
 }

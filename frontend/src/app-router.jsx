@@ -4,7 +4,7 @@ import App from './App.jsx';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import Dashboard from './pages/dashboard.jsx';
 import Login from './pages/login.jsx';
-import Profile from './pages/Profile.jsx';
+import Profile from './pages/profile.jsx';
 import SignUp from './pages/sign-up.jsx';
 
 function AppRoutes() {
