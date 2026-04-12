@@ -83,7 +83,7 @@ function AppRoutes() {
                     user ? <Navigate to='/dashboard' replace /> : <SignUp />
                 }
             />
-            <Route path='/captured-data' element={user ? <CapturedData /> : <Navigate to='/login' replace />} />
+            <Route path='/capture-data' element={user ? <CapturedData /> : <Navigate to='/login' replace />} />
             <Route path='*' element={<Navigate to='/dashboard' replace />} />
         </Routes>
     );
