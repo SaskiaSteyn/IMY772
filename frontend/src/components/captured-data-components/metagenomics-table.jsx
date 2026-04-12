@@ -1,0 +1,22 @@
+import {DataTable} from 'mantine-datatable';
+
+const MetagenomicsTable = ({records}) => {
+    return (
+        <DataTable
+            withTableBorder
+            withColumnBorders
+            records={records}
+            idAccessor="sampleID"
+            columns={[
+                {accessor: 'sampleID', title: 'Sample ID'},
+                {accessor: 'water_temperature', title: 'Temp (°C)'},
+                {accessor: 'ph', title: 'pH'},
+                {accessor: 'sample_analysis_type', title: 'Analysis Type'},
+                {accessor: 'location_name', title: 'Location'},
+                // Add actions if needed
+            ]}
+        />
+    );
+};
+
+export default MetagenomicsTable;
