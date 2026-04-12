@@ -1,12 +1,18 @@
 import { DataTable } from 'mantine-datatable';
 
-const AMRGenesTable = ({ records }) => {
+const AMRGenesTable = ({ records, highlightedSampleIds }) => {
     return (
         <DataTable
             striped
             highlightOnHover
             records={records}
             idAccessor='sampleID'
+            rowSx={(record) => ({
+                backgroundColor: highlightedSampleIds?.has(record.sampleID)
+                    ? 'rgba(59, 130, 246, 0.2)'
+                    : undefined,
+                transition: 'background-color 0.3s ease',
+            })}
             columns={[
                 {
                     accessor: 'sampleID',

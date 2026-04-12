@@ -19,7 +19,7 @@ import VirulenceGenesStep from './steps/virulence-genes-step';
 import JsonUploadStep from './steps/json-upload-step';
 
 const AddDataModal = ({ opened, onClose, onAddEntry }) => {
-    const [topStep, setTopStep] = useState(0);
+    const [topStep, setTopStep] = useState(1);
     const [stepperIndex, setStepperIndex] = useState(0);
     const [analysisType, setAnalysisType] = useState('');
 
@@ -56,7 +56,7 @@ const AddDataModal = ({ opened, onClose, onAddEntry }) => {
     };
 
     const resetModal = () => {
-        setTopStep(0);
+        setTopStep(1);
         setStepperIndex(0);
         setAnalysisType('');
         setFormData({
@@ -160,7 +160,7 @@ const AddDataModal = ({ opened, onClose, onAddEntry }) => {
     };
 
     const handleJsonBack = () => {
-        setTopStep(0);
+        setTopStep(1);
     };
 
     const closeModal = () => {

@@ -106,3 +106,13 @@ export const createFullSample = async (data) => {
         throw error;
     }
 };
+
+export const fetchAllSamples = async () => {
+    try {
+        const response = await request('/api/samples');
+        return response.samples || [];
+    } catch (error) {
+        console.error('API Error fetching samples:', error);
+        throw error;
+    }
+};

@@ -1,0 +1,7 @@
+sampleID,latitude,longitude,water_temperature,ph,tds,do,sample_analysis_type,isolation_source,collection_date,location_name,collected_by,predicted_sir_profile,sequence_name,element_type,class,subclass,amr_resistance_genes
+68,-25.7479,28.2293,22.5,7.1,95.2,8.5,Metagenomic,River water,2025-11-20,University of Pretoria,Sarah Johnson,Susceptible,seq_68_001,transposon,Class A,Serine carbapenemase,"ampC, blaTEM"
+68,-25.7479,28.2293,22.5,7.1,95.2,8.5,Metagenomic,River water,2025-11-20,University of Pretoria,Sarah Johnson,Susceptible,seq_68_002,insertion_sequence,Class C,Cephalosporinase,cephalosporinase
+69,-25.7500,28.2310,21.8,6.8,102.5,7.9,WGS,Dam,2025-11-21,Pretoria River,Mike Chen,Resistant,,,,,
+70,-25.7510,28.2320,23.2,7.3,98.0,8.1,Metagenomic,Lake,2025-11-22,Kromdraai,Emma Wilson,Intermediate,seq_70_001,plasmid,Class B,Metallo-beta-lactamase,"blaVIM, blaIMP"
+71,-25.7520,28.2330,24.1,7.0,110.5,8.3,WGS,Spring,2025-11-23,Hartbeespoort,David Lee,Susceptible,,,,,
+72,-25.7530,28.2340,20.5,6.9,88.0,7.6,Metagenomic,Borehole,2025-11-24,Pretoria North,Lisa Brown,Intermediate,seq_72_001,transposon,Class D,Oxacillinase,"blaOXA-48, blaOXA-181"
