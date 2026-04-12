@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
 import './dashboard-navbar.scss';
 
 export default function DashboardNavbar() {
