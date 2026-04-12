@@ -272,7 +272,7 @@ export default function Profile() {
         return () => {
             isMounted = false;
         };
-    }, [user?.userID]);
+    }, [user]);
 
     const activeData = isEditing ? draftData : profileData;
     const fullName = `${activeData.name} ${activeData.surname}`.trim();

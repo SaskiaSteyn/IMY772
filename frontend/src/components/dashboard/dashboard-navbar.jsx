@@ -3,6 +3,7 @@ import {
     ChartColumnIncreasing,
     LayoutDashboard,
     Menu,
+    Shield,
     User,
 } from 'lucide-react'
 import {useState} from 'react'
@@ -15,6 +16,8 @@ export default function DashboardNavbar() {
     const navigate = useNavigate();
     const location = useLocation();
     const {user, logout} = useAuth();
+    const isAuthenticated = Boolean(user);
+    const isAdmin = user?.role === 'admin';
 
     const handleLogout = async () => {
         setDrawerOpened(false);
@@ -37,13 +40,13 @@ export default function DashboardNavbar() {
             onClick: () => navigate('/dashboard'),
             path: '/dashboard',
         },
-        ...(user
+        ...(isAuthenticated
             ? [
                 {
                     label: 'Capture Data',
                     icon: ChartColumnIncreasing,
-                    onClick: () => navigate('/captured-data'),
-                    path: '/captured-data',
+                    onClick: () => navigate('/capture-data'),
+                    path: '/capture-data',
                 },
                 {
                     label: 'Profile Settings',
@@ -51,6 +54,16 @@ export default function DashboardNavbar() {
                     onClick: () => navigate('/profile-settings'),
                     path: '/profile-settings',
                 },
+                ...(isAdmin
+                    ? [
+                        {
+                            label: 'Admin Dashboard',
+                            icon: Shield,
+                            onClick: () => navigate('/admin/users'),
+                            path: '/admin',
+                        },
+                    ]
+                    : []),
             ]
             : []),
     ];
@@ -123,10 +136,14 @@ export default function DashboardNavbar() {
                     const isProfileRoute =
                         location.pathname === '/profile' ||
                         location.pathname === '/profile-settings';
+                    const isAdminRoute =
+                        location.pathname.startsWith('/admin');
                     const isActive =
                         item.path === '/profile-settings'
                             ? isProfileRoute
-                            : location.pathname === item.path;
+                            : item.path === '/admin'
+                                ? isAdminRoute
+                                : location.pathname === item.path;
                     return (
                         <NavLink
                             key={item.label}

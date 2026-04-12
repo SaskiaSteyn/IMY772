@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useState } from 'react';
 import { authApi } from '../api/auth.js';
 
@@ -15,9 +16,15 @@ export function AuthProvider({ children }) {
 
     // On mount, check if there is a valid session cookie
     useEffect(() => {
-        refreshUser()
-            .catch(() => setUser(null))
-            .finally(() => setLoading(false));
+        (async () => {
+            try {
+                await refreshUser();
+            } catch {
+                setUser(null);
+            } finally {
+                setLoading(false);
+            }
+        })();
     }, []);
 
     async function login(email, password) {
@@ -44,7 +51,17 @@ export function AuthProvider({ children }) {
     }
 
     return (
-        <AuthContext.Provider value={{ user, loading, login, register, googleLogin, logout, refreshUser }}>
+        <AuthContext.Provider
+            value={{
+                user,
+                loading,
+                login,
+                register,
+                googleLogin,
+                logout,
+                refreshUser,
+            }}
+        >
             {children}
         </AuthContext.Provider>
     );

@@ -44,9 +44,34 @@ function GoogleIcon() {
     );
 }
 
+function GoogleSignInButton({ loading, onSuccess, onError }) {
+    const runGoogleLogin = useGoogleLogin({
+        onSuccess,
+        onError,
+        flow: 'implicit',
+        scope: 'openid email profile',
+    });
+
+    return (
+        <Button
+            variant='outline'
+            fullWidth
+            className='auth-google-btn'
+            leftSection={<GoogleIcon />}
+            loading={loading}
+            onClick={() => runGoogleLogin()}
+        >
+            Sign in with Google
+        </Button>
+    );
+}
+
 export default function Login() {
     const navigate = useNavigate();
     const { login, googleLogin } = useAuth();
+    const isGoogleAuthEnabled = Boolean(
+        import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim()
+    );
     const [loading, setLoading] = useState(false);
     const [googleLoading, setGoogleLoading] = useState(false);
     const [error, setError] = useState('');
@@ -73,23 +98,18 @@ export default function Login() {
         }
     }
 
-    const handleGoogleLogin = useGoogleLogin({
-        onSuccess: async (tokenResponse) => {
-            setGoogleLoading(true);
-            setError('');
-            try {
-                await googleLogin({ accessToken: tokenResponse.access_token });
-                navigate('/app');
-            } catch (err) {
-                setError(err.message);
-            } finally {
-                setGoogleLoading(false);
-            }
-        },
-        onError: () => setError('Google sign-in failed'),
-        flow: 'implicit',
-        scope: 'openid email profile',
-    });
+    async function handleGoogleSuccess(tokenResponse) {
+        setGoogleLoading(true);
+        setError('');
+        try {
+            await googleLogin({ accessToken: tokenResponse.access_token });
+            navigate('/app');
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setGoogleLoading(false);
+        }
+    }
 
     return (
         <div className='auth-page'>
@@ -155,18 +175,18 @@ export default function Login() {
                             </Anchor>
                         </div>
 
-                        <Divider label='or' labelPosition='center' />
-
-                        <Button
-                            variant='outline'
-                            fullWidth
-                            className='auth-google-btn'
-                            leftSection={<GoogleIcon />}
-                            loading={googleLoading}
-                            onClick={() => handleGoogleLogin()}
-                        >
-                            Sign in with Google
-                        </Button>
+                        {isGoogleAuthEnabled && (
+                            <>
+                                <Divider label='or' labelPosition='center' />
+                                <GoogleSignInButton
+                                    loading={googleLoading}
+                                    onSuccess={handleGoogleSuccess}
+                                    onError={() =>
+                                        setError('Google sign-in failed')
+                                    }
+                                />
+                            </>
+                        )}
 
                         <div className='auth-footer'>
                             <Text size='sm' component='span'>

@@ -5,6 +5,7 @@
     "type": "module",
     "scripts": {
         "start": "node server.js",
+        "seed:admin": "dotenv -e ../.env -- node src/utils/seed-admin.js",
         "seed": "dotenv -e ../.env -- node prisma/seed.js",
         "prisma:generate": "dotenv -e ../.env -- prisma generate",
         "prisma:pull": "dotenv -e ../.env -- prisma db pull",
