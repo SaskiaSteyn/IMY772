@@ -1,12 +1,20 @@
 import bcrypt from 'bcryptjs'
 import prisma from '../../lib/prisma.js'
 
-const email = process.env.ADMIN_EMAIL || 'admin@microtrack.local'
-const password = process.env.ADMIN_PASSWORD || 'AdminPass123!'
-const name = process.env.ADMIN_NAME || 'Admin'
-const surname = process.env.ADMIN_SURNAME || 'User'
-
 async function run() {
+    const email = process.env.ADMIN_EMAIL?.trim()
+    const password = process.env.ADMIN_PASSWORD
+    const name = process.env.ADMIN_NAME?.trim() || 'Admin'
+    const surname = process.env.ADMIN_SURNAME?.trim() || 'User'
+
+    if (!email || !password) {
+        console.error(
+            'Missing ADMIN_EMAIL or ADMIN_PASSWORD. Add both to the project .env file before running seed:admin.'
+        )
+        process.exitCode = 1
+        return
+    }
+
     try {
         const existing = await prisma.user.findUnique({ where: { email } })
 
