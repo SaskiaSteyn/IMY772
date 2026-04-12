@@ -7,11 +7,34 @@ import prisma from '../lib/prisma.js'
 
 const router = Router()
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
+const jwtSecret = process.env.JWT_SECRET || 'dev_jwt_secret_change_me'
+
+const publicUserSelect = {
+    userID: true,
+    name: true,
+    surname: true,
+    email: true,
+    role: true,
+    created_at: true,
+}
+
+const loginUserSelect = {
+    ...publicUserSelect,
+    password_hash: true,
+}
+
+const profileUserSelect = {
+    ...publicUserSelect,
+    bio: true,
+    interests: true,
+    education: true,
+    experience: true,
+}
 
 // ─── Cookie helper ───────────────────────────────────────────────────────────
 
 function issueTokenCookie(res, payload) {
-    const token = jwt.sign(payload, process.env.JWT_SECRET, {
+    const token = jwt.sign(payload, jwtSecret, {
         expiresIn: process.env.JWT_EXPIRES_IN || '7d',
     })
 
@@ -35,7 +58,7 @@ function getUserIdFromCookie(req) {
     if (!token) return null
 
     try {
-        const payload = jwt.verify(token, process.env.JWT_SECRET)
+        const payload = jwt.verify(token, jwtSecret)
         return payload.userID
     } catch {
         return null
@@ -63,7 +86,10 @@ function normalizeEntryArray(value) {
 }
 
 async function findOrCreateGoogleUser({ email, given_name, family_name, sub: googleSub }) {
-    let user = await prisma.user.findUnique({ where: { email } })
+    let user = await prisma.user.findUnique({
+        where: { email },
+        select: publicUserSelect,
+    })
 
     if (!user) {
         user = await prisma.user.create({
@@ -71,8 +97,9 @@ async function findOrCreateGoogleUser({ email, given_name, family_name, sub: goo
                 name: given_name || 'Google',
                 surname: family_name || 'User',
                 email,
-                password_hash: await bcrypt.hash(`${googleSub}${process.env.JWT_SECRET}`, 12),
+                password_hash: await bcrypt.hash(`${googleSub}${jwtSecret}`, 12),
             },
+            select: publicUserSelect,
         })
     }
 
@@ -100,7 +127,10 @@ router.post(
         const { name, surname, email, password } = req.body
 
         try {
-            const existing = await prisma.user.findUnique({ where: { email } })
+            const existing = await prisma.user.findUnique({
+                where: { email },
+                select: { userID: true },
+            })
 
             if (existing) {
                 return res.status(409).json({ message: 'That email is already in use' })
@@ -110,6 +140,7 @@ router.post(
 
             const user = await prisma.user.create({
                 data: { name, surname, email, password_hash },
+                select: publicUserSelect,
             })
 
             issueTokenCookie(res, { userID: user.userID, email: user.email, role: user.role })
@@ -139,7 +170,10 @@ router.post(
         const { email, password } = req.body
 
         try {
-            const user = await prisma.user.findUnique({ where: { email } })
+            const user = await prisma.user.findUnique({
+                where: { email },
+                select: loginUserSelect,
+            })
 
             if (!user) {
                 return res.status(401).json({ message: 'Invalid email or password' })
@@ -177,9 +211,10 @@ router.get('/me', async (req, res) => {
     }
 
     try {
-        const payload = jwt.verify(token, process.env.JWT_SECRET)
+        const payload = jwt.verify(token, jwtSecret)
         const user = await prisma.user.findUnique({
             where: { userID: payload.userID },
+            select: publicUserSelect,
         })
 
         if (!user) {
@@ -201,7 +236,24 @@ router.get('/profile', async (req, res) => {
     }
 
     try {
-        const user = await prisma.user.findUnique({ where: { userID } })
+        let user
+
+        try {
+            user = await prisma.user.findUnique({
+                where: { userID },
+                select: profileUserSelect,
+            })
+        } catch (error) {
+            if (error.code !== 'P2022') {
+                throw error
+            }
+
+            user = await prisma.user.findUnique({
+                where: { userID },
+                select: publicUserSelect,
+            })
+        }
+
         if (!user) {
             return res.status(404).json({ message: 'User not found' })
         }
@@ -252,36 +304,62 @@ router.put('/profile', async (req, res) => {
     }
 
     try {
-        const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } })
+        const existing = await prisma.user.findUnique({
+            where: { email: normalizedEmail },
+            select: { userID: true },
+        })
         if (existing && existing.userID !== userID) {
             return res.status(409).json({ message: 'That email is already in use' })
         }
 
-        const updated = await prisma.user.update({
-            where: { userID },
-            data: {
-                name: normalizedName,
-                surname: normalizedSurname,
-                role: String(role || 'logged_in_user').trim() || 'logged_in_user',
-                email: normalizedEmail,
-                bio: String(bio || ''),
-                interests: normalizeStringArray(interests),
-                education: normalizeEntryArray(education).map((entry) => ({
-                    institution: entry.institution,
-                    qualification: entry.qualification,
-                    description: entry.description,
-                    startDate: entry.startDate,
-                    endDate: entry.endDate,
-                })),
-                experience: normalizeEntryArray(experience).map((entry) => ({
-                    role: entry.role,
-                    organization: entry.organization,
-                    description: entry.description,
-                    startDate: entry.startDate,
-                    endDate: entry.endDate,
-                })),
-            },
-        })
+        const baseData = {
+            name: normalizedName,
+            surname: normalizedSurname,
+            role: String(role || 'logged_in_user').trim() || 'logged_in_user',
+            email: normalizedEmail,
+        }
+
+        const profileData = {
+            bio: String(bio || ''),
+            interests: normalizeStringArray(interests),
+            education: normalizeEntryArray(education).map((entry) => ({
+                institution: entry.institution,
+                qualification: entry.qualification,
+                description: entry.description,
+                startDate: entry.startDate,
+                endDate: entry.endDate,
+            })),
+            experience: normalizeEntryArray(experience).map((entry) => ({
+                role: entry.role,
+                organization: entry.organization,
+                description: entry.description,
+                startDate: entry.startDate,
+                endDate: entry.endDate,
+            })),
+        }
+
+        let updated
+
+        try {
+            updated = await prisma.user.update({
+                where: { userID },
+                data: {
+                    ...baseData,
+                    ...profileData,
+                },
+                select: profileUserSelect,
+            })
+        } catch (error) {
+            if (error.code !== 'P2022') {
+                throw error
+            }
+
+            updated = await prisma.user.update({
+                where: { userID },
+                data: baseData,
+                select: publicUserSelect,
+            })
+        }
 
         issueTokenCookie(res, {
             userID: updated.userID,
