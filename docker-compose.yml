@@ -26,9 +26,20 @@ services:
         volumes:
             - ./backend:/app
             - /app/node_modules
+            - backend_state:/app/state
         ports:
             - '3000:3000'
-        command: sh -c "yarn install && npx prisma migrate deploy && npx prisma db seed && yarn start"
+        command: >
+            sh -c "
+            yarn install &&
+            npx prisma migrate deploy || npx prisma migrate resolve --rolled-back &&
+            mkdir -p /app/state &&
+            if [ ! -f /app/state/.seeded ]; then
+              node prisma/seed.js &&
+              touch /app/state/.seeded;
+            fi &&
+            yarn start
+            "
         depends_on:
             db:
                 condition: service_healthy
@@ -48,3 +59,4 @@ services:
 
 volumes:
     postgres_data:
+    backend_state:
