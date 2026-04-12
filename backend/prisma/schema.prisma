@@ -44,11 +44,11 @@ model Sample {
   predicted_sir_profile   String?                @db.VarChar(255)
   created_at              DateTime               @default(now())
   updated_at              DateTime               @updatedAt
-  
+
   // Relations
   metagenomic             Metagenomic[]
-  wgs                     WGS[]
-  amrResistanceGenes      AMRResistanceGene[]
+  wgs                     Wgs[]
+  amrResistanceGenes      AmrResistanceGene[]
 
   @@map("samples")
 }
@@ -66,7 +66,7 @@ model Metagenomic {
   @@map("metagenomic")
 }
 
-model WGS {
+model Wgs {
   sampleID        Int
   isolateID       Int
   organism        String? @db.VarChar(255)
@@ -78,7 +78,7 @@ model WGS {
   @@map("wgs")
 }
 
-model AMRResistanceGene {
+model AmrResistanceGene {
   sampleID        Int
   geneSymbol      String  @db.VarChar(255)
 
@@ -93,7 +93,7 @@ model VirulenceGene {
   isolateID       Int
   geneSymbol      String  @db.VarChar(255)
 
-  wgs             WGS     @relation(fields: [sampleID, isolateID], references: [sampleID, isolateID])
+  wgs             Wgs     @relation(fields: [sampleID, isolateID], references: [sampleID, isolateID])
 
   @@id([sampleID, isolateID, geneSymbol])
   @@map("virulenceGenes")

@@ -1,7 +1,7 @@
-import { GoogleOAuthProvider } from '@react-oauth/google';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import {GoogleOAuthProvider} from '@react-oauth/google';
+import {Navigate, Route, Routes} from 'react-router-dom';
 import App from './App.jsx';
-import { AuthProvider, useAuth } from './context/AuthContext.jsx';
+import {AuthProvider, useAuth} from './context/AuthContext.jsx';
 import AmrResistanceGenes from './pages/admin/AmrResistanceGenes.jsx';
 import AdminLayout from './pages/admin/AdminLayout.jsx';
 import Measurements from './pages/admin/Measurements.jsx';
@@ -13,9 +13,10 @@ import Dashboard from './pages/dashboard.jsx';
 import Login from './pages/Login.jsx';
 import Profile from './pages/Profile.jsx';
 import SignUp from './pages/sign-up.jsx';
+import CapturedData from './pages/captured-data/captured-data.jsx';
 
 function AppRoutes() {
-    const { user, loading } = useAuth();
+    const {user, loading} = useAuth();
 
     function getAdminRouteElement() {
         if (!user) {
@@ -82,6 +83,7 @@ function AppRoutes() {
                     user ? <Navigate to='/dashboard' replace /> : <SignUp />
                 }
             />
+            <Route path='/capture-data' element={user ? <CapturedData /> : <Navigate to='/login' replace />} />
             <Route path='*' element={<Navigate to='/dashboard' replace />} />
         </Routes>
     );
