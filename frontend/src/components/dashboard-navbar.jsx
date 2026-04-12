@@ -16,13 +16,17 @@ export default function DashboardNavbar() {
     const location = useLocation();
     const { user, logout } = useAuth();
 
-    const handleLogout = () => {
-        logout();
-        navigate('/login');
+    const handleLogout = async () => {
+        await logout();
+        navigate('/dashboard');
     };
 
     const handleLoginClick = () => {
         navigate('/login');
+    };
+
+    const handleProfileClick = () => {
+        navigate('/profile');
     };
 
     const menuItems = [
@@ -82,6 +86,8 @@ export default function DashboardNavbar() {
                                 alt='User avatar'
                                 radius='xl'
                                 size='md'
+                                style={{ cursor: 'pointer' }}
+                                onClick={handleProfileClick}
                             />
                         </div>
                     ) : (
@@ -109,7 +115,13 @@ export default function DashboardNavbar() {
             >
                 {menuItems.map((item) => {
                     const Icon = item.icon;
-                    const isActive = location.pathname === item.path;
+                    const isProfileRoute =
+                        location.pathname === '/profile' ||
+                        location.pathname === '/profile-settings';
+                    const isActive =
+                        item.path === '/profile-settings'
+                            ? isProfileRoute
+                            : location.pathname === item.path;
                     return (
                         <NavLink
                             key={item.label}

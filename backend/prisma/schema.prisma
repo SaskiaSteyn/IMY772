@@ -16,7 +16,12 @@ model User {
   email         String   @unique @db.VarChar(255)
   password_hash String   @db.VarChar(255)
   role          String   @default("logged_in_user") @db.VarChar(50)
+  bio           String?
+  interests     Json?
+  education     Json?
+  experience    Json?
   created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
 
   @@map("users")
 }

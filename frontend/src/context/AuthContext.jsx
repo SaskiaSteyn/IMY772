@@ -7,11 +7,15 @@ export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
+    async function refreshUser() {
+        const data = await authApi.me();
+        setUser(data.user);
+        return data.user;
+    }
+
     // On mount, check if there is a valid session cookie
     useEffect(() => {
-        authApi
-            .me()
-            .then((data) => setUser(data.user))
+        refreshUser()
             .catch(() => setUser(null))
             .finally(() => setLoading(false));
     }, []);
@@ -40,7 +44,7 @@ export function AuthProvider({ children }) {
     }
 
     return (
-        <AuthContext.Provider value={{ user, loading, login, register, googleLogin, logout }}>
+        <AuthContext.Provider value={{ user, loading, login, register, googleLogin, logout, refreshUser }}>
             {children}
         </AuthContext.Provider>
     );
