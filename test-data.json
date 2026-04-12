@@ -1,0 +1,57 @@
+{
+    "samples": [
+        {
+            "latitude": -25.7479,
+            "longitude": 28.2293,
+            "water_temperature": 24.5,
+            "ph": 7.2,
+            "tds": 98.5,
+            "do": 8.2,
+            "sample_analysis_type": "Metagenomic",
+            "isolation_source": "River water",
+            "collection_date": "2025-11-15",
+            "location_name": "University of Pretoria",
+            "collected_by": "Saskia Steyn",
+            "predicted_sir_profile": "Susceptible",
+            "metagenomic": [
+                {
+                    "sequence_name": "sample_001_seq_1",
+                    "element_type": "transposon",
+                    "class": "Class A",
+                    "subclass": "Serine carbapenemase",
+                    "amr_resistance_genes": ["ampC", "blaTEM"]
+                },
+                {
+                    "sequence_name": "sample_001_seq_2",
+                    "element_type": "insertion_sequence",
+                    "class": "Class C",
+                    "subclass": "Cephalosporinase",
+                    "amr_resistance_genes": ["cephalosporinase"]
+                }
+            ]
+        },
+        {
+            "latitude": -25.75,
+            "longitude": 28.231,
+            "water_temperature": 23.8,
+            "ph": 6.9,
+            "tds": 105.0,
+            "do": 7.5,
+            "sample_analysis_type": "Metagenomic",
+            "isolation_source": "Dam",
+            "collection_date": "2025-11-16",
+            "location_name": "Pretoria River",
+            "collected_by": "Saskia Steyn",
+            "predicted_sir_profile": "Intermediate",
+            "metagenomic": [
+                {
+                    "sequence_name": "sample_002_seq_1",
+                    "element_type": "plasmid",
+                    "class": "Class B",
+                    "subclass": "Metallo-beta-lactamase",
+                    "amr_resistance_genes": ["blaVIM", "blaIMP"]
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,39 @@
+{
+    "name": "imy772-backend",
+    "version": "1.0.0",
+    "main": "server.js",
+    "type": "module",
+    "scripts": {
+        "start": "node server.js",
+        "seed:admin": "dotenv -e ../.env -- node src/utils/seed-admin.js",
+        "seed": "dotenv -e ../.env -- node prisma/seed.js",
+        "prisma:generate": "dotenv -e ../.env -- prisma generate",
+        "prisma:pull": "dotenv -e ../.env -- prisma db pull",
+        "prisma:migrate:dev": "dotenv -e ../.env -- prisma migrate dev",
+        "prisma:migrate:deploy": "dotenv -e ../.env -- prisma migrate deploy",
+        "prisma:migrate:status": "dotenv -e ../.env -- prisma migrate status",
+        "prisma:migrate:baseline": "sh -c 'mkdir -p prisma/migrations/0000_baseline && dotenv -e ../.env -- prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script > prisma/migrations/0000_baseline/migration.sql'",
+        "prisma:migrate:resolve-baseline": "dotenv -e ../.env -- prisma migrate resolve --applied 0000_baseline"
+    },
+    "prisma": {
+        "seed": "node prisma/seed.js"
+    },
+    "dependencies": {
+        "@prisma/client": "^6.6.0",
+        "bcryptjs": "^3.0.3",
+        "cookie-parser": "^1.4.7",
+        "cors": "^2.8.6",
+        "csv-parse": "^6.2.1",
+        "dotenv": "^16.6.1",
+        "express": "^4.22.1",
+        "express-validator": "^7.3.2",
+        "google-auth-library": "^10.6.2",
+        "jsonwebtoken": "^9.0.3",
+        "multer": "^2.1.1",
+        "pg": "^8.20.0"
+    },
+    "devDependencies": {
+        "dotenv-cli": "^7.4.4",
+        "prisma": "^6.6.0"
+    }
+}

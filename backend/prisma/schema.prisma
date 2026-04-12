@@ -1,0 +1,100 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("PRISMA_DATABASE_URL")
+}
+
+// ─── Auth models ────────────────────────────────────────────────────────────
+
+model User {
+  userID        Int      @id @default(autoincrement())
+  name          String   @db.VarChar(100)
+  surname       String   @db.VarChar(100)
+  email         String   @unique @db.VarChar(255)
+  password_hash String   @db.VarChar(255)
+  role          String   @default("logged_in_user") @db.VarChar(50)
+  bio           String?
+  interests     Json?
+  education     Json?
+  experience    Json?
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  @@map("users")
+}
+
+// ─── Sample Data models ──────────────────────────────────────────────────────
+
+model Sample {
+  sampleID                Int                    @id @default(autoincrement())
+  water_temperature       Decimal?               @db.Decimal(5, 2)
+  ph                      Decimal?               @db.Decimal(4, 2)
+  tds                     Decimal?               @db.Decimal(8, 2)
+  do                      Decimal?               @db.Decimal(8, 2)
+  sample_analysis_type    String?                @db.VarChar(255)
+  isolation_source        String?                @db.VarChar(255)
+  collection_date         DateTime?
+  location_name           String?                @db.VarChar(255)
+  latitude                Decimal                @db.Decimal(10, 8)
+  longitude               Decimal                @db.Decimal(11, 8)
+  collected_by            String?                @db.VarChar(255)
+  predicted_sir_profile   String?                @db.VarChar(255)
+  created_at              DateTime               @default(now())
+  updated_at              DateTime               @updatedAt
+
+  // Relations
+  metagenomic             Metagenomic[]
+  wgs                     Wgs[]
+  amrResistanceGenes      AmrResistanceGene[]
+
+  @@map("samples")
+}
+
+model Metagenomic {
+  sampleID        Int
+  sequence_name   String  @db.VarChar(255)
+  element_type    String? @db.VarChar(255)
+  class           String? @db.VarChar(255)
+  subclass        String? @db.VarChar(255)
+
+  sample          Sample  @relation(fields: [sampleID], references: [sampleID])
+
+  @@id([sampleID, sequence_name])
+  @@map("metagenomic")
+}
+
+model Wgs {
+  sampleID        Int
+  isolateID       Int
+  organism        String? @db.VarChar(255)
+
+  sample          Sample            @relation(fields: [sampleID], references: [sampleID])
+  virulenceGenes  VirulenceGene[]
+
+  @@id([sampleID, isolateID])
+  @@map("wgs")
+}
+
+model AmrResistanceGene {
+  sampleID        Int
+  geneSymbol      String  @db.VarChar(255)
+
+  sample          Sample  @relation(fields: [sampleID], references: [sampleID])
+
+  @@id([sampleID, geneSymbol])
+  @@map("amrResistanceGenes")
+}
+
+model VirulenceGene {
+  sampleID        Int
+  isolateID       Int
+  geneSymbol      String  @db.VarChar(255)
+
+  wgs             Wgs     @relation(fields: [sampleID, isolateID], references: [sampleID, isolateID])
+
+  @@id([sampleID, isolateID, geneSymbol])
+  @@map("virulenceGenes")
+}

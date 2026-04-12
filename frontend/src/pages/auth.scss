@@ -1,0 +1,75 @@
+@import '../styles/variables';
+
+.auth-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: $background-color;
+    padding: 1.5rem;
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 400px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    border: 1px solid #B0BEC5;
+    border-radius: 10px;
+    padding: 1.25rem;
+    background: #fff;
+
+    form {
+        width: 100%;
+    }
+}
+
+.auth-brand {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+
+    img {
+        height: 36px;
+        object-fit: contain;
+    }
+}
+
+// Give every Mantine input in the auth card a permanent green border
+.auth-input {
+    border-color: $primary-color !important;
+
+    &:focus {
+        border-color: $accent-color !important;
+    }
+}
+
+.auth-title {
+    align-self: flex-start;
+    margin-bottom: 0.25rem;
+}
+
+.auth-google-btn {
+    border-color: $primary-color !important;
+    color: #333 !important;
+    background: #fff !important;
+
+    &:hover {
+        background: #f5f5f5 !important;
+    }
+}
+
+.auth-forgot {
+    text-align: center;
+    margin-top: -0.25rem;
+}
+
+.auth-footer {
+    text-align: center;
+    margin-top: 0.25rem;
+}

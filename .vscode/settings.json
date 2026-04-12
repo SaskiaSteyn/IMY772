@@ -1,0 +1,11 @@
+{
+    "mcpServers": {
+        "mantine": {
+            "command": "npx",
+            "args": ["@hakxel/mantine-ui-server"],
+            "env": {
+                "MANTINE_VERSION": "7.16.2"
+            }
+        }
+    }
+}
