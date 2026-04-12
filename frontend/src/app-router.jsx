@@ -3,8 +3,8 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import App from './App.jsx';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import Dashboard from './pages/dashboard.jsx';
-import Login from './pages/login.jsx';
-import Profile from './pages/profile.jsx';
+import Login from './pages/Login.jsx';
+import Profile from './pages/Profile.jsx';
 import SignUp from './pages/sign-up.jsx';
 
 function AppRoutes() {
