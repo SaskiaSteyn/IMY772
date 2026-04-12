@@ -1,0 +1,36 @@
+@import '../../styles/variables';
+
+.admin-page {
+    min-height: 100vh;
+    background-color: $background-color;
+    display: flex;
+    flex-direction: column;
+}
+
+.admin-shell {
+    width: 100%;
+    padding: 1.25rem 0.75rem 2rem;
+}
+
+.admin-card {
+    border-color: $border-color;
+    background-color: #fff;
+}
+
+.admin-input {
+    border-color: $primary-color !important;
+
+    &:focus {
+        border-color: $accent-color !important;
+    }
+}
+
+.admin-nav-group {
+    width: 100%;
+}
+
+@media (max-width: 48em) {
+    .admin-shell {
+        padding: 1rem 0.5rem 1.5rem;
+    }
+}

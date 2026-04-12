@@ -59,11 +59,6 @@ router.post(
                     collected_by,
                     predicted_sir_profile,
                 },
-                include: {
-                    metagenomic: true,
-                    wgs: true,
-                    amrResistanceGenes: true,
-                },
             })
 
             return res.status(201).json({ sample })
@@ -78,13 +73,7 @@ router.post(
 
 router.get('/', async (req, res) => {
     try {
-        const samples = await prisma.sample.findMany({
-            include: {
-                metagenomic: true,
-                wgs: true,
-                amrResistanceGenes: true,
-            },
-        })
+        const samples = await prisma.sample.findMany()
 
         return res.json({ samples })
     } catch (err) {
@@ -109,11 +98,6 @@ router.get(
         try {
             const sample = await prisma.sample.findUnique({
                 where: { sampleID: parseInt(sampleID) },
-                include: {
-                    metagenomic: true,
-                    wgs: true,
-                    amrResistanceGenes: true,
-                },
             })
 
             if (!sample) {
@@ -174,11 +158,6 @@ router.put(
             const sample = await prisma.sample.update({
                 where: { sampleID: parseInt(sampleID) },
                 data: updateData,
-                include: {
-                    metagenomic: true,
-                    wgs: true,
-                    amrResistanceGenes: true,
-                },
             })
 
             return res.json({ sample })
