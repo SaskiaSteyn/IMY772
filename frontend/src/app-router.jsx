@@ -4,6 +4,7 @@ import App from './App.jsx';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import Dashboard from './pages/dashboard.jsx';
 import Login from './pages/login.jsx';
+import Profile from './pages/Profile.jsx';
 import SignUp from './pages/sign-up.jsx';
 
 function AppRoutes() {
@@ -22,6 +23,14 @@ function AppRoutes() {
                 element={
                     user ? <Dashboard /> : <Navigate to='/login' replace />
                 }
+            />
+            <Route
+                path='/profile'
+                element={user ? <Profile /> : <Navigate to='/login' replace />}
+            />
+            <Route
+                path='/profile-settings'
+                element={user ? <Profile /> : <Navigate to='/login' replace />}
             />
             <Route
                 path='/styleguide'
