@@ -66,6 +66,28 @@ function GoogleSignInButton({ loading, onSuccess, onError }) {
     );
 }
 
+function getLoginErrorMessage(error) {
+    const status = error?.status;
+
+    if (status === 401) {
+        return 'Invalid email or password. If this is first-time setup, run "npm run bootstrap:admin" in the project root and try again.';
+    }
+
+    if (status === 403) {
+        return 'Your account does not have permission to access this application.';
+    }
+
+    if (status === 404) {
+        return 'Login endpoint was not found. Confirm the backend server is running and API URL is correct.';
+    }
+
+    if (String(error?.message || '').toLowerCase().includes('failed to fetch')) {
+        return 'Cannot reach the backend server. Start the backend and try again.';
+    }
+
+    return error?.message || 'Login failed';
+}
+
 export default function Login() {
     const navigate = useNavigate();
     const { login, googleLogin } = useAuth();
@@ -92,7 +114,7 @@ export default function Login() {
             await login(values.email, values.password);
             navigate('/app');
         } catch (err) {
-            setError(err.message);
+            setError(getLoginErrorMessage(err));
         } finally {
             setLoading(false);
         }
@@ -105,7 +127,7 @@ export default function Login() {
             await googleLogin({ accessToken: tokenResponse.access_token });
             navigate('/app');
         } catch (err) {
-            setError(err.message);
+            setError(getLoginErrorMessage(err));
         } finally {
             setGoogleLoading(false);
         }

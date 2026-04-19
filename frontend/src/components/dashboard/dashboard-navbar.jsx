@@ -59,7 +59,7 @@ export default function DashboardNavbar() {
                         {
                             label: 'Admin Dashboard',
                             icon: Shield,
-                            onClick: () => navigate('/admin/users'),
+                            onClick: () => navigate('/admin/water-data'),
                             path: '/admin',
                         },
                     ]
