@@ -627,22 +627,24 @@ export default function WaterData() {
                         <TextInput
                             label='Location'
                             value={filtersDraft.location}
-                            onChange={(event) =>
+                            onChange={(event) => {
+                                const value = event.currentTarget.value;
                                 setFiltersDraft((prev) => ({
                                     ...prev,
-                                    location: event.currentTarget.value,
-                                }))
-                            }
+                                    location: value,
+                                }));
+                            }}
                         />
                         <TextInput
                             label='Collected By'
                             value={filtersDraft.collectedBy}
-                            onChange={(event) =>
+                            onChange={(event) => {
+                                const value = event.currentTarget.value;
                                 setFiltersDraft((prev) => ({
                                     ...prev,
-                                    collectedBy: event.currentTarget.value,
-                                }))
-                            }
+                                    collectedBy: value,
+                                }));
+                            }}
                         />
                         <Select
                             label='Analysis Type'
