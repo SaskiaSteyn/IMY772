@@ -48,6 +48,44 @@ function validateRole(value) {
     return value === 'admin' || value === 'logged_in_user' ? value : null
 }
 
+function normalizeDeleteReason(value) {
+    const normalized = normalizeString(value)
+    if (!normalized || normalized.length < 3) {
+        return null
+    }
+
+    return normalized
+}
+
+async function writeDeleteAudit({ actor, entityType, entityKey, reason }) {
+    await prisma.adminDeleteAudit.create({
+        data: {
+            actorUserID: Number(actor?.userID) || 0,
+            actorEmail: normalizeEmail(actor?.email),
+            entityType,
+            entityKey,
+            reason,
+        },
+    })
+}
+
+const adminWaterInclude = {
+    metagenomic: {
+        orderBy: [{ sequence_name: 'asc' }],
+    },
+    wgs: {
+        orderBy: [{ isolateID: 'asc' }],
+        include: {
+            virulenceGenes: {
+                orderBy: [{ geneSymbol: 'asc' }],
+            },
+        },
+    },
+    amrResistanceGenes: {
+        orderBy: [{ geneSymbol: 'asc' }],
+    },
+}
+
 // ─── Admin User CRUD ────────────────────────────────────────────────────────
 
 router.get('/users', async (_req, res) => {
@@ -228,6 +266,13 @@ router.delete('/users/:id', async (req, res) => {
         return res.status(400).json({ message: 'Invalid user id' })
     }
 
+    const reason = normalizeDeleteReason(req.body?.reason)
+    if (!reason) {
+        return res.status(400).json({
+            message: 'Delete reason is required (minimum 3 characters)',
+        })
+    }
+
     if (req.user.userID === userID) {
         return res.status(400).json({
             message: 'You cannot delete your own active account',
@@ -235,11 +280,30 @@ router.delete('/users/:id', async (req, res) => {
     }
 
     try {
-        const deleted = await prisma.user.deleteMany({ where: { userID } })
+        const targetUser = await prisma.user.findUnique({
+            where: { userID },
+            select: { userID: true, email: true },
+        })
 
-        if (deleted.count === 0) {
+        if (!targetUser) {
             return res.status(404).json({ message: 'User not found' })
         }
+
+        await prisma.$transaction(async (tx) => {
+            await tx.user.delete({ where: { userID } })
+            await tx.adminDeleteAudit.create({
+                data: {
+                    actorUserID: Number(req.user?.userID) || 0,
+                    actorEmail: normalizeEmail(req.user?.email),
+                    entityType: 'user',
+                    entityKey: {
+                        userID: targetUser.userID,
+                        email: targetUser.email,
+                    },
+                    reason,
+                },
+            })
+        })
 
         return res.json({ message: 'User deleted' })
     } catch (error) {
@@ -374,6 +438,115 @@ function decodeRowId(rawRowId, keyFields) {
     } catch {
         return null
     }
+}
+
+function parseIntStrict(rawValue) {
+    const value = Number(rawValue)
+    return Number.isInteger(value) ? value : null
+}
+
+function normalizeMetagenomicRecords(value) {
+    if (!Array.isArray(value)) {
+        return { rows: [], error: null }
+    }
+
+    const rows = []
+    const seenSequenceNames = new Set()
+
+    for (const record of value) {
+        const sequence_name = normalizeString(record?.sequence_name)
+        if (!sequence_name) {
+            return {
+                rows: [],
+                error: 'Each metagenomic record requires sequence_name',
+            }
+        }
+
+        if (seenSequenceNames.has(sequence_name)) {
+            return {
+                rows: [],
+                error: `Duplicate metagenomic sequence_name: ${sequence_name}`,
+            }
+        }
+
+        seenSequenceNames.add(sequence_name)
+
+        rows.push({
+            sequence_name,
+            element_type: normalizeString(record?.element_type),
+            class: normalizeString(record?.class),
+            subclass: normalizeString(record?.subclass),
+        })
+    }
+
+    return { rows, error: null }
+}
+
+function normalizeWgsRecords(value) {
+    if (!Array.isArray(value)) {
+        return { rows: [], error: null }
+    }
+
+    const rows = []
+    const seenIsolates = new Set()
+
+    for (const record of value) {
+        const isolateID = parseIntStrict(record?.isolateID)
+        if (isolateID === null) {
+            return {
+                rows: [],
+                error: 'Each WGS record requires a valid isolateID integer',
+            }
+        }
+
+        if (seenIsolates.has(isolateID)) {
+            return {
+                rows: [],
+                error: `Duplicate WGS isolateID: ${isolateID}`,
+            }
+        }
+
+        seenIsolates.add(isolateID)
+
+        const rawVirulence = record?.virulenceGenes ?? record?.virulence_genes
+        const virulenceGenes = Array.isArray(rawVirulence)
+            ? [...new Set(rawVirulence.map((gene) => normalizeString(gene)).filter(Boolean))]
+            : []
+
+        rows.push({
+            isolateID,
+            organism: normalizeString(record?.organism),
+            virulenceGenes,
+        })
+    }
+
+    return { rows, error: null }
+}
+
+function normalizeAmrGeneSymbols(value, metagenomicRows) {
+    const directGenes = Array.isArray(value)
+        ? value.map((gene) => normalizeString(gene)).filter(Boolean)
+        : []
+
+    const metagenomicGenes = []
+
+    const rows = Array.isArray(metagenomicRows) ? metagenomicRows : []
+
+    for (const row of rows) {
+        const source = row?.amr_resistance_genes ?? row?.amrResistanceGenes
+        if (!Array.isArray(source)) {
+            continue
+        }
+
+        for (const gene of source) {
+            const normalized = normalizeString(gene)
+            if (normalized) {
+                metagenomicGenes.push(normalized)
+            }
+        }
+    }
+
+    return [...new Set([...directGenes, ...metagenomicGenes])]
 }
 
 const measurementsConfig = {
@@ -519,6 +692,263 @@ const entityConfig = {
     },
 }
 
+router.get('/water/samples', async (_req, res) => {
+    try {
+        const rows = await prisma.sample.findMany({
+            orderBy: [{ sampleID: 'desc' }],
+            include: adminWaterInclude,
+        })
+
+        return res.json({
+            rows: rows.map((row) => ({
+                ...row,
+                _rowId: encodeRowId(row, ['sampleID']),
+            })),
+        })
+    } catch (error) {
+        console.error('Admin water samples list error:', error)
+        return res.status(500).json({ message: 'Failed to fetch water samples' })
+    }
+})
+
+router.post('/water/samples', async (req, res) => {
+    const samplePayload = buildPayload(req.body ?? {}, measurementsConfig, {
+        forCreate: true,
+    })
+
+    if (samplePayload.error) {
+        return res.status(400).json({ message: samplePayload.error })
+    }
+
+    const metagenomicRecordsResult = normalizeMetagenomicRecords(
+        req.body?.metagenomic
+    )
+    if (metagenomicRecordsResult.error) {
+        return res.status(400).json({ message: metagenomicRecordsResult.error })
+    }
+
+    const wgsRecordsResult = normalizeWgsRecords(req.body?.wgs)
+    if (wgsRecordsResult.error) {
+        return res.status(400).json({ message: wgsRecordsResult.error })
+    }
+
+    const amrGeneSymbols = normalizeAmrGeneSymbols(
+        req.body?.amrResistanceGenes ?? req.body?.amr_resistance_genes,
+        req.body?.metagenomic
+    )
+
+    try {
+        const row = await prisma.$transaction(async (tx) => {
+            const createdSample = await tx.sample.create({
+                data: samplePayload,
+            })
+
+            for (const metagenomicRecord of metagenomicRecordsResult.rows) {
+                await tx.metagenomic.create({
+                    data: {
+                        sampleID: createdSample.sampleID,
+                        sequence_name: metagenomicRecord.sequence_name,
+                        element_type: metagenomicRecord.element_type,
+                        class: metagenomicRecord.class,
+                        subclass: metagenomicRecord.subclass,
+                    },
+                })
+            }
+
+            for (const geneSymbol of amrGeneSymbols) {
+                await tx.amrResistanceGene.create({
+                    data: {
+                        sampleID: createdSample.sampleID,
+                        geneSymbol,
+                    },
+                })
+            }
+
+            for (const wgsRecord of wgsRecordsResult.rows) {
+                await tx.wgs.create({
+                    data: {
+                        sampleID: createdSample.sampleID,
+                        isolateID: wgsRecord.isolateID,
+                        organism: wgsRecord.organism,
+                    },
+                })
+
+                for (const geneSymbol of wgsRecord.virulenceGenes) {
+                    await tx.virulenceGene.create({
+                        data: {
+                            sampleID: createdSample.sampleID,
+                            isolateID: wgsRecord.isolateID,
+                            geneSymbol,
+                        },
+                    })
+                }
+            }
+
+            const completeRow = await tx.sample.findUnique({
+                where: { sampleID: createdSample.sampleID },
+                include: adminWaterInclude,
+            })
+
+            return completeRow || createdSample
+        })
+
+        return res.status(201).json({
+            message: 'Water sample created',
+            row: {
+                ...row,
+                _rowId: encodeRowId(row, ['sampleID']),
+            },
+        })
+    } catch (error) {
+        if (error.code === 'P2002') {
+            return res
+                .status(409)
+                .json({ message: 'A child record with this key already exists' })
+        }
+
+        if (error.code === 'P2003') {
+            return res.status(400).json({ message: 'Related record was not found' })
+        }
+
+        console.error('Admin water sample create error:', error)
+        return res.status(500).json({ message: 'Failed to create water sample' })
+    }
+})
+
+router.put('/water/samples/:sampleID', async (req, res) => {
+    const sampleID = parsePositiveInt(req.params.sampleID)
+    if (!sampleID) {
+        return res.status(400).json({ message: 'Invalid sample id' })
+    }
+
+    const payload = buildPayload(req.body ?? {}, measurementsConfig, {
+        forCreate: false,
+    })
+
+    if (payload.error) {
+        return res.status(400).json({ message: payload.error })
+    }
+
+    try {
+        const row = await prisma.sample.update({
+            where: { sampleID },
+            data: payload,
+            include: adminWaterInclude,
+        })
+
+        return res.json({
+            message: 'Water sample updated',
+            row: {
+                ...row,
+                _rowId: encodeRowId(row, ['sampleID']),
+            },
+        })
+    } catch (error) {
+        if (error.code === 'P2025') {
+            return res.status(404).json({ message: 'Sample not found' })
+        }
+
+        console.error('Admin water sample update error:', error)
+        return res.status(500).json({ message: 'Failed to update water sample' })
+    }
+})
+
+router.delete('/water/samples/:sampleID', async (req, res) => {
+    const sampleID = parsePositiveInt(req.params.sampleID)
+    if (!sampleID) {
+        return res.status(400).json({ message: 'Invalid sample id' })
+    }
+
+    const reason = normalizeDeleteReason(req.body?.reason)
+    if (!reason) {
+        return res.status(400).json({
+            message: 'Delete reason is required (minimum 3 characters)',
+        })
+    }
+
+    try {
+        const existing = await prisma.sample.findUnique({
+            where: { sampleID },
+            select: { sampleID: true },
+        })
+
+        if (!existing) {
+            return res.status(404).json({ message: 'Sample not found' })
+        }
+
+        await prisma.$transaction(async (tx) => {
+            await tx.virulenceGene.deleteMany({ where: { sampleID } })
+            await tx.wgs.deleteMany({ where: { sampleID } })
+            await tx.metagenomic.deleteMany({ where: { sampleID } })
+            await tx.amrResistanceGene.deleteMany({ where: { sampleID } })
+            await tx.sample.delete({ where: { sampleID } })
+            await tx.adminDeleteAudit.create({
+                data: {
+                    actorUserID: Number(req.user?.userID) || 0,
+                    actorEmail: normalizeEmail(req.user?.email),
+                    entityType: 'water_sample',
+                    entityKey: { sampleID },
+                    reason,
+                },
+            })
+        })
+
+        return res.json({ message: 'Water sample deleted' })
+    } catch (error) {
+        console.error('Admin water sample delete error:', error)
+        return res.status(500).json({ message: 'Failed to delete water sample' })
+    }
+})
+
+router.get('/summary', async (_req, res) => {
+    try {
+        const [
+            usersCount,
+            samplesCount,
+            metagenomicCount,
+            wgsCount,
+            amrCount,
+            virulenceCount,
+            recentDeletions,
+        ] = await Promise.all([
+            prisma.user.count(),
+            prisma.sample.count(),
+            prisma.metagenomic.count(),
+            prisma.wgs.count(),
+            prisma.amrResistanceGene.count(),
+            prisma.virulenceGene.count(),
+            prisma.adminDeleteAudit.findMany({
+                orderBy: [{ created_at: 'desc' }],
+                take: 6,
+                select: {
+                    id: true,
+                    actorUserID: true,
+                    actorEmail: true,
+                    entityType: true,
+                    entityKey: true,
+                    reason: true,
+                    created_at: true,
+                },
+            }),
+        ])
+
+        return res.json({
+            metrics: {
+                usersCount,
+                samplesCount,
+                metagenomicCount,
+                wgsCount,
+                amrCount,
+                virulenceCount,
+            },
+            recentDeletions,
+        })
+    } catch (error) {
+        console.error('Admin summary error:', error)
+        return res.status(500).json({ message: 'Failed to fetch summary metrics' })
+    }
+})
+
 router.get('/data/:entity', async (req, res) => {
     const config = entityConfig[req.params.entity]
     if (!config) {
@@ -637,6 +1067,13 @@ router.delete('/data/:entity/:rowId', async (req, res) => {
         return res.status(404).json({ message: 'Unknown data entity' })
     }
 
+    const reason = normalizeDeleteReason(req.body?.reason)
+    if (!reason) {
+        return res.status(400).json({
+            message: 'Delete reason is required (minimum 3 characters)',
+        })
+    }
+
     const rowId = decodeURIComponent(req.params.rowId || '').trim()
     const keyWhere = decodeRowId(rowId, config.keyFields)
     if (!keyWhere) {
@@ -644,10 +1081,55 @@ router.delete('/data/:entity/:rowId', async (req, res) => {
     }
 
     try {
+        const isSampleDelete =
+            req.params.entity === 'measurements' || req.params.entity === 'samples'
+
+        if (isSampleDelete) {
+            const sampleID = parseIntStrict(keyWhere.sampleID)
+            if (sampleID === null) {
+                return res.status(400).json({ message: 'Invalid sample id in row id' })
+            }
+
+            const existingSample = await prisma.sample.findUnique({
+                where: { sampleID },
+                select: { sampleID: true },
+            })
+
+            if (!existingSample) {
+                return res.status(404).json({ message: 'Record not found' })
+            }
+
+            await prisma.$transaction(async (tx) => {
+                await tx.virulenceGene.deleteMany({ where: { sampleID } })
+                await tx.wgs.deleteMany({ where: { sampleID } })
+                await tx.metagenomic.deleteMany({ where: { sampleID } })
+                await tx.amrResistanceGene.deleteMany({ where: { sampleID } })
+                await tx.sample.delete({ where: { sampleID } })
+                await tx.adminDeleteAudit.create({
+                    data: {
+                        actorUserID: Number(req.user?.userID) || 0,
+                        actorEmail: normalizeEmail(req.user?.email),
+                        entityType: req.params.entity,
+                        entityKey: keyWhere,
+                        reason,
+                    },
+                })
+            })
+
+            return res.json({ message: 'Record deleted' })
+        }
+
         const deleted = await config.deleteMany(keyWhere)
         if (deleted.count === 0) {
             return res.status(404).json({ message: 'Record not found' })
         }
+
+        await writeDeleteAudit({
+            actor: req.user,
+            entityType: req.params.entity,
+            entityKey: keyWhere,
+            reason,
+        })
 
         return res.json({ message: 'Record deleted' })
     } catch (error) {
