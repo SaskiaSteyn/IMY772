@@ -102,3 +102,18 @@ model VirulenceGene {
   @@id([sampleID, isolateID, geneSymbol])
   @@map("virulenceGenes")
 }
+
+model AdminDeleteAudit {
+  id          Int      @id @default(autoincrement())
+  actorUserID Int
+  actorEmail  String?  @db.VarChar(255)
+  entityType  String   @db.VarChar(120)
+  entityKey   Json
+  reason      String   @db.Text
+  created_at  DateTime @default(now())
+
+  @@index([actorUserID])
+  @@index([entityType])
+  @@index([created_at])
+  @@map("adminDeleteAudits")
+}

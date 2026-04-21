@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react'
 import {
+    ActionIcon,
     Alert,
     Badge,
     Button,
     Group,
-    Paper,
+    Modal,
     PasswordInput,
     ScrollArea,
     Select,
@@ -14,8 +15,10 @@ import {
     Text,
     TextInput,
     Title,
-} from '@mantine/core';
-import { adminApi } from '../../api/admin.js';
+} from '@mantine/core'
+import { Pencil, Plus, Search, Trash2 } from 'lucide-react'
+import { adminApi } from '../../api/admin.js'
+import DeleteReasonModal from '../../components/admin/DeleteReasonModal.jsx'
 
 const initialForm = {
     name: '',
@@ -23,7 +26,7 @@ const initialForm = {
     email: '',
     role: 'logged_in_user',
     password: '',
-};
+}
 
 function mapUserToForm(user) {
     return {
@@ -32,114 +35,152 @@ function mapUserToForm(user) {
         email: user.email || '',
         role: user.role || 'logged_in_user',
         password: '',
-    };
+    }
+}
+
+function userMatchesSearch(user, query) {
+    if (!query) {
+        return true
+    }
+
+    const normalized = query.toLowerCase()
+    return [user.name, user.surname, user.email, user.role]
+        .map((value) => String(value || '').toLowerCase())
+        .some((value) => value.includes(normalized))
 }
 
 export default function Users() {
-    const [users, setUsers] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
-    const [editingUserId, setEditingUserId] = useState(null);
-    const [form, setForm] = useState(initialForm);
-    const [error, setError] = useState('');
-    const [message, setMessage] = useState('');
-    const isEditing = Boolean(editingUserId);
+    const [users, setUsers] = useState([])
+    const [loading, setLoading] = useState(true)
+    const [saving, setSaving] = useState(false)
+
+    const [searchQuery, setSearchQuery] = useState('')
+    const [error, setError] = useState('')
+    const [message, setMessage] = useState('')
+
+    const [formOpened, setFormOpened] = useState(false)
+    const [mode, setMode] = useState('create')
+    const [selectedUser, setSelectedUser] = useState(null)
+    const [form, setForm] = useState(initialForm)
+
+    const [deleteOpened, setDeleteOpened] = useState(false)
+
+    const isEditing = mode === 'edit'
 
     async function loadUsers() {
-        setLoading(true);
-        setError('');
+        setLoading(true)
+        setError('')
 
         try {
-            const data = await adminApi.listUsers();
-            setUsers(data.users || []);
-        } catch (err) {
-            setError(err.message || 'Failed to load users');
+            const data = await adminApi.listUsers()
+            setUsers(data.users || [])
+        } catch (loadError) {
+            setError(loadError.message || 'Failed to load users')
         } finally {
-            setLoading(false);
+            setLoading(false)
         }
     }
 
     useEffect(() => {
-        loadUsers();
-    }, []);
+        loadUsers()
+    }, [])
 
-    function resetForm() {
-        setEditingUserId(null);
-        setForm(initialForm);
-    }
+    const visibleUsers = useMemo(
+        () => users.filter((user) => userMatchesSearch(user, searchQuery)),
+        [users, searchQuery]
+    )
 
     function updateField(key, value) {
-        setForm((prev) => ({ ...prev, [key]: value }));
+        setForm((prev) => ({ ...prev, [key]: value }))
     }
 
-    function onEditUser(user) {
-        setEditingUserId(user.userID);
-        setForm(mapUserToForm(user));
-        setError('');
-        setMessage('');
+    function openCreateModal() {
+        setMode('create')
+        setSelectedUser(null)
+        setForm(initialForm)
+        setFormOpened(true)
+    }
+
+    function openEditModal(user) {
+        setMode('edit')
+        setSelectedUser(user)
+        setForm(mapUserToForm(user))
+        setFormOpened(true)
     }
 
     async function onSubmit(event) {
-        event.preventDefault();
-        setSaving(true);
-        setError('');
-        setMessage('');
+        event.preventDefault()
+        setSaving(true)
+        setError('')
+        setMessage('')
 
         try {
-            if (isEditing) {
+            if (isEditing && selectedUser) {
                 const payload = {
                     name: form.name,
                     surname: form.surname,
                     email: form.email,
                     role: form.role,
-                };
-
-                if (form.password.trim().length > 0) {
-                    payload.password = form.password;
                 }
 
-                await adminApi.updateUser(editingUserId, payload);
-                setMessage('User updated');
+                if (form.password.trim().length > 0) {
+                    payload.password = form.password
+                }
+
+                await adminApi.updateUser(selectedUser.userID, payload)
+                setMessage('User updated')
             } else {
-                await adminApi.createUser(form);
-                setMessage('User created');
+                await adminApi.createUser(form)
+                setMessage('User created')
             }
 
-            resetForm();
-            await loadUsers();
-        } catch (err) {
-            setError(err.message || 'Failed to save user');
+            setFormOpened(false)
+            setSelectedUser(null)
+            setForm(initialForm)
+            await loadUsers()
+        } catch (submitError) {
+            setError(submitError.message || 'Failed to save user')
         } finally {
-            setSaving(false);
+            setSaving(false)
         }
     }
 
-    async function onDeleteUser(userID) {
-        const confirmed = window.confirm('Delete this user permanently?');
-        if (!confirmed) {
-            return;
+    async function onDeleteConfirm(reason) {
+        if (!selectedUser) {
+            return
         }
 
-        setError('');
-        setMessage('');
+        setSaving(true)
+        setError('')
+        setMessage('')
 
         try {
-            await adminApi.deleteUser(userID);
-            setMessage('User deleted');
-            if (editingUserId === userID) {
-                resetForm();
-            }
-            await loadUsers();
-        } catch (err) {
-            setError(err.message || 'Failed to delete user');
+            await adminApi.deleteUser(selectedUser.userID, reason)
+            setMessage('User deleted')
+            setDeleteOpened(false)
+            setSelectedUser(null)
+            await loadUsers()
+        } catch (deleteError) {
+            setError(deleteError.message || 'Failed to delete user')
+        } finally {
+            setSaving(false)
         }
     }
 
     return (
-        <Stack gap='md'>
-            <Paper withBorder radius='md' p='lg' className='admin-card'>
-                <Stack gap='md'>
-                    <Title order={2}>Users</Title>
+        <>
+            <div className='admin-section'>
+                <Stack gap='sm'>
+                    <Group justify='space-between' align='center' wrap='wrap'>
+                        <Title order={2}>Users</Title>
+                        <Button
+                            leftSection={<Plus size={16} />}
+                            color='dark'
+                            onClick={openCreateModal}
+                        >
+                            Create User
+                        </Button>
+                    </Group>
 
                     {error && (
                         <Alert color='red' variant='light'>
@@ -148,193 +189,72 @@ export default function Users() {
                     )}
                     {message && <Alert variant='light'>{message}</Alert>}
 
-                    <form onSubmit={onSubmit}>
-                        <Stack gap='md'>
-                            <Title order={4}>
-                                {isEditing ? 'Edit User' : 'Create User'}
-                            </Title>
-
-                            <SimpleGrid
-                                cols={{ base: 1, sm: 2, lg: 3 }}
-                                spacing='sm'
-                            >
-                                <TextInput
-                                    label='Name'
-                                    value={form.name}
-                                    onChange={(event) =>
-                                        updateField(
-                                            'name',
-                                            event.currentTarget.value,
-                                        )
-                                    }
-                                    required
-                                    classNames={{ input: 'admin-input' }}
-                                />
-
-                                <TextInput
-                                    label='Surname'
-                                    value={form.surname}
-                                    onChange={(event) =>
-                                        updateField(
-                                            'surname',
-                                            event.currentTarget.value,
-                                        )
-                                    }
-                                    required
-                                    classNames={{ input: 'admin-input' }}
-                                />
-
-                                <TextInput
-                                    type='email'
-                                    label='Email'
-                                    value={form.email}
-                                    onChange={(event) =>
-                                        updateField(
-                                            'email',
-                                            event.currentTarget.value,
-                                        )
-                                    }
-                                    required
-                                    classNames={{ input: 'admin-input' }}
-                                />
-
-                                <Select
-                                    label='Role'
-                                    value={form.role}
-                                    onChange={(value) =>
-                                        updateField(
-                                            'role',
-                                            value || 'logged_in_user',
-                                        )
-                                    }
-                                    allowDeselect={false}
-                                    data={[
-                                        {
-                                            value: 'logged_in_user',
-                                            label: 'logged_in_user',
-                                        },
-                                        { value: 'admin', label: 'admin' },
-                                    ]}
-                                    classNames={{ input: 'admin-input' }}
-                                />
-
-                                <PasswordInput
-                                    label={
-                                        isEditing
-                                            ? 'Password (leave blank to keep current)'
-                                            : 'Password'
-                                    }
-                                    value={form.password}
-                                    onChange={(event) =>
-                                        updateField(
-                                            'password',
-                                            event.currentTarget.value,
-                                        )
-                                    }
-                                    required={!isEditing}
-                                    classNames={{ input: 'admin-input' }}
-                                />
-                            </SimpleGrid>
-
-                            <Group gap='sm'>
-                                <Button
-                                    type='submit'
-                                    loading={saving}
-                                    color='themeColors.6'
-                                >
-                                    {isEditing ? 'Update User' : 'Create User'}
-                                </Button>
-                                <Button
-                                    type='button'
-                                    variant='light'
-                                    color='themeColors.6'
-                                    onClick={resetForm}
-                                    disabled={saving}
-                                >
-                                    Clear
-                                </Button>
-                            </Group>
-                        </Stack>
-                    </form>
+                    <TextInput
+                        leftSection={<Search size={16} />}
+                        placeholder='Search users'
+                        value={searchQuery}
+                        onChange={(event) => setSearchQuery(event.currentTarget.value)}
+                        className='admin-search'
+                    />
                 </Stack>
-            </Paper>
+            </div>
 
-            <Paper withBorder radius='md' p='lg' className='admin-card'>
+            <div className='admin-table-shell'>
                 {loading ? (
                     <Text c='dimmed'>Loading users...</Text>
-                ) : users.length === 0 ? (
+                ) : visibleUsers.length === 0 ? (
                     <Text c='dimmed'>No users found</Text>
                 ) : (
                     <ScrollArea>
-                        <Table
-                            withTableBorder
-                            withColumnBorders
-                            highlightOnHover
-                            striped
-                            horizontalSpacing='sm'
-                        >
+                        <Table withTableBorder withColumnBorders highlightOnHover>
                             <Table.Thead>
                                 <Table.Tr>
-                                    <Table.Th>ID</Table.Th>
                                     <Table.Th>Name</Table.Th>
-                                    <Table.Th>Surname</Table.Th>
                                     <Table.Th>Email</Table.Th>
                                     <Table.Th>Role</Table.Th>
-                                    <Table.Th>Created</Table.Th>
+                                    <Table.Th>Date Joined</Table.Th>
                                     <Table.Th>Actions</Table.Th>
                                 </Table.Tr>
                             </Table.Thead>
                             <Table.Tbody>
-                                {users.map((user) => (
+                                {visibleUsers.map((user) => (
                                     <Table.Tr key={user.userID}>
-                                        <Table.Td>{user.userID}</Table.Td>
-                                        <Table.Td>{user.name}</Table.Td>
-                                        <Table.Td>{user.surname}</Table.Td>
+                                        <Table.Td>
+                                            {user.name} {user.surname}
+                                        </Table.Td>
                                         <Table.Td>{user.email}</Table.Td>
                                         <Table.Td>
                                             <Badge
-                                                color={
-                                                    user.role === 'admin'
-                                                        ? 'themeColors.8'
-                                                        : 'themeColors.6'
-                                                }
-                                                variant='light'
+                                                variant='outline'
+                                                color={user.role === 'admin' ? 'dark' : 'gray'}
                                             >
                                                 {user.role}
                                             </Badge>
                                         </Table.Td>
                                         <Table.Td>
-                                            {String(user.created_at).slice(
-                                                0,
-                                                10,
-                                            )}
+                                            {String(user.created_at).slice(0, 10)}
                                         </Table.Td>
                                         <Table.Td>
                                             <Group gap='xs' wrap='nowrap'>
-                                                <Button
-                                                    size='xs'
-                                                    type='button'
-                                                    variant='light'
-                                                    color='themeColors.6'
-                                                    onClick={() =>
-                                                        onEditUser(user)
-                                                    }
+                                                <ActionIcon
+                                                    variant='subtle'
+                                                    color='dark'
+                                                    onClick={() => openEditModal(user)}
+                                                    aria-label='Edit user'
                                                 >
-                                                    Edit
-                                                </Button>
-                                                <Button
-                                                    size='xs'
-                                                    type='button'
-                                                    variant='outline'
+                                                    <Pencil size={16} />
+                                                </ActionIcon>
+                                                <ActionIcon
+                                                    variant='subtle'
                                                     color='red'
-                                                    onClick={() =>
-                                                        onDeleteUser(
-                                                            user.userID,
-                                                        )
-                                                    }
+                                                    onClick={() => {
+                                                        setSelectedUser(user)
+                                                        setDeleteOpened(true)
+                                                    }}
+                                                    aria-label='Delete user'
                                                 >
-                                                    Delete
-                                                </Button>
+                                                    <Trash2 size={16} />
+                                                </ActionIcon>
                                             </Group>
                                         </Table.Td>
                                     </Table.Tr>
@@ -343,7 +263,108 @@ export default function Users() {
                         </Table>
                     </ScrollArea>
                 )}
-            </Paper>
-        </Stack>
-    );
+            </div>
+
+            <Modal
+                opened={formOpened}
+                onClose={() => setFormOpened(false)}
+                title={isEditing ? 'Edit User' : 'Create User'}
+                centered
+                radius='md'
+            >
+                <form onSubmit={onSubmit}>
+                    <Stack gap='md'>
+                        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing='sm'>
+                            <TextInput
+                                label='Name'
+                                value={form.name}
+                                onChange={(event) =>
+                                    updateField('name', event.currentTarget.value)
+                                }
+                                required
+                                classNames={{ input: 'admin-input' }}
+                            />
+                            <TextInput
+                                label='Surname'
+                                value={form.surname}
+                                onChange={(event) =>
+                                    updateField('surname', event.currentTarget.value)
+                                }
+                                required
+                                classNames={{ input: 'admin-input' }}
+                            />
+                            <TextInput
+                                label='Email'
+                                type='email'
+                                value={form.email}
+                                onChange={(event) =>
+                                    updateField('email', event.currentTarget.value)
+                                }
+                                required
+                                classNames={{ input: 'admin-input' }}
+                            />
+                            <Select
+                                label='Role'
+                                data={[
+                                    {
+                                        value: 'logged_in_user',
+                                        label: 'logged_in_user',
+                                    },
+                                    { value: 'admin', label: 'admin' },
+                                ]}
+                                value={form.role}
+                                onChange={(value) =>
+                                    updateField('role', value || 'logged_in_user')
+                                }
+                                allowDeselect={false}
+                                classNames={{ input: 'admin-input' }}
+                            />
+                        </SimpleGrid>
+
+                        <PasswordInput
+                            label={
+                                isEditing
+                                    ? 'Password (leave blank to keep current)'
+                                    : 'Password'
+                            }
+                            value={form.password}
+                            onChange={(event) =>
+                                updateField('password', event.currentTarget.value)
+                            }
+                            required={!isEditing}
+                            classNames={{ input: 'admin-input' }}
+                        />
+
+                        <Group justify='flex-end'>
+                            <Button
+                                type='button'
+                                variant='outline'
+                                color='gray'
+                                onClick={() => setFormOpened(false)}
+                                disabled={saving}
+                            >
+                                Cancel
+                            </Button>
+                            <Button type='submit' color='dark' loading={saving}>
+                                {isEditing ? 'Save Changes' : 'Create User'}
+                            </Button>
+                        </Group>
+                    </Stack>
+                </form>
+            </Modal>
+
+            <DeleteReasonModal
+                opened={deleteOpened}
+                onClose={() => {
+                    setDeleteOpened(false)
+                    setSelectedUser(null)
+                }}
+                onConfirm={onDeleteConfirm}
+                loading={saving}
+                title='Why are you deleting this user?'
+                description='Provide a short reason why this user account should be deleted.'
+                confirmLabel='Delete User'
+            />
+        </>
+    )
 }

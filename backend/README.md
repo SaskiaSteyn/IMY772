@@ -16,6 +16,22 @@ This will start the backend server using Node.js.
 
 To stop the backend server, press `Ctrl + C` in the terminal where it is running.
 
+## Admin Bootstrap (401 Login Setup)
+
+If login returns 401 on a fresh database, create or upgrade the admin account from `.env`:
+
+```bash
+# from repo root
+npm run bootstrap:admin
+
+# or from backend folder
+cd backend
+npm run seed:admin
+```
+
+This command uses `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME`, and `ADMIN_SURNAME` from the project `.env`.
+If the user already exists, it updates the account to `role=admin`.
+
 ## Prisma Migrate Setup (Existing Postgres DB)
 
 This project is configured to use the project `.env` file (`../.env`) for Prisma commands.
