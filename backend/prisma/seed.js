@@ -14,7 +14,7 @@ async function main() {
         // ─── Clear existing data ─────────────────────────────────────────────────────
         console.log('🧹 Clearing existing data...')
         await prisma.metagenomic.deleteMany({})
-        await prisma.aMRResistanceGene.deleteMany({})
+        await prisma.amrResistanceGene.deleteMany({})
         await prisma.sample.deleteMany({})
         console.log('✓ Cleared old samples and related data')
 
@@ -96,7 +96,7 @@ async function main() {
                     // Load AMR resistance genes if present
                     if (metaItem.amr_resistance_genes && Array.isArray(metaItem.amr_resistance_genes)) {
                         for (const gene of metaItem.amr_resistance_genes) {
-                            await prisma.aMRResistanceGene.create({
+                            await prisma.amrResistanceGene.create({
                                 data: {
                                     sampleID: sample.sampleID,
                                     geneSymbol: gene,
