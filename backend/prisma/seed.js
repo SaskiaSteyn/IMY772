@@ -358,7 +358,6 @@ async function main() {
         console.log(`✓ Loaded ${seededData.counts.amrGenes} AMR resistance genes`)
         console.log(`✓ Loaded ${seededData.counts.wgs} WGS records`)
         console.log(`✓ Loaded ${seededData.counts.virulenceGenes} virulence genes`)
-
         const auditCount = await seedDeleteAudits(
             userResult.adminUser,
             userResult.secondaryActor,

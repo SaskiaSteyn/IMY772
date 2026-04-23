@@ -46,6 +46,9 @@ const impactMetrics = [
     },
 ];
 
+const PROFILE_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
+const PROFILE_IMAGE_ALLOWED_TYPES = ['image/jpeg', 'image/png'];
+
 const educationEntries = [
     {
         institution: 'University of Pretoria',
@@ -156,6 +159,12 @@ function buildInitialProfile(user, persistedProfile = null) {
 
     const defaultBio = `${safeName} ${safeSurname} works with MicroTrack to monitor environmental water samples, validate biological metadata, and help transform field data into usable research insights. Their focus sits at the intersection of microbiology, public health, and applied environmental science, with a strong interest in making complex laboratory results easier to interpret for field teams and decision makers.`;
 
+    const profileImage =
+        typeof persistedProfile?.profileImage === 'string' &&
+        persistedProfile.profileImage.trim().length > 0
+            ? persistedProfile.profileImage
+            : null;
+
     return {
         name: safeName,
         surname: safeSurname,
@@ -165,6 +174,7 @@ function buildInitialProfile(user, persistedProfile = null) {
         bio: persistedProfile?.bio || defaultBio,
         education,
         experience,
+        profileImage,
     };
 }
 
@@ -232,6 +242,11 @@ export default function Profile() {
     const [profileLoading, setProfileLoading] = useState(true);
     const [profileError, setProfileError] = useState('');
     const [isSaving, setIsSaving] = useState(false);
+    const [pendingProfileImageFile, setPendingProfileImageFile] = useState(null);
+    const [pendingProfileImagePreview, setPendingProfileImagePreview] =
+        useState('');
+    const [removeProfileImage, setRemoveProfileImage] = useState(false);
+    const [profileImageInputKey, setProfileImageInputKey] = useState(0);
 
     useEffect(() => {
         let isMounted = true;
@@ -252,13 +267,21 @@ export default function Profile() {
                 if (!isMounted) return;
                 const next = buildInitialProfile(user, data.profile);
                 setProfileData(next);
-                setDraftData(next);
+                setDraftData(cloneData(next));
                 setIsEditing(false);
+                setPendingProfileImageFile(null);
+                setPendingProfileImagePreview('');
+                setRemoveProfileImage(false);
+                setProfileImageInputKey((previous) => previous + 1);
             } catch (err) {
                 if (!isMounted) return;
                 const fallback = buildInitialProfile(user);
                 setProfileData(fallback);
-                setDraftData(fallback);
+                setDraftData(cloneData(fallback));
+                setPendingProfileImageFile(null);
+                setPendingProfileImagePreview('');
+                setRemoveProfileImage(false);
+                setProfileImageInputKey((previous) => previous + 1);
                 setProfileError(err.message || 'Failed to load profile');
             } finally {
                 if (isMounted) {
@@ -273,6 +296,14 @@ export default function Profile() {
             isMounted = false;
         };
     }, [user]);
+
+    useEffect(() => {
+        return () => {
+            if (pendingProfileImagePreview) {
+                URL.revokeObjectURL(pendingProfileImagePreview);
+            }
+        };
+    }, [pendingProfileImagePreview]);
 
     const activeData = isEditing ? draftData : profileData;
     const fullName = `${activeData.name} ${activeData.surname}`.trim();
@@ -314,6 +345,75 @@ export default function Profile() {
             ),
         [activeData.experience],
     );
+
+    const sidebarAvatarSrc = useMemo(() => {
+        if (!isEditing) {
+            return profileData.profileImage || null;
+        }
+
+        if (pendingProfileImagePreview) {
+            return pendingProfileImagePreview;
+        }
+
+        if (removeProfileImage) {
+            return null;
+        }
+
+        return draftData.profileImage || null;
+    }, [
+        draftData.profileImage,
+        isEditing,
+        pendingProfileImagePreview,
+        profileData.profileImage,
+        removeProfileImage,
+    ]);
+
+    const canRemoveProfileImage = useMemo(() => {
+        if (removeProfileImage) {
+            return false;
+        }
+
+        return Boolean(pendingProfileImageFile || draftData.profileImage);
+    }, [draftData.profileImage, pendingProfileImageFile, removeProfileImage]);
+
+    function resetPendingProfileImageDraft() {
+        setPendingProfileImageFile(null);
+        setPendingProfileImagePreview('');
+        setRemoveProfileImage(false);
+        setProfileImageInputKey((previous) => previous + 1);
+    }
+
+    function handleProfileImageSelection(file) {
+        if (!file) {
+            return;
+        }
+
+        if (!PROFILE_IMAGE_ALLOWED_TYPES.includes(file.type)) {
+            setProfileError('Only JPEG and PNG images are allowed for profile images.');
+            setProfileImageInputKey((previous) => previous + 1);
+            return;
+        }
+
+        if (file.size > PROFILE_IMAGE_MAX_BYTES) {
+            setProfileError('Profile image must be 2MB or smaller.');
+            setProfileImageInputKey((previous) => previous + 1);
+            return;
+        }
+
+        const previewUrl = URL.createObjectURL(file);
+        setPendingProfileImageFile(file);
+        setPendingProfileImagePreview(previewUrl);
+        setRemoveProfileImage(false);
+        setProfileError('');
+    }
+
+    function handleRemoveProfileImage() {
+        setPendingProfileImageFile(null);
+        setPendingProfileImagePreview('');
+        setRemoveProfileImage(true);
+        setProfileImageInputKey((previous) => previous + 1);
+        setProfileError('');
+    }
 
     function updateDraftField(field, value) {
         setDraftData((prev) => ({ ...prev, [field]: value }));
@@ -381,11 +481,13 @@ export default function Profile() {
 
     function handleStartEditing() {
         setDraftData(cloneData(profileData));
+        resetPendingProfileImageDraft();
         setIsEditing(true);
     }
 
     function handleCancel() {
         setDraftData(cloneData(profileData));
+        resetPendingProfileImageDraft();
         setIsEditing(false);
     }
 
@@ -420,14 +522,50 @@ export default function Profile() {
         };
 
         try {
-            const data = await authApi.updateProfile(payload);
-            const next = buildInitialProfile(data.user || user, data.profile);
+            await authApi.updateProfile(payload);
+        } catch (err) {
+            setProfileError(err.message || 'Failed to save profile');
+            setIsSaving(false);
+            return;
+        }
+
+        let imageError = '';
+
+        try {
+            if (removeProfileImage) {
+                await authApi.removeProfileImage();
+            } else if (pendingProfileImageFile) {
+                await authApi.uploadProfileImage(pendingProfileImageFile);
+            }
+        } catch (err) {
+            imageError = err.message || 'Failed to update profile image';
+        }
+
+        try {
+            const latestProfile = await authApi.getProfile();
+            const next = buildInitialProfile(user, latestProfile.profile);
             setProfileData(next);
             setDraftData(cloneData(next));
             setIsEditing(false);
+            resetPendingProfileImageDraft();
             await refreshUser().catch(() => null);
+
+            if (imageError) {
+                setProfileError(
+                    `Profile details were saved, but profile image update failed: ${imageError}`,
+                );
+            }
         } catch (err) {
-            setProfileError(err.message || 'Failed to save profile');
+            if (imageError) {
+                setProfileError(
+                    `Profile details were saved, but profile image update failed: ${imageError}`,
+                );
+            } else {
+                setProfileError(
+                    err.message ||
+                        'Profile was saved, but refreshing the latest data failed',
+                );
+            }
         } finally {
             setIsSaving(false);
         }
@@ -455,6 +593,7 @@ export default function Profile() {
                 <Grid gutter={20} align='flex-start'>
                     <Grid.Col span={{ base: 12, md: 4, lg: 3 }}>
                         <ProfileSidebarCard
+                            avatarSrc={sidebarAvatarSrc}
                             fullName={fullName}
                             email={email}
                             isEditing={isEditing}
@@ -462,6 +601,11 @@ export default function Profile() {
                             interestItems={interestItems}
                             contributions={contributions}
                             impactMetrics={impactMetrics}
+                            profileImageInputKey={profileImageInputKey}
+                            canRemoveProfileImage={canRemoveProfileImage}
+                            isProfileImageMarkedForRemoval={removeProfileImage}
+                            onSelectProfileImage={handleProfileImageSelection}
+                            onRemoveProfileImage={handleRemoveProfileImage}
                             onUpdateField={updateDraftField}
                         />
                     </Grid.Col>

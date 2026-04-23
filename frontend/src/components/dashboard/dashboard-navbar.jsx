@@ -18,6 +18,15 @@ export default function DashboardNavbar() {
     const {user, logout} = useAuth();
     const isAuthenticated = Boolean(user);
     const isAdmin = user?.role === 'admin';
+    const avatarSeed =
+        `${user?.name || ''} ${user?.surname || ''}`.trim() ||
+        user?.email ||
+        'User';
+    const avatarSrc =
+        user?.profileImage ||
+        `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(
+            avatarSeed,
+        )}`;
 
     const handleLogout = async () => {
         setDrawerOpened(false);
@@ -100,7 +109,7 @@ export default function DashboardNavbar() {
                                 Logout
                             </Button>
                             <Avatar
-                                src='https://api.dicebear.com/7.x/avataaars/svg?seed=Felix'
+                                src={avatarSrc}
                                 alt='User avatar'
                                 radius='xl'
                                 size='md'

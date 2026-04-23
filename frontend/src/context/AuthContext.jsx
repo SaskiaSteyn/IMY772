@@ -8,6 +8,15 @@ export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
+    async function syncUserAfterAuth(fallbackUser) {
+        try {
+            return await refreshUser();
+        } catch {
+            setUser(fallbackUser || null);
+            return fallbackUser || null;
+        }
+    }
+
     async function refreshUser() {
         const data = await authApi.me();
         setUser(data.user);
@@ -29,20 +38,17 @@ export function AuthProvider({ children }) {
 
     async function login(email, password) {
         const data = await authApi.login(email, password);
-        setUser(data.user);
-        return data.user;
+        return syncUserAfterAuth(data.user);
     }
 
     async function register(name, surname, email, password) {
         const data = await authApi.register(name, surname, email, password);
-        setUser(data.user);
-        return data.user;
+        return syncUserAfterAuth(data.user);
     }
 
     async function googleLogin(authPayload) {
         const data = await authApi.googleLogin(authPayload);
-        setUser(data.user);
-        return data.user;
+        return syncUserAfterAuth(data.user);
     }
 
     async function logout() {
