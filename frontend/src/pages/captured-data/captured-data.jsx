@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { Tabs, Button, Group, Title, Container, Stack } from '@mantine/core';
-import { Plus, Upload } from 'lucide-react';
+import {useState, useEffect} from 'react';
+import {Tabs, Button, Group, Title, Container, Stack} from '@mantine/core';
+import {Plus, Upload} from 'lucide-react';
 import DashboardNavbar from '../../components/dashboard/dashboard-navbar.jsx';
 import SamplesTable from '../../components/captured-data-components/samples-table';
 import MetagenomicTable from '../../components/captured-data-components/metagenomics-table';
@@ -13,6 +13,7 @@ import {
     createFullSample,
     fetchAllSamples,
 } from '../../api/sample-data-management.js';
+import {useAuth} from '../../context/AuthContext.jsx';
 import './captured-data.scss';
 
 // Initial dummy data (copied from SamplesTable)
@@ -66,11 +67,14 @@ const initialSamples = [
 ];
 
 const CapturedData = () => {
+    const {user} = useAuth();
     const [modalOpened, setModalOpened] = useState(false);
     const [bulkUploadModalOpened, setBulkUploadModalOpened] = useState(false);
     const [activeTab, setActiveTab] = useState('samples');
     const [samples, setSamples] = useState(initialSamples);
     const [highlightedSampleIds, setHighlightedSampleIds] = useState(new Set());
+
+    const userFullName = user ? `${user.userID}` : null;
 
     // Clear highlight after 2 seconds (or 3 seconds for bulk uploads)
     useEffect(() => {
@@ -111,7 +115,7 @@ const CapturedData = () => {
             setActiveTab('samples');
 
             // Scroll to the top where the new sample appears
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            window.scrollTo({top: 0, behavior: 'smooth'});
         } catch (err) {
             console.error('Error creating sample:', err);
             // Optionally show a notification to the user
@@ -138,11 +142,16 @@ const CapturedData = () => {
         }
     };
 
+    // Filter data for current user
+    const userSamples = userFullName
+        ? samples.filter((s) => s.collected_by === userFullName)
+        : [];
+
     // Filter data for each tab
-    const metagenomicSamples = samples.filter(
+    const metagenomicSamples = userSamples.filter(
         (s) => s.sample_analysis_type === 'Metagenomic',
     );
-    const wgsSamples = samples.filter((s) => s.sample_analysis_type === 'WGS');
+    const wgsSamples = userSamples.filter((s) => s.sample_analysis_type === 'WGS');
     // AMR genes table shows metagenomic samples, Virulence shows WGS samples
     const amrSamples = metagenomicSamples;
     const virulenceSamples = wgsSamples;
@@ -190,7 +199,7 @@ const CapturedData = () => {
 
                         <Tabs.Panel value='samples' pt='md'>
                             <SamplesTable
-                                records={samples}
+                                records={userSamples}
                                 highlightedSampleIds={highlightedSampleIds}
                             />
                         </Tabs.Panel>
