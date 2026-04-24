@@ -1,6 +1,8 @@
-import { DataTable } from 'mantine-datatable';
+import {DataTable} from 'mantine-datatable';
+import {ActionIcon, Group} from '@mantine/core';
+import {Pencil} from 'lucide-react';
 
-const MetagenomicsTable = ({ records, highlightedSampleIds }) => {
+const MetagenomicsTable = ({records, highlightedSampleIds, onEditClick}) => {
     return (
         <DataTable
             striped
@@ -21,29 +23,49 @@ const MetagenomicsTable = ({ records, highlightedSampleIds }) => {
                     textAlignment: 'center',
                 },
                 {
-                    accessor: 'water_temperature',
-                    title: 'Temp (°C)',
-                    width: 110,
-                    textAlignment: 'center',
+                    accessor: 'sequence_name',
+                    title: 'Sequence Name',
+                    width: 150,
                 },
                 {
-                    accessor: 'ph',
-                    title: 'pH',
-                    width: 80,
-                    textAlignment: 'center',
+                    accessor: 'element_type',
+                    title: 'Element Type',
+                    width: 120,
                 },
                 {
-                    accessor: 'sample_analysis_type',
-                    title: 'Analysis Type',
-                    width: 140,
+                    accessor: 'class',
+                    title: 'Class',
+                    width: 100,
                 },
-                { accessor: 'location_name', title: 'Location' },
+                {
+                    accessor: 'subclass',
+                    title: 'Subclass',
+                    width: 100,
+                },
+                {
+                    accessor: 'actions',
+                    title: '',
+                    width: 50,
+                    textAlignment: 'center',
+                    render: (record) => (
+                        <Group justify='center' gap={0}>
+                            <ActionIcon
+                                size='sm'
+                                variant='subtle'
+                                onClick={() => onEditClick(record)}
+                                title='Edit record'
+                            >
+                                <Pencil size={16} />
+                            </ActionIcon>
+                        </Group>
+                    ),
+                },
             ]}
             noRecordsText=''
             noRecordsIcon={<></>}
             minHeight={300}
             styles={{
-                emptyState: { display: 'none' },
+                emptyState: {display: 'none'},
             }}
         />
     );

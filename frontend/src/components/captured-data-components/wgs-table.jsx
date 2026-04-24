@@ -1,6 +1,8 @@
-import { DataTable } from 'mantine-datatable';
+import {DataTable} from 'mantine-datatable';
+import {ActionIcon, Group} from '@mantine/core';
+import {Pencil} from 'lucide-react';
 
-const WGSTable = ({ records, highlightedSampleIds }) => {
+const WGSTable = ({records, highlightedSampleIds, onEditClick}) => {
     return (
         <DataTable
             striped
@@ -21,29 +23,40 @@ const WGSTable = ({ records, highlightedSampleIds }) => {
                     textAlignment: 'center',
                 },
                 {
-                    accessor: 'water_temperature',
-                    title: 'Temp (°C)',
-                    width: 110,
+                    accessor: 'isolateID',
+                    title: 'Isolate ID',
+                    width: 100,
                     textAlignment: 'center',
                 },
                 {
-                    accessor: 'ph',
-                    title: 'pH',
-                    width: 80,
-                    textAlignment: 'center',
+                    accessor: 'organism',
+                    title: 'Organism',
+                    width: 150,
                 },
                 {
-                    accessor: 'sample_analysis_type',
-                    title: 'Analysis Type',
-                    width: 140,
+                    accessor: 'actions',
+                    title: '',
+                    width: 50,
+                    textAlignment: 'center',
+                    render: (record) => (
+                        <Group justify='center' gap={0}>
+                            <ActionIcon
+                                size='sm'
+                                variant='subtle'
+                                onClick={() => onEditClick(record)}
+                                title='Edit record'
+                            >
+                                <Pencil size={16} />
+                            </ActionIcon>
+                        </Group>
+                    ),
                 },
-                { accessor: 'location_name', title: 'Location' },
             ]}
             noRecordsText=''
             noRecordsIcon={<></>}
             minHeight={300}
             styles={{
-                emptyState: { display: 'none' },
+                emptyState: {display: 'none'},
             }}
         />
     );

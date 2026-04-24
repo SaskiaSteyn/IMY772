@@ -1,6 +1,8 @@
-import { DataTable } from 'mantine-datatable';
+import {DataTable} from 'mantine-datatable';
+import {ActionIcon, Group} from '@mantine/core';
+import {Pencil} from 'lucide-react';
 
-const AMRGenesTable = ({ records, highlightedSampleIds }) => {
+const AMRGenesTable = ({records, highlightedSampleIds, onEditClick}) => {
     return (
         <DataTable
             striped
@@ -21,29 +23,34 @@ const AMRGenesTable = ({ records, highlightedSampleIds }) => {
                     textAlignment: 'center',
                 },
                 {
-                    accessor: 'water_temperature',
-                    title: 'Temp (°C)',
-                    width: 110,
-                    textAlignment: 'center',
+                    accessor: 'geneSymbol',
+                    title: 'Gene Symbol',
+                    width: 150,
                 },
                 {
-                    accessor: 'ph',
-                    title: 'pH',
-                    width: 80,
+                    accessor: 'actions',
+                    title: '',
+                    width: 50,
                     textAlignment: 'center',
+                    render: (record) => (
+                        <Group justify='center' gap={0}>
+                            <ActionIcon
+                                size='sm'
+                                variant='subtle'
+                                onClick={() => onEditClick(record)}
+                                title='Edit record'
+                            >
+                                <Pencil size={16} />
+                            </ActionIcon>
+                        </Group>
+                    ),
                 },
-                {
-                    accessor: 'sample_analysis_type',
-                    title: 'Analysis Type',
-                    width: 140,
-                },
-                { accessor: 'location_name', title: 'Location' },
             ]}
             noRecordsText=''
             noRecordsIcon={<></>}
             minHeight={300}
             styles={{
-                emptyState: { display: 'none' },
+                emptyState: {display: 'none'},
             }}
         />
     );

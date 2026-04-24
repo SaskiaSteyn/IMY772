@@ -9,9 +9,23 @@ import AmrGenesTable from '../../components/captured-data-components/amr-genes-t
 import VirulenceGenesTable from '../../components/captured-data-components/virulence-genes-table';
 import AddDataModal from '../../components/captured-data-components/add-data-modal';
 import BulkUploadModal from '../../components/captured-data-components/bulk-upload-modal';
+import EditSampleModal from '../../components/captured-data-components/edit-sample-modal';
+import EditMetagenomicModal from '../../components/captured-data-components/edit-metagenomic-modal';
+import EditWgsModal from '../../components/captured-data-components/edit-wgs-modal';
+import EditAmrGenesModal from '../../components/captured-data-components/edit-amr-genes-modal';
+import EditVirulenceGenesModal from '../../components/captured-data-components/edit-virulence-genes-modal';
 import {
     createFullSample,
     fetchAllSamples,
+    fetchAllMetagenomic,
+    fetchAllWgs,
+    fetchAllAmrGenes,
+    fetchAllVirulenceGenes,
+    updateSample,
+    updateMetagenomic,
+    updateWgs,
+    updateAmrGene,
+    updateVirulenceGene,
 } from '../../api/sample-data-management.js';
 import {useAuth} from '../../context/AuthContext.jsx';
 import './captured-data.scss';
@@ -72,7 +86,19 @@ const CapturedData = () => {
     const [bulkUploadModalOpened, setBulkUploadModalOpened] = useState(false);
     const [activeTab, setActiveTab] = useState('samples');
     const [samples, setSamples] = useState(initialSamples);
+    const [metageonomicData, setMetageonomicData] = useState([]);
+    const [wgsData, setWgsData] = useState([]);
+    const [amrGenesData, setAmrGenesData] = useState([]);
+    const [virulenceGenesData, setVirulenceGenesData] = useState([]);
     const [highlightedSampleIds, setHighlightedSampleIds] = useState(new Set());
+
+    // Edit modal states
+    const [editSampleModalOpened, setEditSampleModalOpened] = useState(false);
+    const [editMetagenomicModalOpened, setEditMetagenomicModalOpened] = useState(false);
+    const [editWgsModalOpened, setEditWgsModalOpened] = useState(false);
+    const [editAmrGenesModalOpened, setEditAmrGenesModalOpened] = useState(false);
+    const [editVirulenceGenesModalOpened, setEditVirulenceGenesModalOpened] = useState(false);
+    const [recordToEdit, setRecordToEdit] = useState(null);
 
     const userFullName = user ? `${user.userID}` : null;
 
@@ -88,20 +114,29 @@ const CapturedData = () => {
         }
     }, [highlightedSampleIds]);
 
-    // Fetch samples from API on component mount
+    // Fetch all data from API on component mount
     useEffect(() => {
-        const loadSamples = async () => {
+        const loadAllData = async () => {
             try {
-                const data = await fetchAllSamples();
-                setSamples(data);
+                const [samplesData, metaData, wgsDataResult, amrData, virulenceData] = await Promise.all([
+                    fetchAllSamples(),
+                    fetchAllMetagenomic(),
+                    fetchAllWgs(),
+                    fetchAllAmrGenes(),
+                    fetchAllVirulenceGenes(),
+                ]);
+                setSamples(samplesData);
+                setMetageonomicData(metaData);
+                setWgsData(wgsDataResult);
+                setAmrGenesData(amrData);
+                setVirulenceGenesData(virulenceData);
             } catch (error) {
-                console.error('Failed to fetch samples:', error);
-                // Fall back to initial samples if fetch fails
+                console.error('Failed to fetch data:', error);
                 setSamples(initialSamples);
             }
         };
 
-        loadSamples();
+        loadAllData();
     }, []);
 
     const handleAddEntry = async (newEntry) => {
@@ -142,19 +177,120 @@ const CapturedData = () => {
         }
     };
 
+    // Edit handlers
+    const handleEditSampleClick = (record) => {
+        setRecordToEdit(record);
+        setEditSampleModalOpened(true);
+    };
+
+    const handleEditSampleSave = async (sampleID, updateData) => {
+        try {
+            await updateSample(sampleID, updateData);
+            const data = await fetchAllSamples();
+            setSamples(data);
+            setHighlightedSampleIds(new Set([sampleID]));
+            setEditSampleModalOpened(false);
+        } catch (error) {
+            console.error('Error updating sample:', error);
+        }
+    };
+
+    const handleEditMetagenomicClick = (record) => {
+        setRecordToEdit(record);
+        setEditMetagenomicModalOpened(true);
+    };
+
+    const handleEditMetagenomicSave = async (sampleID, sequenceName, updateData) => {
+        try {
+            await updateMetagenomic(sampleID, sequenceName, updateData);
+            const data = await fetchAllMetagenomic();
+            setMetageonomicData(data);
+            setHighlightedSampleIds(new Set([sampleID]));
+            setEditMetagenomicModalOpened(false);
+        } catch (error) {
+            console.error('Error updating metagenomic:', error);
+        }
+    };
+
+    const handleEditWgsClick = (record) => {
+        setRecordToEdit(record);
+        setEditWgsModalOpened(true);
+    };
+
+    const handleEditWgsSave = async (sampleID, isolateID, updateData) => {
+        try {
+            await updateWgs(sampleID, isolateID, updateData);
+            const data = await fetchAllWgs();
+            setWgsData(data);
+            setEditWgsModalOpened(false);
+        } catch (error) {
+            console.error('Error updating WGS:', error);
+        }
+    };
+
+    const handleEditAmrGenesClick = (record) => {
+        setRecordToEdit(record);
+        setEditAmrGenesModalOpened(true);
+    };
+
+    const handleEditAmrGenesSave = async (sampleID, geneSymbol, updateData) => {
+        try {
+            await updateAmrGene(sampleID, geneSymbol, updateData);
+            const data = await fetchAllAmrGenes();
+            setAmrGenesData(data);
+            setHighlightedSampleIds(new Set([sampleID]));
+            setEditAmrGenesModalOpened(false);
+        } catch (error) {
+            console.error('Error updating AMR gene:', error);
+        }
+    };
+
+    const handleEditVirulenceGenesClick = (record) => {
+        setRecordToEdit(record);
+        setEditVirulenceGenesModalOpened(true);
+    };
+
+    const handleEditVirulenceGenesSave = async (isolateID, geneSymbol, updateData) => {
+        try {
+            await updateVirulenceGene(isolateID, geneSymbol, updateData);
+            const data = await fetchAllVirulenceGenes();
+            setVirulenceGenesData(data);
+            setEditVirulenceGenesModalOpened(false);
+        } catch (error) {
+            console.error('Error updating virulence gene:', error);
+        }
+    };
+
     // Filter data for current user
     const userSamples = userFullName
         ? samples.filter((s) => s.collected_by === userFullName)
         : [];
 
-    // Filter data for each tab
-    const metagenomicSamples = userSamples.filter(
-        (s) => s.sample_analysis_type === 'Metagenomic',
+    // Get sampleIDs from user's samples
+    const userSampleIds = new Set(userSamples.map((s) => s.sampleID));
+
+    // Filter metagenomic records by sampleID
+    const filteredMetagenomic = metageonomicData.filter((m) =>
+        userSampleIds.has(m.sampleID)
     );
-    const wgsSamples = userSamples.filter((s) => s.sample_analysis_type === 'WGS');
-    // AMR genes table shows metagenomic samples, Virulence shows WGS samples
-    const amrSamples = metagenomicSamples;
-    const virulenceSamples = wgsSamples;
+
+    // Filter WGS records by sampleID
+    const filteredWgs = wgsData.filter((w) =>
+        userSampleIds.has(w.sampleID)
+    );
+
+    // Get isolateIDs from filtered WGS records
+    const userIsolateIds = new Set(filteredWgs.map((w) => w.isolateID));
+
+    // Filter AMR genes by sampleID
+    const filteredAmrGenes = amrGenesData.filter((a) =>
+        userSampleIds.has(a.sampleID)
+    );
+
+    // Filter virulence genes by isolateID
+    const filteredVirulenceGenes = virulenceGenesData.filter((v) =>
+        userIsolateIds.has(v.isolateID)
+    );
 
     return (
         <div className='captured-data-page'>
@@ -201,30 +337,35 @@ const CapturedData = () => {
                             <SamplesTable
                                 records={userSamples}
                                 highlightedSampleIds={highlightedSampleIds}
+                                onEditClick={handleEditSampleClick}
                             />
                         </Tabs.Panel>
                         <Tabs.Panel value='metagenomic' pt='md'>
                             <MetagenomicTable
-                                records={metagenomicSamples}
+                                records={filteredMetagenomic}
                                 highlightedSampleIds={highlightedSampleIds}
+                                onEditClick={handleEditMetagenomicClick}
                             />
                         </Tabs.Panel>
                         <Tabs.Panel value='wgs' pt='md'>
                             <WgsTable
-                                records={wgsSamples}
+                                records={filteredWgs}
                                 highlightedSampleIds={highlightedSampleIds}
+                                onEditClick={handleEditWgsClick}
                             />
                         </Tabs.Panel>
                         <Tabs.Panel value='amr' pt='md'>
                             <AmrGenesTable
-                                records={amrSamples}
+                                records={filteredAmrGenes}
                                 highlightedSampleIds={highlightedSampleIds}
+                                onEditClick={handleEditAmrGenesClick}
                             />
                         </Tabs.Panel>
                         <Tabs.Panel value='virulence' pt='md'>
                             <VirulenceGenesTable
-                                records={virulenceSamples}
+                                records={filteredVirulenceGenes}
                                 highlightedSampleIds={highlightedSampleIds}
+                                onEditClick={handleEditVirulenceGenesClick}
                             />
                         </Tabs.Panel>
                     </Tabs>
@@ -240,6 +381,36 @@ const CapturedData = () => {
                 isOpen={bulkUploadModalOpened}
                 onClose={() => setBulkUploadModalOpened(false)}
                 onUploadSuccess={handleUploadSuccess}
+            />
+            <EditSampleModal
+                opened={editSampleModalOpened}
+                onClose={() => setEditSampleModalOpened(false)}
+                record={recordToEdit}
+                onSave={handleEditSampleSave}
+            />
+            <EditMetagenomicModal
+                opened={editMetagenomicModalOpened}
+                onClose={() => setEditMetagenomicModalOpened(false)}
+                record={recordToEdit}
+                onSave={handleEditMetagenomicSave}
+            />
+            <EditWgsModal
+                opened={editWgsModalOpened}
+                onClose={() => setEditWgsModalOpened(false)}
+                record={recordToEdit}
+                onSave={handleEditWgsSave}
+            />
+            <EditAmrGenesModal
+                opened={editAmrGenesModalOpened}
+                onClose={() => setEditAmrGenesModalOpened(false)}
+                record={recordToEdit}
+                onSave={handleEditAmrGenesSave}
+            />
+            <EditVirulenceGenesModal
+                opened={editVirulenceGenesModalOpened}
+                onClose={() => setEditVirulenceGenesModalOpened(false)}
+                record={recordToEdit}
+                onSave={handleEditVirulenceGenesSave}
             />
         </div>
     );

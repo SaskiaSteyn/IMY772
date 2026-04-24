@@ -116,3 +116,108 @@ export const fetchAllSamples = async () => {
         throw error;
     }
 };
+
+export const fetchAllMetagenomic = async () => {
+    try {
+        const response = await request('/api/metagenomic');
+        return response.metagenomic || [];
+    } catch (error) {
+        console.error('API Error fetching metagenomic records:', error);
+        throw error;
+    }
+};
+
+export const fetchAllWgs = async () => {
+    try {
+        const response = await request('/api/wgs');
+        return response.wgs || [];
+    } catch (error) {
+        console.error('API Error fetching WGS records:', error);
+        throw error;
+    }
+};
+
+export const fetchAllAmrGenes = async () => {
+    try {
+        const response = await request('/api/amr-resistance-genes');
+        return response.amrResistanceGenes || [];
+    } catch (error) {
+        console.error('API Error fetching AMR genes:', error);
+        throw error;
+    }
+};
+
+export const fetchAllVirulenceGenes = async () => {
+    try {
+        const response = await request('/api/virulence-genes');
+        return response.virulenceGenes || [];
+    } catch (error) {
+        console.error('API Error fetching virulence genes:', error);
+        throw error;
+    }
+};
+
+export const updateSample = async (sampleID, updateData) => {
+    try {
+        const response = await request(`/api/samples/${sampleID}`, {
+            method: 'PUT',
+            body: JSON.stringify(updateData),
+        });
+        return response.sample;
+    } catch (error) {
+        console.error('API Error updating sample:', error);
+        throw error;
+    }
+};
+
+export const updateMetagenomic = async (sampleID, sequenceName, updateData) => {
+    try {
+        const response = await request(`/api/metagenomic/sample/${sampleID}/sequence/${encodeURIComponent(sequenceName)}`, {
+            method: 'PUT',
+            body: JSON.stringify(updateData),
+        });
+        return response.metagenomic;
+    } catch (error) {
+        console.error('API Error updating metagenomic:', error);
+        throw error;
+    }
+};
+
+export const updateWgs = async (sampleID, isolateID, updateData) => {
+    try {
+        const response = await request(`/api/wgs/${sampleID}/${isolateID}`, {
+            method: 'PUT',
+            body: JSON.stringify(updateData),
+        });
+        return response.wgs;
+    } catch (error) {
+        console.error('API Error updating WGS:', error);
+        throw error;
+    }
+};
+
+export const updateAmrGene = async (sampleID, geneSymbol, updateData) => {
+    try {
+        const response = await request(`/api/amr-resistance-genes/sample/${sampleID}/gene/${encodeURIComponent(geneSymbol)}`, {
+            method: 'PUT',
+            body: JSON.stringify(updateData),
+        });
+        return response.amrResistanceGene;
+    } catch (error) {
+        console.error('API Error updating AMR gene:', error);
+        throw error;
+    }
+};
+
+export const updateVirulenceGene = async (isolateID, geneSymbol, updateData) => {
+    try {
+        const response = await request(`/api/virulence-genes/isolate/${isolateID}/gene/${encodeURIComponent(geneSymbol)}`, {
+            method: 'PUT',
+            body: JSON.stringify(updateData),
+        });
+        return response.virulenceGene;
+    } catch (error) {
+        console.error('API Error updating virulence gene:', error);
+        throw error;
+    }
+};

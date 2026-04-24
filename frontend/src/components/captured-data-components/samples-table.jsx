@@ -1,6 +1,8 @@
-import { DataTable } from 'mantine-datatable';
+import {DataTable} from 'mantine-datatable';
+import {ActionIcon, Group} from '@mantine/core';
+import {Pencil} from 'lucide-react';
 
-const SamplesTable = ({ records, highlightedSampleIds }) => {
+const SamplesTable = ({records, highlightedSampleIds, onEditClick}) => {
     return (
         <DataTable
             striped
@@ -49,14 +51,32 @@ const SamplesTable = ({ records, highlightedSampleIds }) => {
                     title: 'Analysis Type',
                     width: 140,
                 },
-                { accessor: 'location_name', title: 'Location' },
-                { accessor: 'collected_by', title: 'Collected By', width: 140 },
+                {accessor: 'location_name', title: 'Location'},
+                {accessor: 'collected_by', title: 'Collected By', width: 140},
+                {
+                    accessor: 'actions',
+                    title: '',
+                    width: 50,
+                    textAlignment: 'center',
+                    render: (record) => (
+                        <Group justify='center' gap={0}>
+                            <ActionIcon
+                                size='sm'
+                                variant='subtle'
+                                onClick={() => onEditClick(record)}
+                                title='Edit record'
+                            >
+                                <Pencil size={16} />
+                            </ActionIcon>
+                        </Group>
+                    ),
+                },
             ]}
             noRecordsText=''
             noRecordsIcon={<></>}
             minHeight={300}
             styles={{
-                emptyState: { display: 'none' },
+                emptyState: {display: 'none'},
             }}
         />
     );
