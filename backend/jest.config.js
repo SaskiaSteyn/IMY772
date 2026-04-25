@@ -24,13 +24,14 @@ export default {
     // Coverage directory
     coverageDirectory: 'coverage',
     // Coverage thresholds
-    // Starting thresholds (will increase as test coverage improves)
+    // Keep statement/line/function coverage high while using a realistic branch floor
+    // for route validators, upload guards, and schema fallback paths.
     coverageThreshold: {
         global: {
-            branches: 15,
-            functions: 25,
-            lines: 25,
-            statements: 25,
+            branches: 80,
+            functions: 95,
+            lines: 95,
+            statements: 95,
         },
     },
     // Where to look for tests
