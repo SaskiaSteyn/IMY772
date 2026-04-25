@@ -1,6 +1,6 @@
 import {useState} from 'react';
 import * as XLSX from 'xlsx';
-import ExpandedDataModal from './expanded-data-modal';
+import BulkPreviewModal from './bulk-preview-modal';
 import {
     Button,
     Group,
@@ -12,7 +12,7 @@ import {
     Loader,
     ActionIcon,
 } from '@mantine/core';
-import {Upload, AlertCircle, CheckCircle, FileUp, X} from 'lucide-react';
+import {AlertCircle, CheckCircle, FileUp, X} from 'lucide-react';
 import styles from './bulk-upload-modal.module.scss';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -22,25 +22,20 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
     const [loading, setLoading] = useState(false);
     const [uploadResult, setUploadResult] = useState(null);
     const [error, setError] = useState(null);
-    const [previewData, setPreviewData] = useState(null);
+    const [samplePreviews, setSamplePreviews] = useState([]);
     const [previewOpen, setPreviewOpen] = useState(false);
 
-    // Only allow fields matching backend routes
+    // Allowed fields for preview filtering (only used for display)
     const allowedSampleFields = [
         'water_temperature', 'ph', 'tds', 'do', 'sample_analysis_type', 'isolation_source',
-        'collection_date', 'location_name', 'latitude', 'longitude', 'collected_by', 'predicted_sir_profile', 'sampleID'
+        'collection_date', 'location_name', 'latitude', 'longitude', 'collected_by',
+        'predicted_sir_profile', 'sampleID'
     ];
     const allowedMetagenomicFields = [
-        'sampleID', 'sequence_name', 'element_type', 'class', 'subclass'
+        'sequence_name', 'element_type', 'class', 'subclass'
     ];
     const allowedWgsFields = [
-        'sampleID', 'isolateID', 'organism'
-    ];
-    const allowedAmrGenesFields = [
-        'sampleID', 'geneSymbol'
-    ];
-    const allowedVirulenceGenesFields = [
-        'sampleID', 'isolateID', 'geneSymbol'
+        'isolateID', 'organism'
     ];
 
     const filterFields = (obj, allowed) => {
@@ -51,23 +46,75 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
         return filtered;
     };
 
+    // Build preview objects for each sample, extracting AMR/virulence genes
+    const buildSamplePreviews = (parsedArray) => {
+        return parsedArray.map(sample => {
+            const sampleFields = filterFields(sample, allowedSampleFields);
+
+            // Metagenomic records (if any)
+            const metagenomic = sample.metagenomic
+                ? sample.metagenomic.map(rec => filterFields(rec, allowedMetagenomicFields))
+                : [];
+
+            // WGS records (if any)
+            const wgs = sample.wgs
+                ? sample.wgs.map(rec => filterFields(rec, allowedWgsFields))
+                : [];
+
+            // Extract AMR genes from metagenomic records
+            const amrGenesSet = new Set();
+            if (sample.metagenomic) {
+                sample.metagenomic.forEach(rec => {
+                    if (rec.amr_resistance_genes && Array.isArray(rec.amr_resistance_genes)) {
+                        rec.amr_resistance_genes.forEach(gene => {
+                            if (gene && gene.trim()) amrGenesSet.add(gene.trim());
+                        });
+                    }
+                });
+            }
+            const amrGenes = Array.from(amrGenesSet).map(gene => ({geneSymbol: gene}));
+
+            // Extract virulence genes from WGS records
+            const virulenceGenesSet = new Set();
+            if (sample.wgs) {
+                sample.wgs.forEach(rec => {
+                    if (rec.virulence_genes && Array.isArray(rec.virulence_genes)) {
+                        rec.virulence_genes.forEach(gene => {
+                            if (gene && gene.trim()) virulenceGenesSet.add(gene.trim());
+                        });
+                    }
+                });
+            }
+            const virulenceGenes = Array.from(virulenceGenesSet).map(gene => ({geneSymbol: gene}));
+
+            return {
+                sample: sampleFields,
+                metagenomic,
+                wgs,
+                amrGenes,
+                virulenceGenes,
+            };
+        });
+    };
+
     const handleFileChange = async (event) => {
         const selectedFile = event.target.files?.[0];
         if (!selectedFile) return;
+
         const fileName = selectedFile.name.toLowerCase();
-        const validExtensions = ['.csv', '.json', '.xlsx'];
+        const validExtensions = ['.csv', '.json']; // backend only accepts CSV/JSON
         const hasValidExtension = validExtensions.some((ext) => fileName.endsWith(ext));
         if (!hasValidExtension) {
-            setError('Invalid file type. Please upload a CSV, JSON, or XLSX file.');
+            setError('Invalid file type. Please upload a CSV or JSON file.');
             setFile(null);
-            setPreviewData(null);
+            setSamplePreviews([]);
             return;
         }
+
         setFile(selectedFile);
         setError(null);
         setUploadResult(null);
 
-        // Parse file for preview
         let parsed = null;
         try {
             if (fileName.endsWith('.json')) {
@@ -83,36 +130,22 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
                     headers.forEach((h, i) => {obj[h.trim()] = values[i]?.trim();});
                     return obj;
                 });
-            } else if (fileName.endsWith('.xlsx')) {
-                const data = await selectedFile.arrayBuffer();
-                const workbook = XLSX.read(data, {type: 'array'});
-                const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                parsed = XLSX.utils.sheet_to_json(sheet);
             }
         } catch (e) {
             setError('Failed to parse file: ' + e.message);
-            setPreviewData(null);
+            setSamplePreviews([]);
             return;
         }
 
-        // Only allow array of objects
         if (!Array.isArray(parsed)) {
-            setError('File must contain an array of records');
-            setPreviewData(null);
+            setError('File must contain an array of sample objects.');
+            setSamplePreviews([]);
             return;
         }
 
-        // Try to infer data structure for preview (simple: treat as samples, or group by keys)
-        // For now, treat as samples, and allow user to upload if fields match
-        const previewSample = filterFields(parsed[0], allowedSampleFields);
-        // Optionally, could add logic to detect metagenomic, wgs, etc.
-        setPreviewData({
-            sample: previewSample,
-            metagenomic: parsed.map(r => filterFields(r, allowedMetagenomicFields)).filter(r => Object.keys(r).length > 1),
-            wgs: parsed.map(r => filterFields(r, allowedWgsFields)).filter(r => Object.keys(r).length > 1),
-            amrGenes: parsed.map(r => filterFields(r, allowedAmrGenesFields)).filter(r => Object.keys(r).length > 1),
-            virulenceGenes: parsed.map(r => filterFields(r, allowedVirulenceGenesFields)).filter(r => Object.keys(r).length > 1),
-        });
+        // Build previews and open the modal
+        const previews = buildSamplePreviews(parsed);
+        setSamplePreviews(previews);
         setPreviewOpen(true);
     };
 
@@ -143,15 +176,9 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
             } else {
                 setUploadResult(data.results);
                 setFile(null);
-
-                console.log(
-                    'Upload successful, sample IDs:',
-                    data.results.sampleIDs,
-                );
-
-                // Call success callback with the newly created sample IDs
+                setSamplePreviews([]);
+                console.log('Upload successful, sample IDs:', data.results.sampleIDs);
                 if (onUploadSuccess) {
-                    console.log('Calling onUploadSuccess callback');
                     onUploadSuccess(data.results.sampleIDs);
                 }
             }
@@ -166,6 +193,7 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
         setFile(null);
         setError(null);
         setUploadResult(null);
+        setSamplePreviews([]);
     };
 
     const handleClose = () => {
@@ -187,28 +215,24 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
                     {!uploadResult && !file && (
                         <>
                             <Text size='sm' color='dimmed'>
-                                Upload a CSV, JSON, or XLSX file containing sample data with optional metagenomic information.
+                                Upload a CSV or JSON file containing an array of sample objects.
+                                Each sample may include <strong>metagenomic</strong> or <strong>wgs</strong> arrays.
                             </Text>
                             <div className={styles.uploadArea}>
                                 <input
                                     type='file'
                                     id='file-input'
                                     onChange={handleFileChange}
-                                    accept='.csv,.json,.xlsx'
+                                    accept='.csv,.json'
                                     style={{display: 'none'}}
                                 />
-                                <label
-                                    htmlFor='file-input'
-                                    className={styles.uploadLabel}
-                                >
+                                <label htmlFor='file-input' className={styles.uploadLabel}>
                                     <FileUp size={32} />
                                     <Text weight={500}>
-                                        {file
-                                            ? file.name
-                                            : 'Click to select a file or drag and drop'}
+                                        {file ? file.name : 'Click to select a file or drag and drop'}
                                     </Text>
                                     <Text size='xs' color='dimmed'>
-                                        CSV, JSON, or XLSX files only
+                                        CSV or JSON files only
                                     </Text>
                                 </label>
                             </div>
@@ -229,12 +253,12 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
                                     size='sm'
                                     color='gray'
                                     variant='subtle'
-                                    onClick={() => {setFile(null); setPreviewData(null);}}
+                                    onClick={() => {setFile(null); setSamplePreviews([]);}}
                                     title='Remove file'
                                 >
                                     <X size={18} />
                                 </ActionIcon>
-                                {previewData && (
+                                {samplePreviews.length > 0 && (
                                     <Button size='xs' variant='light' onClick={() => setPreviewOpen(true)}>
                                         Preview Data
                                     </Button>
@@ -245,11 +269,7 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
 
                     {/* Error Alert */}
                     {error && (
-                        <Alert
-                            icon={<AlertCircle size={16} />}
-                            color='red'
-                            title='Upload Error'
-                        >
+                        <Alert icon={<AlertCircle size={16} />} color='red' title='Upload Error'>
                             {error}
                         </Alert>
                     )}
@@ -265,61 +285,23 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
                     {/* Results Section */}
                     {uploadResult && !loading && (
                         <Stack spacing='md'>
-                            <Alert
-                                icon={<CheckCircle size={16} />}
-                                title='Upload Completed'
-                            >
-                                {uploadResult.successCount} of{' '}
-                                {uploadResult.totalSamples} samples were
-                                successfully uploaded.
+                            <Alert icon={<CheckCircle size={16} />} title='Upload Completed'>
+                                {uploadResult.successCount} of {uploadResult.totalSamples} samples were successfully uploaded.
                             </Alert>
-
-                            <Stack spacing='xs'>
-                                {/* <Group position='apart'>
-                                <Text weight={500}>Results:</Text>
-                            </Group>
-                            <Text size='sm'>
-                                <strong>Successfully Added:</strong>{' '}
-                                {uploadResult.successCount}
-                            </Text> */}
-                                {uploadResult.failureCount > 0 && (
-                                    <>
-                                        <Text size='sm' color='red'>
-                                            <strong>Failed:</strong>{' '}
-                                            {uploadResult.failureCount}
-                                        </Text>
-                                        {uploadResult.errors &&
-                                            uploadResult.errors.length > 0 && (
-                                                <Alert
-                                                    icon={<AlertCircle size={14} />}
-                                                    color='yellow'
-                                                    title='Failed Samples'
-                                                    size='sm'
-                                                >
-                                                    <List size='sm' spacing='xs'>
-                                                        {uploadResult.errors.map(
-                                                            (err, idx) => (
-                                                                <List.Item
-                                                                    key={idx}
-                                                                >
-                                                                    Sample{' '}
-                                                                    {
-                                                                        err.sampleIndex
-                                                                    }
-                                                                    : {err.error}
-                                                                </List.Item>
-                                                            ),
-                                                        )}
-                                                    </List>
-                                                </Alert>
-                                            )}
-                                    </>
-                                )}
-                                {/* <Text size='sm'>
-                                <strong>Sample IDs Created:</strong>{' '}
-                                {uploadResult.sampleIDs.join(', ')}
-                            </Text> */}
-                            </Stack>
+                            {uploadResult.failureCount > 0 && (
+                                <>
+                                    <Text size='sm' color='red'>
+                                        <strong>Failed:</strong> {uploadResult.failureCount}
+                                    </Text>
+                                    {uploadResult.errors && uploadResult.errors.length > 0 && (
+                                        <Alert icon={<AlertCircle size={14} />} color='yellow' title='Failed Samples' size='sm'>
+                                            {uploadResult.errors.map((err, idx) => (
+                                                <Text key={idx} size='sm'>Sample {err.sampleIndex}: {err.error}</Text>
+                                            ))}
+                                        </Alert>
+                                    )}
+                                </>
+                            )}
                         </Stack>
                     )}
 
@@ -327,18 +309,10 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
                     <Group position='right' spacing='sm'>
                         {!uploadResult ? (
                             <>
-                                <Button
-                                    variant='default'
-                                    onClick={handleClose}
-                                    disabled={loading}
-                                >
+                                <Button variant='default' onClick={handleClose} disabled={loading}>
                                     Cancel
                                 </Button>
-                                <Button
-                                    onClick={handleUpload}
-                                    loading={loading}
-                                    disabled={!file || loading}
-                                >
+                                <Button onClick={handleUpload} loading={loading} disabled={!file || loading}>
                                     Upload
                                 </Button>
                             </>
@@ -348,15 +322,12 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
                     </Group>
                 </Stack>
             </Modal>
-            {/* Data Preview Modal */}
-            <ExpandedDataModal
+
+            {/* Multi‑sample Preview Modal */}
+            <BulkPreviewModal
                 opened={previewOpen}
                 onClose={() => setPreviewOpen(false)}
-                sample={previewData?.sample}
-                metagenomic={previewData?.metagenomic}
-                wgs={previewData?.wgs}
-                amrGenes={previewData?.amrGenes}
-                virulenceGenes={previewData?.virulenceGenes}
+                samples={samplePreviews}
             />
         </>
     );

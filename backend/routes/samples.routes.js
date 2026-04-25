@@ -1,5 +1,5 @@
-import { Router } from 'express'
-import { body, param, validationResult } from 'express-validator'
+import {Router} from 'express'
+import {body, param, validationResult} from 'express-validator'
 import prisma from '../lib/prisma.js'
 
 const router = Router()
@@ -20,12 +20,12 @@ router.post(
         body('collection_date').optional().isISO8601().withMessage('Collection date must be valid ISO8601'),
         body('location_name').optional().trim().isString(),
         body('collected_by').optional().trim().isString(),
-        body('predicted_sir_profile').optional().isIn(['Susceptible', 'Intermediate', 'Resistant']),
+        body('predicted_sir_profile').optional().isIn(['Not Resistant', 'Resistant']),
     ],
     async (req, res) => {
         const errors = validationResult(req)
         if (!errors.isEmpty()) {
-            return res.status(400).json({ errors: errors.array() })
+            return res.status(400).json({errors: errors.array()})
         }
 
         const {
@@ -61,10 +61,10 @@ router.post(
                 },
             })
 
-            return res.status(201).json({ sample })
+            return res.status(201).json({sample})
         } catch (err) {
             console.error('Create sample error:', err)
-            return res.status(500).json({ message: 'Failed to create sample' })
+            return res.status(500).json({message: 'Failed to create sample'})
         }
     }
 )
@@ -75,10 +75,10 @@ router.get('/', async (req, res) => {
     try {
         const samples = await prisma.sample.findMany()
 
-        return res.json({ samples })
+        return res.json({samples})
     } catch (err) {
         console.error('Get samples error:', err)
-        return res.status(500).json({ message: 'Failed to retrieve samples' })
+        return res.status(500).json({message: 'Failed to retrieve samples'})
     }
 })
 
@@ -90,24 +90,24 @@ router.get(
     async (req, res) => {
         const errors = validationResult(req)
         if (!errors.isEmpty()) {
-            return res.status(400).json({ errors: errors.array() })
+            return res.status(400).json({errors: errors.array()})
         }
 
-        const { sampleID } = req.params
+        const {sampleID} = req.params
 
         try {
             const sample = await prisma.sample.findUnique({
-                where: { sampleID: parseInt(sampleID) },
+                where: {sampleID: parseInt(sampleID)},
             })
 
             if (!sample) {
-                return res.status(404).json({ message: 'Sample not found' })
+                return res.status(404).json({message: 'Sample not found'})
             }
 
-            return res.json({ sample })
+            return res.json({sample})
         } catch (err) {
             console.error('Get sample error:', err)
-            return res.status(500).json({ message: 'Failed to retrieve sample' })
+            return res.status(500).json({message: 'Failed to retrieve sample'})
         }
     }
 )
@@ -129,15 +129,15 @@ router.put(
         body('latitude').optional().isDecimal(),
         body('longitude').optional().isDecimal(),
         body('collected_by').optional().trim().isString(),
-        body('predicted_sir_profile').optional().isIn(['Susceptible', 'Intermediate', 'Resistant']),
+        body('predicted_sir_profile').optional().isIn(['Not Resistant', 'Resistant']),
     ],
     async (req, res) => {
         const errors = validationResult(req)
         if (!errors.isEmpty()) {
-            return res.status(400).json({ errors: errors.array() })
+            return res.status(400).json({errors: errors.array()})
         }
 
-        const { sampleID } = req.params
+        const {sampleID} = req.params
         const updateData = {}
 
         // Build update object only with provided fields
@@ -156,17 +156,17 @@ router.put(
 
         try {
             const sample = await prisma.sample.update({
-                where: { sampleID: parseInt(sampleID) },
+                where: {sampleID: parseInt(sampleID)},
                 data: updateData,
             })
 
-            return res.json({ sample })
+            return res.json({sample})
         } catch (err) {
             if (err.code === 'P2025') {
-                return res.status(404).json({ message: 'Sample not found' })
+                return res.status(404).json({message: 'Sample not found'})
             }
             console.error('Update sample error:', err)
-            return res.status(500).json({ message: 'Failed to update sample' })
+            return res.status(500).json({message: 'Failed to update sample'})
         }
     }
 )
@@ -179,23 +179,23 @@ router.delete(
     async (req, res) => {
         const errors = validationResult(req)
         if (!errors.isEmpty()) {
-            return res.status(400).json({ errors: errors.array() })
+            return res.status(400).json({errors: errors.array()})
         }
 
-        const { sampleID } = req.params
+        const {sampleID} = req.params
 
         try {
             await prisma.sample.delete({
-                where: { sampleID: parseInt(sampleID) },
+                where: {sampleID: parseInt(sampleID)},
             })
 
-            return res.json({ message: 'Sample deleted successfully' })
+            return res.json({message: 'Sample deleted successfully'})
         } catch (err) {
             if (err.code === 'P2025') {
-                return res.status(404).json({ message: 'Sample not found' })
+                return res.status(404).json({message: 'Sample not found'})
             }
             console.error('Delete sample error:', err)
-            return res.status(500).json({ message: 'Failed to delete sample' })
+            return res.status(500).json({message: 'Failed to delete sample'})
         }
     }
 )
