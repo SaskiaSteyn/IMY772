@@ -1,16 +1,17 @@
+import {useImperativeHandle, forwardRef, useState, useEffect} from 'react';
 import {Button, Stack, TextInput, Paper, Group, Text} from '@mantine/core';
 import {Trash2, Plus} from 'lucide-react';
-import {useState} from 'react';
 import styles from './sample-info-step.module.scss';
 
-const VirulenceGenesStep = ({formData, setFormData}) => {
+const VirulenceGenesStep = forwardRef(({formData, setFormData, onValidationChange}, ref) => {
     const [touched, setTouched] = useState([]);
     const [shake, setShake] = useState([]);
     const [error, setError] = useState(false);
+    const [showError, setShowError] = useState(false);
 
     // Guard against missing formData or virulenceGenes
     if (!formData || !Array.isArray(formData.virulenceGenes)) {
-        return <Stack>Loading...</Stack>; // or return null
+        return <Stack>Loading...</Stack>;
     }
 
     const genes = formData.virulenceGenes;
@@ -39,21 +40,35 @@ const VirulenceGenesStep = ({formData, setFormData}) => {
         setShake((prev) => prev.filter((_, i) => i !== index));
     };
 
-    // Validation on Next (simulate parent call)
-    const validateAll = () => {
-        const missing = genes.map((g) => !g || g.trim() === '');
-        setTouched(missing.map(() => true));
-        setShake(missing);
-        setError(missing.some(Boolean));
-        setTimeout(() => setShake(missing.map(() => false)), 400);
-        return !missing.some(Boolean);
-    };
+    // Validation logic
+    const missing = genes.map((g) => !g || g.trim() === '');
+    const anyMissing = missing.some(Boolean);
 
-    // Optionally, call validateAll() on parent Next, or expose via ref
+    // Expose validation to parent
+    useImperativeHandle(ref, () => ({
+        validate: () => {
+            setTouched(missing.map(() => true));
+            setShake(missing);
+            setError(anyMissing);
+            setShowError(true);
+            setTimeout(() => setShake(missing.map(() => false)), 400);
+            return !anyMissing;
+        }
+    }));
+
+    // Hide error if all valid
+    useEffect(() => {
+        if (!anyMissing && showError) setShowError(false);
+    }, [anyMissing, showError]);
+
+    // Notify parent of validation state
+    useEffect(() => {
+        if (onValidationChange) onValidationChange(!anyMissing);
+    }, [anyMissing, onValidationChange]);
 
     return (
         <Stack gap="md">
-            {error && (
+            {showError && error && (
                 <div style={{color: 'red', marginBottom: 8, fontWeight: 500}}>
                     Please fill in all gene symbols.
                 </div>
@@ -91,11 +106,12 @@ const VirulenceGenesStep = ({formData, setFormData}) => {
                 leftSection={<Plus size={16} />}
                 onClick={addGene}
                 variant="outline"
+                disabled={anyMissing}
             >
                 Add Virulence Gene
             </Button>
         </Stack>
     );
-};
+});
 
 export default VirulenceGenesStep;

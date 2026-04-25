@@ -1,12 +1,13 @@
-import {Button, Stack, TextInput, NumberInput, SimpleGrid, Paper, Title} from '@mantine/core';
+import {useImperativeHandle, forwardRef, useState, useEffect} from 'react';
+import {SimpleGrid, TextInput, NumberInput, Stack, Title, Button, Paper} from '@mantine/core';
 import {Trash2, Plus} from 'lucide-react';
-import {useState} from 'react';
 import styles from './sample-info-step.module.scss';
 
-const WgsStep = ({formData, setFormData}) => {
+const WgsStep = forwardRef(({formData, setFormData, onValidationChange}, ref) => {
     const [touched, setTouched] = useState([]);
     const [shake, setShake] = useState([]);
     const [error, setError] = useState(false);
+    const [showError, setShowError] = useState(false);
 
     const updateRecord = (index, field, value) => {
         const updated = [...formData.wgsRecords];
@@ -35,24 +36,38 @@ const WgsStep = ({formData, setFormData}) => {
         setShake((prev) => prev.filter((_, i) => i !== index));
     };
 
-    // Validation on Next (simulate parent call)
-    const validateAll = () => {
-        const missing = formData.wgsRecords.map((rec) => ({
-            isolateID: !rec.isolateID,
-            organism: !rec.organism || rec.organism.trim() === ''
-        }));
-        setTouched(missing.map(m => ({isolateID: true, organism: true})));
-        setShake(missing);
-        setError(missing.some(m => m.isolateID || m.organism));
-        setTimeout(() => setShake(missing.map(() => ({isolateID: false, organism: false}))), 400);
-        return !missing.some(m => m.isolateID || m.organism);
-    };
+    // Validation logic
+    const missing = formData.wgsRecords.map((rec) => ({
+        isolateID: !rec.isolateID,
+        organism: !rec.organism || rec.organism.trim() === ''
+    }));
+    const anyMissing = missing.some(m => m.isolateID || m.organism);
 
-    // Optionally, call validateAll() on parent Next, or expose via ref
+    // Expose validation to parent
+    useImperativeHandle(ref, () => ({
+        validate: () => {
+            setTouched(missing.map(m => ({isolateID: true, organism: true})));
+            setShake(missing);
+            setError(anyMissing);
+            setShowError(true);
+            setTimeout(() => setShake(missing.map(() => ({isolateID: false, organism: false}))), 400);
+            return !anyMissing;
+        }
+    }));
+
+    // Hide error if all valid
+    useEffect(() => {
+        if (!anyMissing && showError) setShowError(false);
+    }, [anyMissing, showError]);
+
+    // Notify parent of validation state
+    useEffect(() => {
+        if (onValidationChange) onValidationChange(!anyMissing);
+    }, [anyMissing, onValidationChange]);
 
     return (
         <Stack gap="md">
-            {error && (
+            {showError && error && (
                 <div style={{color: 'red', marginBottom: 8, fontWeight: 500}}>
                     Please fill in all WGS record fields.
                 </div>
@@ -101,11 +116,12 @@ const WgsStep = ({formData, setFormData}) => {
                 leftSection={<Plus size={16} />}
                 onClick={addRecord}
                 variant="outline"
+                disabled={anyMissing}
             >
                 Add WGS Record
             </Button>
         </Stack>
     );
-};
+});
 
 export default WgsStep;
