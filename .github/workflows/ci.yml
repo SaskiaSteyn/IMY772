@@ -80,7 +80,7 @@ jobs:
               continue-on-error: true
 
             - name: Run backend tests
-              run: cd backend && yarn test
+              run: cd backend && yarn test --coverage
               env:
                   PRISMA_DATABASE_URL: postgresql://postgres:postgres_test_pw@localhost:5432/IMY772
                   NODE_ENV: test
@@ -97,14 +97,35 @@ jobs:
               run: cd frontend && yarn build
 
             - name: Run frontend tests
-              run: cd frontend && yarn test --run
+              run: cd frontend && yarn test --run --coverage
+
+            - name: Upload coverage to Codecov
+              uses: codecov/codecov-action@v4
+              with:
+                  files: ./backend/coverage/coverage-final.json,./frontend/coverage/coverage-final.json
+                  flags: unittests
+                  fail_ci_if_error: false
+              env:
+                  CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
             # Summary
             - name: Build Summary
               if: always()
               run: |
                   echo "### Build & Test Summary" >> $GITHUB_STEP_SUMMARY
-                  echo "✅ Backend setup completed" >> $GITHUB_STEP_SUMMARY
-                  echo "✅ Backend tests completed" >> $GITHUB_STEP_SUMMARY
-                  echo "✅ Frontend build completed" >> $GITHUB_STEP_SUMMARY
-                  echo "✅ Frontend tests completed" >> $GITHUB_STEP_SUMMARY
+                  echo "" >> $GITHUB_STEP_SUMMARY
+                  echo "#### Backend" >> $GITHUB_STEP_SUMMARY
+                  echo "✅ Setup & Tests completed" >> $GITHUB_STEP_SUMMARY
+                  if [ -f backend/coverage/coverage-summary.json ]; then
+                    echo "" >> $GITHUB_STEP_SUMMARY
+                    echo "**Coverage Report:**" >> $GITHUB_STEP_SUMMARY
+                    node -e "const c = require('./backend/coverage/coverage-summary.json').total; console.log('- Lines:', c.lines.pct + '%'); console.log('- Statements:', c.statements.pct + '%'); console.log('- Functions:', c.functions.pct + '%'); console.log('- Branches:', c.branches.pct + '%');" >> $GITHUB_STEP_SUMMARY || echo "Coverage data available" >> $GITHUB_STEP_SUMMARY
+                  fi
+                  echo "" >> $GITHUB_STEP_SUMMARY
+                  echo "#### Frontend" >> $GITHUB_STEP_SUMMARY
+                  echo "✅ Build & Tests completed" >> $GITHUB_STEP_SUMMARY
+                  if [ -f frontend/coverage/coverage-summary.json ]; then
+                    echo "" >> $GITHUB_STEP_SUMMARY
+                    echo "**Coverage Report:**" >> $GITHUB_STEP_SUMMARY
+                    node -e "const c = require('./frontend/coverage/coverage-summary.json').total; console.log('- Lines:', c.lines.pct + '%'); console.log('- Statements:', c.statements.pct + '%'); console.log('- Functions:', c.functions.pct + '%'); console.log('- Branches:', c.branches.pct + '%');" >> $GITHUB_STEP_SUMMARY || echo "Coverage data available" >> $GITHUB_STEP_SUMMARY
+                  fi
