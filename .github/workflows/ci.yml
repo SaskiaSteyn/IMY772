@@ -79,6 +79,12 @@ jobs:
                   PRISMA_DATABASE_URL: postgresql://postgres:postgres_test_pw@localhost:5432/IMY772
               continue-on-error: true
 
+            - name: Run backend tests
+              run: cd backend && yarn test
+              env:
+                  PRISMA_DATABASE_URL: postgresql://postgres:postgres_test_pw@localhost:5432/IMY772
+                  NODE_ENV: test
+
             # Frontend Build & Test
             - name: Install frontend dependencies
               run: cd frontend && yarn install
@@ -99,5 +105,6 @@ jobs:
               run: |
                   echo "### Build & Test Summary" >> $GITHUB_STEP_SUMMARY
                   echo "✅ Backend setup completed" >> $GITHUB_STEP_SUMMARY
+                  echo "✅ Backend tests completed" >> $GITHUB_STEP_SUMMARY
                   echo "✅ Frontend build completed" >> $GITHUB_STEP_SUMMARY
                   echo "✅ Frontend tests completed" >> $GITHUB_STEP_SUMMARY
