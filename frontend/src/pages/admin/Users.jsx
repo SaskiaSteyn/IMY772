@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import {
     ActionIcon,
     Alert,
-    Badge,
     Button,
     Group,
     Modal,
@@ -16,7 +15,7 @@ import {
     TextInput,
     Title,
 } from '@mantine/core'
-import { Pencil, Plus, Search, Trash2 } from 'lucide-react'
+import { Pencil, Search, Trash2 } from 'lucide-react'
 import { adminApi } from '../../api/admin.js'
 import DeleteReasonModal from '../../components/admin/DeleteReasonModal.jsx'
 
@@ -173,13 +172,15 @@ export default function Users() {
                 <Stack gap='sm'>
                     <Group justify='space-between' align='center' wrap='wrap'>
                         <Title order={2}>Users</Title>
-                        <Button
-                            leftSection={<Plus size={16} />}
-                            color='dark'
-                            onClick={openCreateModal}
-                        >
-                            Create User
-                        </Button>
+                        <TextInput
+                            leftSection={<Search size={16} />}
+                            placeholder='Search users'
+                            value={searchQuery}
+                            onChange={(event) => setSearchQuery(event.currentTarget.value)}
+                            className='admin-search admin-search-right'
+                            radius='md'
+                            classNames={{ input: 'admin-input admin-search-input' }}
+                        />
                     </Group>
 
                     {error && (
@@ -188,14 +189,6 @@ export default function Users() {
                         </Alert>
                     )}
                     {message && <Alert variant='light'>{message}</Alert>}
-
-                    <TextInput
-                        leftSection={<Search size={16} />}
-                        placeholder='Search users'
-                        value={searchQuery}
-                        onChange={(event) => setSearchQuery(event.currentTarget.value)}
-                        className='admin-search'
-                    />
                 </Stack>
             </div>
 
@@ -206,54 +199,58 @@ export default function Users() {
                     <Text c='dimmed'>No users found</Text>
                 ) : (
                     <ScrollArea>
-                        <Table withTableBorder withColumnBorders highlightOnHover>
+                        <Table
+                            withTableBorder={false}
+                            withColumnBorders={false}
+                            highlightOnHover={false}
+                            className='admin-table admin-water-table'
+                        >
                             <Table.Thead>
                                 <Table.Tr>
-                                    <Table.Th>Name</Table.Th>
-                                    <Table.Th>Email</Table.Th>
-                                    <Table.Th>Role</Table.Th>
-                                    <Table.Th>Date Joined</Table.Th>
-                                    <Table.Th>Actions</Table.Th>
+                                    <Table.Th className='col-text'>Name</Table.Th>
+                                    <Table.Th className='col-text'>Email</Table.Th>
+                                    <Table.Th className='col-text'>Role</Table.Th>
+                                    <Table.Th className='col-text'>Date Joined</Table.Th>
+                                    <Table.Th className='col-actions'>Actions</Table.Th>
                                 </Table.Tr>
                             </Table.Thead>
                             <Table.Tbody>
                                 {visibleUsers.map((user) => (
                                     <Table.Tr key={user.userID}>
-                                        <Table.Td>
+                                        <Table.Td className='col-text'>
                                             {user.name} {user.surname}
                                         </Table.Td>
-                                        <Table.Td>{user.email}</Table.Td>
-                                        <Table.Td>
-                                            <Badge
-                                                variant='outline'
-                                                color={user.role === 'admin' ? 'dark' : 'gray'}
-                                            >
-                                                {user.role}
-                                            </Badge>
+                                        <Table.Td className='col-text'>{user.email}</Table.Td>
+                                        <Table.Td className='col-text'>
+                                            {user.role}
                                         </Table.Td>
-                                        <Table.Td>
+                                        <Table.Td className='col-text'>
                                             {String(user.created_at).slice(0, 10)}
                                         </Table.Td>
-                                        <Table.Td>
+                                        <Table.Td className='col-actions'>
                                             <Group gap='xs' wrap='nowrap'>
                                                 <ActionIcon
                                                     variant='subtle'
-                                                    color='dark'
+                                                    color='gray'
+                                                    size='sm'
+                                                    className='admin-action-icon'
                                                     onClick={() => openEditModal(user)}
                                                     aria-label='Edit user'
                                                 >
-                                                    <Pencil size={16} />
+                                                    <Pencil size={14} />
                                                 </ActionIcon>
                                                 <ActionIcon
                                                     variant='subtle'
                                                     color='red'
+                                                    size='sm'
+                                                    className='admin-action-icon admin-delete-action'
                                                     onClick={() => {
                                                         setSelectedUser(user)
                                                         setDeleteOpened(true)
                                                     }}
                                                     aria-label='Delete user'
                                                 >
-                                                    <Trash2 size={16} />
+                                                    <Trash2 size={14} />
                                                 </ActionIcon>
                                             </Group>
                                         </Table.Td>
@@ -268,7 +265,11 @@ export default function Users() {
             <Modal
                 opened={formOpened}
                 onClose={() => setFormOpened(false)}
-                title={isEditing ? 'Edit User' : 'Create User'}
+                title={
+                    <Title order={2} fw={800} lh={1.15}>
+                        {isEditing ? 'Edit User' : 'Create User'}
+                    </Title>
+                }
                 centered
                 radius='md'
             >
@@ -339,13 +340,13 @@ export default function Users() {
                             <Button
                                 type='button'
                                 variant='outline'
-                                color='gray'
+                                color='themeColors.6'
                                 onClick={() => setFormOpened(false)}
                                 disabled={saving}
                             >
                                 Cancel
                             </Button>
-                            <Button type='submit' color='dark' loading={saving}>
+                            <Button type='submit' color='themeColors.6' loading={saving}>
                                 {isEditing ? 'Save Changes' : 'Create User'}
                             </Button>
                         </Group>

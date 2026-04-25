@@ -112,6 +112,16 @@ export default function WaterSampleModal({
 
     const isEditing = mode === 'edit'
 
+    const modalTitle = isEditing ? 'Edit Water Sample' : 'Create Water Sample'
+    const modalSubtitle = isEditing
+        ? initialData?.sampleID
+            ? `Sample ${initialData.sampleID}`
+            : ''
+        : 'Add and update primary sample details.'
+    const sectionTitle = isEditing
+        ? String(sampleForm.location_name || '').trim() || 'Unknown Location'
+        : 'Sample Data'
+
     const analysisType = useMemo(
         () => String(sampleForm.sample_analysis_type || '').toLowerCase(),
         [sampleForm.sample_analysis_type]
@@ -211,7 +221,11 @@ export default function WaterSampleModal({
         <Modal
             opened={opened}
             onClose={onClose}
-            title={isEditing ? 'Edit Water Sample' : 'Create Water Sample'}
+            title={
+                <Title order={2} fw={800} lh={1.15}>
+                    {modalTitle}
+                </Title>
+            }
             centered
             size='xl'
             radius='md'
@@ -224,7 +238,6 @@ export default function WaterSampleModal({
                         </Alert>
                     )}
 
-                    <Title order={4}>Sample Data</Title>
                     <SimpleGrid cols={{ base: 1, sm: 2 }} spacing='sm'>
                         <TextInput
                             label='Location'
@@ -334,8 +347,7 @@ export default function WaterSampleModal({
                     {!isEditing && analysisType === 'metagenomic' && (
                         <>
                             <Divider />
-                            <Group justify='space-between'>
-                                <Title order={4}>Metagenomic Records</Title>
+                            <Group justify='flex-end'>
                                 <Button
                                     type='button'
                                     variant='outline'
@@ -423,8 +435,7 @@ export default function WaterSampleModal({
                     {!isEditing && analysisType === 'wgs' && (
                         <>
                             <Divider />
-                            <Group justify='space-between'>
-                                <Title order={4}>WGS Records</Title>
+                            <Group justify='flex-end'>
                                 <Button
                                     type='button'
                                     variant='outline'
@@ -498,13 +509,13 @@ export default function WaterSampleModal({
                         <Button
                             type='button'
                             variant='outline'
-                            color='gray'
+                            color='themeColors.6'
                             onClick={onClose}
                             disabled={loading}
                         >
                             Cancel
                         </Button>
-                        <Button type='submit' color='dark' loading={loading}>
+                        <Button type='submit' color='themeColors.6' loading={loading}>
                             {isEditing ? 'Save Changes' : 'Create Sample'}
                         </Button>
                     </Group>
