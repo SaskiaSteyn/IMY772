@@ -16,6 +16,7 @@ const SampleInfoStep = forwardRef(({formData, setFormData, analysisType, setAnal
         location_name: false,
     });
     const [error, setError] = useState(false);
+    const [showError, setShowError] = useState(false);
     // Validation logic
     const requiredFields = {
         sample_analysis_type: analysisType,
@@ -28,7 +29,8 @@ const SampleInfoStep = forwardRef(({formData, setFormData, analysisType, setAnal
     useEffect(() => {
         setError(missingFields.length > 0);
         if (onValidationChange) onValidationChange(missingFields.length === 0);
-    }, [analysisType, formData.isolation_source, formData.location_name]);
+        if (missingFields.length === 0 && showError) setShowError(false);
+    }, [analysisType, formData.isolation_source, formData.location_name, showError]);
 
     useImperativeHandle(ref, () => ({
         validate: () => {
@@ -42,8 +44,10 @@ const SampleInfoStep = forwardRef(({formData, setFormData, analysisType, setAnal
                     }, 400);
                     return newShake;
                 });
+                setShowError(true);
                 return false;
             }
+            setShowError(false);
             return true;
         }
     }));
@@ -68,7 +72,7 @@ const SampleInfoStep = forwardRef(({formData, setFormData, analysisType, setAnal
     return (
         <Stack gap="md">
             {/* Error message for required fields */}
-            {error && (
+            {showError && error && (
                 <div style={{color: 'red', marginBottom: 8, fontWeight: 500}}>
                     Please fill in all required fields.
                 </div>

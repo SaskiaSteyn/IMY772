@@ -17,6 +17,7 @@ import WgsStep from './steps/wgs-step';
 import AmrGenesStep from './steps/amr-genes-step';
 import VirulenceGenesStep from './steps/virulence-genes-step';
 import JsonUploadStep from './steps/json-upload-step';
+import ExpandedDataModal from './expanded-data-modal';
 
 const AddDataModal = ({opened, onClose, onAddEntry}) => {
     const [topStep, setTopStep] = useState(1);
@@ -87,8 +88,16 @@ const AddDataModal = ({opened, onClose, onAddEntry}) => {
     };
 
     const sampleInfoRef = useRef();
+    const metagenomicRef = useRef();
     const [sampleInfoValid, setSampleInfoValid] = useState(true);
+    const [metagenomicValid, setMetagenomicValid] = useState(true);
+    const [amrGenesValid, setAmrGenesValid] = useState(true);
     const [showSampleInfoError, setShowSampleInfoError] = useState(false);
+    const [showMetagenomicError, setShowMetagenomicError] = useState(false);
+    const [showAmrGenesError, setShowAmrGenesError] = useState(false);
+    const [expandedModalOpen, setExpandedModalOpen] = useState(false);
+
+    const amrGenesRef = useRef();
 
     const nextStepper = () => {
         if (stepperIndex === 0 && sampleInfoRef.current) {
@@ -96,7 +105,19 @@ const AddDataModal = ({opened, onClose, onAddEntry}) => {
             setShowSampleInfoError(!valid);
             if (!valid) return;
         }
+        if (stepperIndex === 1 && metagenomicRef.current && isMetagenomic) {
+            const valid = metagenomicRef.current.validate();
+            setShowMetagenomicError(!valid);
+            if (!valid) return;
+        }
+        if (stepperIndex === 2 && amrGenesRef.current && isMetagenomic) {
+            const valid = amrGenesRef.current.validate();
+            setShowAmrGenesError(!valid);
+            if (!valid) return;
+        }
         setShowSampleInfoError(false);
+        setShowMetagenomicError(false);
+        setShowAmrGenesError(false);
         setStepperIndex((s) => s + 1);
     };
     const prevStepper = () => setStepperIndex((s) => Math.max(s - 1, 0));
@@ -180,6 +201,29 @@ const AddDataModal = ({opened, onClose, onAddEntry}) => {
         resetModal();
     };
 
+    // Build preview data for expanded modal
+    const previewSample = {
+        ...formData,
+        sampleID: 'Preview',
+    };
+    const previewMetagenomic = isMetagenomic ? formData.metagenomicRecords.map((rec) => ({
+        ...rec,
+        sampleID: 'Preview',
+    })) : [];
+    const previewWgs = !isMetagenomic ? formData.wgsRecords.map((rec) => ({
+        ...rec,
+        sampleID: 'Preview',
+    })) : [];
+    const previewAmrGenes = isMetagenomic ? formData.amrGenes.filter(g => g.trim() !== '').map(g => ({
+        sampleID: 'Preview',
+        geneSymbol: g,
+    })) : [];
+    const previewVirulenceGenes = !isMetagenomic ? formData.virulenceGenes.filter(g => g.trim() !== '').map(g => ({
+        'wgs.sampleID': 'Preview',
+        'wgs.isolateID': formData.wgsRecords[0]?.isolateID || '',
+        geneSymbol: g,
+    })) : [];
+
     const renderManualForm = () => (
         <Stack gap='lg'>
             <Stepper active={stepperIndex} onStepClick={setStepperIndex}>
@@ -205,8 +249,10 @@ const AddDataModal = ({opened, onClose, onAddEntry}) => {
                 >
                     {isMetagenomic ? (
                         <MetagenomicStep
+                            ref={metagenomicRef}
                             formData={formData}
                             setFormData={setFormData}
+                            onValidationChange={setMetagenomicValid}
                         />
                     ) : (
                         <WgsStep
@@ -226,8 +272,10 @@ const AddDataModal = ({opened, onClose, onAddEntry}) => {
                 >
                     {isMetagenomic ? (
                         <AmrGenesStep
+                            ref={amrGenesRef}
                             formData={formData}
                             setFormData={setFormData}
+                            onValidationChange={setAmrGenesValid}
                         />
                     ) : (
                         <VirulenceGenesStep
@@ -238,17 +286,25 @@ const AddDataModal = ({opened, onClose, onAddEntry}) => {
                 </Stepper.Step>
 
                 <Stepper.Completed>
-                    <Center py='xl'>
-                        <Text size='lg' fw={500}>
+                    <Center py='xl' style={{flexDirection: 'column'}}>
+                        <Text size='lg' fw={500} mb='md'>
                             Review your data and click "Add Data"
                         </Text>
+                        <Button
+                            variant='light'
+                            color='blue'
+                            onClick={() => setExpandedModalOpen(true)}
+                            style={{margin: '0 auto'}}
+                        >
+                            Expand Recorded Data
+                        </Button>
                     </Center>
                 </Stepper.Completed>
             </Stepper>
 
             <Group justify='space-between' mt='lg'>
                 <Group>
-                    {stepperIndex > 0 && (
+                    {stepperIndex > 0 && stepperIndex < 3 && (
                         <Button
                             variant='default'
                             onClick={prevStepper}
@@ -264,10 +320,25 @@ const AddDataModal = ({opened, onClose, onAddEntry}) => {
                             Please fill in all required fields.
                         </span>
                     )}
+                    {showMetagenomicError && stepperIndex === 1 && isMetagenomic && (
+                        <span style={{color: 'red', fontWeight: 500, marginRight: 12}}>
+                            Please fill in all required fields for each record.
+                        </span>
+                    )}
+                    {showAmrGenesError && stepperIndex === 2 && isMetagenomic && (
+                        <span style={{color: 'red', fontWeight: 500, marginRight: 12}}>
+                            Please fill in all gene symbols.
+                        </span>
+                    )}
                     {stepperIndex < 3 && (
                         <Button
                             onClick={nextStepper}
                             rightSection={<ArrowRight size={18} />}
+                            disabled={
+                                (stepperIndex === 0 && !sampleInfoValid) ||
+                                (stepperIndex === 1 && isMetagenomic && !metagenomicValid) ||
+                                (stepperIndex === 2 && isMetagenomic && !amrGenesValid)
+                            }
                         >
                             Next
                         </Button>
@@ -281,31 +352,42 @@ const AddDataModal = ({opened, onClose, onAddEntry}) => {
     );
 
     return (
-        <Modal
-            opened={opened}
-            onClose={closeModal}
-            title='Add New Data Entry'
-            size='lg'
-            centered
-            radius='md'
-            styles={{
-                title: {
-                    fontWeight: 600,
-                    fontSize: 18,
-                },
-            }}
-        >
-            {topStep === 0 && (
-                <MethodSelectionStep onSelect={handleModeSelect} />
-            )}
-            {topStep === 1 && renderManualForm()}
-            {topStep === 2 && (
-                <JsonUploadStep
-                    onSubmit={handleJsonSubmit}
-                    onBack={handleJsonBack}
-                />
-            )}
-        </Modal>
+        <>
+            <Modal
+                opened={opened}
+                onClose={closeModal}
+                title='Add New Data Entry'
+                size='lg'
+                centered
+                radius='md'
+                styles={{
+                    title: {
+                        fontWeight: 600,
+                        fontSize: 18,
+                    },
+                }}
+            >
+                {topStep === 0 && (
+                    <MethodSelectionStep onSelect={handleModeSelect} />
+                )}
+                {topStep === 1 && renderManualForm()}
+                {topStep === 2 && (
+                    <JsonUploadStep
+                        onSubmit={handleJsonSubmit}
+                        onBack={handleJsonBack}
+                    />
+                )}
+            </Modal>
+            <ExpandedDataModal
+                opened={expandedModalOpen}
+                onClose={() => setExpandedModalOpen(false)}
+                sample={previewSample}
+                metagenomic={previewMetagenomic}
+                wgs={previewWgs}
+                amrGenes={previewAmrGenes}
+                virulenceGenes={previewVirulenceGenes}
+            />
+        </>
     );
 };
 
