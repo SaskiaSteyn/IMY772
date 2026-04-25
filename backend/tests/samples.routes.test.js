@@ -98,6 +98,55 @@ describe('POST /api/samples', () => {
         expect(res.body.sample).toBeDefined()
         expect(res.body.sample.latitude).toBe(sampleFixture.latitude)
     })
+
+    test('parses optional create fields before saving', async () => {
+        mockPrismaSample.create.mockResolvedValue(sampleFixture)
+
+        const res = await api().post('/api/samples').send({
+            latitude: '25.12',
+            longitude: '28.45',
+            water_temperature: '18.5',
+            ph: '7.4',
+            tds: '120.2',
+            do: '9.6',
+            sample_analysis_type: 'Metagenomic',
+            isolation_source: 'Dam',
+            collection_date: '2024-02-20',
+            location_name: 'Test Dam',
+            collected_by: 'Researcher B',
+            predicted_sir_profile: 'Intermediate',
+        })
+
+        expect(res.status).toBe(201)
+        expect(mockPrismaSample.create).toHaveBeenCalledWith({
+            data: expect.objectContaining({
+                water_temperature: 18.5,
+                ph: 7.4,
+                tds: 120.2,
+                do: 9.6,
+                sample_analysis_type: 'Metagenomic',
+                isolation_source: 'Dam',
+                location_name: 'Test Dam',
+                latitude: 25.12,
+                longitude: 28.45,
+                collected_by: 'Researcher B',
+                predicted_sir_profile: 'Intermediate',
+            }),
+        })
+        expect(mockPrismaSample.create.mock.calls[0][0].data.collection_date).toBeInstanceOf(Date)
+    })
+
+    test('returns 500 when sample creation fails', async () => {
+        mockPrismaSample.create.mockRejectedValue(new Error('db down'))
+
+        const res = await api().post('/api/samples').send({
+            latitude: '25.12',
+            longitude: '28.45',
+        })
+
+        expect(res.status).toBe(500)
+        expect(res.body.message).toMatch(/failed to create sample/i)
+    })
 })
 
 // ─── GET /api/samples ─────────────────────────────────────────────────────────
@@ -122,6 +171,15 @@ describe('GET /api/samples', () => {
 
         expect(res.status).toBe(200)
         expect(res.body.samples).toHaveLength(0)
+    })
+
+    test('returns 500 when loading samples fails', async () => {
+        mockPrismaSample.findMany.mockRejectedValue(new Error('db down'))
+
+        const res = await api().get('/api/samples')
+
+        expect(res.status).toBe(500)
+        expect(res.body.message).toMatch(/failed to retrieve samples/i)
     })
 })
 
@@ -149,5 +207,175 @@ describe('GET /api/samples/:sampleID', () => {
         const res = await api().get('/api/samples/1')
         expect(res.status).toBe(200)
         expect(res.body.sample.sampleID).toBe(1)
+    })
+
+    test('returns 500 when sample lookup fails', async () => {
+        mockPrismaSample.findUnique.mockRejectedValue(new Error('db down'))
+
+        const res = await api().get('/api/samples/1')
+
+        expect(res.status).toBe(500)
+        expect(res.body.message).toMatch(/failed to retrieve sample/i)
+    })
+})
+
+// ─── PUT /api/samples/:sampleID ───────────────────────────────────────────────
+
+describe('PUT /api/samples/:sampleID', () => {
+    beforeEach(() => jest.clearAllMocks())
+
+    test('returns 400 when sampleID is not an integer', async () => {
+        const res = await api().put('/api/samples/not-a-number').send({ latitude: '25.55' })
+
+        expect(res.status).toBe(400)
+        expect(res.body.errors).toBeDefined()
+    })
+
+    test('returns 400 when provided fields fail validation', async () => {
+        const res = await api().put('/api/samples/1').send({
+            predicted_sir_profile: 'Unknown',
+        })
+
+        expect(res.status).toBe(400)
+        expect(res.body.errors).toBeDefined()
+    })
+
+    test('returns 200 and updates only provided fields', async () => {
+        mockPrismaSample.update.mockResolvedValue({
+            ...sampleFixture,
+            ph: 8.1,
+            predicted_sir_profile: 'Resistant',
+        })
+
+        const res = await api().put('/api/samples/1').send({
+            ph: '8.1',
+            predicted_sir_profile: 'Resistant',
+        })
+
+        expect(res.status).toBe(200)
+        expect(res.body.sample.ph).toBe(8.1)
+        expect(mockPrismaSample.update).toHaveBeenCalledWith({
+            where: { sampleID: 1 },
+            data: {
+                ph: 8.1,
+                predicted_sir_profile: 'Resistant',
+            },
+        })
+    })
+
+    test('parses all optional update fields before saving', async () => {
+        mockPrismaSample.update.mockResolvedValue({
+            ...sampleFixture,
+            water_temperature: 18.5,
+            ph: 7.4,
+            tds: 120.2,
+            do: 9.6,
+            sample_analysis_type: 'Metagenomic',
+            isolation_source: 'Dam',
+            location_name: 'Updated Dam',
+            latitude: 25.5,
+            longitude: 28.8,
+            collected_by: 'Researcher B',
+            predicted_sir_profile: 'Intermediate',
+        })
+
+        const res = await api().put('/api/samples/1').send({
+            water_temperature: '18.5',
+            ph: '7.4',
+            tds: '120.2',
+            do: '9.6',
+            sample_analysis_type: 'Metagenomic',
+            isolation_source: 'Dam',
+            collection_date: '2024-02-20',
+            location_name: 'Updated Dam',
+            latitude: '25.5',
+            longitude: '28.8',
+            collected_by: 'Researcher B',
+            predicted_sir_profile: 'Intermediate',
+        })
+
+        expect(res.status).toBe(200)
+        expect(mockPrismaSample.update).toHaveBeenCalledWith({
+            where: { sampleID: 1 },
+            data: expect.objectContaining({
+                water_temperature: 18.5,
+                ph: 7.4,
+                tds: 120.2,
+                do: 9.6,
+                sample_analysis_type: 'Metagenomic',
+                isolation_source: 'Dam',
+                location_name: 'Updated Dam',
+                latitude: 25.5,
+                longitude: 28.8,
+                collected_by: 'Researcher B',
+                predicted_sir_profile: 'Intermediate',
+            }),
+        })
+        expect(mockPrismaSample.update.mock.calls[0][0].data.collection_date).toBeInstanceOf(Date)
+    })
+
+    test('returns 404 when updating a missing sample', async () => {
+        const error = new Error('missing')
+        error.code = 'P2025'
+        mockPrismaSample.update.mockRejectedValue(error)
+
+        const res = await api().put('/api/samples/999').send({ latitude: '25.55' })
+
+        expect(res.status).toBe(404)
+        expect(res.body.message).toMatch(/not found/i)
+    })
+
+    test('returns 500 when update fails unexpectedly', async () => {
+        mockPrismaSample.update.mockRejectedValue(new Error('db down'))
+
+        const res = await api().put('/api/samples/1').send({ longitude: '29.01' })
+
+        expect(res.status).toBe(500)
+        expect(res.body.message).toMatch(/failed to update sample/i)
+    })
+})
+
+// ─── DELETE /api/samples/:sampleID ───────────────────────────────────────────
+
+describe('DELETE /api/samples/:sampleID', () => {
+    beforeEach(() => jest.clearAllMocks())
+
+    test('returns 400 when sampleID is not an integer', async () => {
+        const res = await api().delete('/api/samples/not-a-number')
+
+        expect(res.status).toBe(400)
+        expect(res.body.errors).toBeDefined()
+    })
+
+    test('returns 200 when sample is deleted', async () => {
+        mockPrismaSample.delete.mockResolvedValue(sampleFixture)
+
+        const res = await api().delete('/api/samples/1')
+
+        expect(res.status).toBe(200)
+        expect(res.body.message).toMatch(/deleted successfully/i)
+        expect(mockPrismaSample.delete).toHaveBeenCalledWith({
+            where: { sampleID: 1 },
+        })
+    })
+
+    test('returns 404 when deleting a missing sample', async () => {
+        const error = new Error('missing')
+        error.code = 'P2025'
+        mockPrismaSample.delete.mockRejectedValue(error)
+
+        const res = await api().delete('/api/samples/999')
+
+        expect(res.status).toBe(404)
+        expect(res.body.message).toMatch(/not found/i)
+    })
+
+    test('returns 500 when delete fails unexpectedly', async () => {
+        mockPrismaSample.delete.mockRejectedValue(new Error('db down'))
+
+        const res = await api().delete('/api/samples/1')
+
+        expect(res.status).toBe(500)
+        expect(res.body.message).toMatch(/failed to delete sample/i)
     })
 })
