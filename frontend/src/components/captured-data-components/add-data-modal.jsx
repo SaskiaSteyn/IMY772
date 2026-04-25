@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import {useState, useRef} from 'react';
 import {
     Modal,
     Stepper,
@@ -8,7 +8,7 @@ import {
     Text,
     Stack,
 } from '@mantine/core';
-import { ArrowRight, ArrowLeft } from 'lucide-react';
+import {ArrowRight, ArrowLeft} from 'lucide-react';
 
 import MethodSelectionStep from './steps/method-selection-step';
 import SampleInfoStep from './steps/sample-info-step';
@@ -18,7 +18,7 @@ import AmrGenesStep from './steps/amr-genes-step';
 import VirulenceGenesStep from './steps/virulence-genes-step';
 import JsonUploadStep from './steps/json-upload-step';
 
-const AddDataModal = ({ opened, onClose, onAddEntry }) => {
+const AddDataModal = ({opened, onClose, onAddEntry}) => {
     const [topStep, setTopStep] = useState(1);
     const [stepperIndex, setStepperIndex] = useState(0);
     const [analysisType, setAnalysisType] = useState('');
@@ -35,11 +35,11 @@ const AddDataModal = ({ opened, onClose, onAddEntry }) => {
         latitude: -25.7479,
         longitude: 28.2293,
         collected_by: '',
-        predicted_sir_profile: '',
+        // predicted_sir_profile: '',
         metagenomicRecords: [
-            { sequence_name: '', element_type: '', class: '', subclass: '' },
+            {sequence_name: '', element_type: '', class: '', subclass: ''},
         ],
-        wgsRecords: [{ isolateID: '', organism: '' }],
+        wgsRecords: [{isolateID: '', organism: ''}],
         amrGenes: [''],
         virulenceGenes: [''],
     });
@@ -80,13 +80,25 @@ const AddDataModal = ({ opened, onClose, onAddEntry }) => {
                     subclass: '',
                 },
             ],
-            wgsRecords: [{ isolateID: '', organism: '' }],
+            wgsRecords: [{isolateID: '', organism: ''}],
             amrGenes: [''],
             virulenceGenes: [''],
         });
     };
 
-    const nextStepper = () => setStepperIndex((s) => s + 1);
+    const sampleInfoRef = useRef();
+    const [sampleInfoValid, setSampleInfoValid] = useState(true);
+    const [showSampleInfoError, setShowSampleInfoError] = useState(false);
+
+    const nextStepper = () => {
+        if (stepperIndex === 0 && sampleInfoRef.current) {
+            const valid = sampleInfoRef.current.validate();
+            setShowSampleInfoError(!valid);
+            if (!valid) return;
+        }
+        setShowSampleInfoError(false);
+        setStepperIndex((s) => s + 1);
+    };
     const prevStepper = () => setStepperIndex((s) => Math.max(s - 1, 0));
 
     const buildFinalData = () => {
@@ -105,7 +117,7 @@ const AddDataModal = ({ opened, onClose, onAddEntry }) => {
             latitude: formData.latitude,
             longitude: formData.longitude,
             collected_by: formData.collected_by,
-            predicted_sir_profile: formData.predicted_sir_profile,
+            // predicted_sir_profile: formData.predicted_sir_profile,
         };
 
         if (isMetagenomic) {
@@ -176,10 +188,12 @@ const AddDataModal = ({ opened, onClose, onAddEntry }) => {
                     description='Core sample data'
                 >
                     <SampleInfoStep
+                        ref={sampleInfoRef}
                         formData={formData}
                         setFormData={setFormData}
                         analysisType={analysisType}
                         setAnalysisType={setAnalysisType}
+                        onValidationChange={setSampleInfoValid}
                     />
                 </Stepper.Step>
 
@@ -244,17 +258,24 @@ const AddDataModal = ({ opened, onClose, onAddEntry }) => {
                         </Button>
                     )}
                 </Group>
-                {stepperIndex < 3 && (
-                    <Button
-                        onClick={nextStepper}
-                        rightSection={<ArrowRight size={18} />}
-                    >
-                        Next
-                    </Button>
-                )}
-                {stepperIndex === 3 && (
-                    <Button onClick={handleSubmit}>Add Data</Button>
-                )}
+                <Group>
+                    {showSampleInfoError && stepperIndex === 0 && (
+                        <span style={{color: 'red', fontWeight: 500, marginRight: 12}}>
+                            Please fill in all required fields.
+                        </span>
+                    )}
+                    {stepperIndex < 3 && (
+                        <Button
+                            onClick={nextStepper}
+                            rightSection={<ArrowRight size={18} />}
+                        >
+                            Next
+                        </Button>
+                    )}
+                    {stepperIndex === 3 && (
+                        <Button onClick={handleSubmit}>Add Data</Button>
+                    )}
+                </Group>
             </Group>
         </Stack>
     );

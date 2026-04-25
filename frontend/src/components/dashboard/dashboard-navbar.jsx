@@ -52,7 +52,7 @@ export default function DashboardNavbar() {
         ...(isAuthenticated
             ? [
                 {
-                    label: 'Capture Data',
+                    label: 'Data',
                     icon: ChartColumnIncreasing,
                     onClick: () => navigate('/capture-data'),
                     path: '/capture-data',

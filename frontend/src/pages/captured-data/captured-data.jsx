@@ -299,7 +299,7 @@ const CapturedData = () => {
                 <Stack gap='lg'>
                     <Group justify='space-between' align='flex-start'>
                         <Stack gap={0}>
-                            <Title order={2}>Captured Data</Title>
+                            <Title order={2}>Data</Title>
                         </Stack>
                         <Group gap='md'>
                             <Button
