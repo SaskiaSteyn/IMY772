@@ -1,21 +1,21 @@
-import {Avatar, Button, Drawer, NavLink} from '@mantine/core'
+import { Avatar, Button, Drawer, NavLink } from '@mantine/core';
 import {
     ChartColumnIncreasing,
     LayoutDashboard,
     Menu,
     Shield,
     User,
-} from 'lucide-react'
-import {useState} from 'react'
-import {useLocation, useNavigate} from 'react-router-dom'
-import {useAuth} from '../../context/AuthContext.jsx'
-import './dashboard-navbar.scss'
+} from 'lucide-react';
+import { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/auth-context.jsx';
+import './dashboard-navbar.scss';
 
 export default function DashboardNavbar() {
     const [drawerOpened, setDrawerOpened] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
-    const {user, logout} = useAuth();
+    const { user, logout } = useAuth();
     const isAuthenticated = Boolean(user);
     const isAdmin = user?.role === 'admin';
     const avatarSeed =
@@ -30,7 +30,7 @@ export default function DashboardNavbar() {
 
     const handleLogout = async () => {
         setDrawerOpened(false);
-        navigate('/dashboard', {replace: true});
+        navigate('/dashboard', { replace: true });
         await logout();
     };
 
@@ -51,29 +51,29 @@ export default function DashboardNavbar() {
         },
         ...(isAuthenticated
             ? [
-                {
-                    label: 'Capture Data',
-                    icon: ChartColumnIncreasing,
-                    onClick: () => navigate('/capture-data'),
-                    path: '/capture-data',
-                },
-                {
-                    label: 'Profile Settings',
-                    icon: User,
-                    onClick: () => navigate('/profile-settings'),
-                    path: '/profile-settings',
-                },
-                ...(isAdmin
-                    ? [
-                        {
-                            label: 'Admin Dashboard',
-                            icon: Shield,
-                            onClick: () => navigate('/admin/water-data'),
-                            path: '/admin',
-                        },
-                    ]
-                    : []),
-            ]
+                  {
+                      label: 'Capture Data',
+                      icon: ChartColumnIncreasing,
+                      onClick: () => navigate('/capture-data'),
+                      path: '/capture-data',
+                  },
+                  {
+                      label: 'Profile Settings',
+                      icon: User,
+                      onClick: () => navigate('/profile-settings'),
+                      path: '/profile-settings',
+                  },
+                  ...(isAdmin
+                      ? [
+                            {
+                                label: 'Admin Dashboard',
+                                icon: Shield,
+                                onClick: () => navigate('/admin/water-data'),
+                                path: '/admin',
+                            },
+                        ]
+                      : []),
+              ]
             : []),
     ];
 
@@ -113,7 +113,7 @@ export default function DashboardNavbar() {
                                 alt='User avatar'
                                 radius='xl'
                                 size='md'
-                                style={{cursor: 'pointer'}}
+                                style={{ cursor: 'pointer' }}
                                 onClick={handleProfileClick}
                             />
                         </div>
@@ -133,7 +133,7 @@ export default function DashboardNavbar() {
                         src='/microtrack-logo.png'
                         alt='MicroTrack'
                         height='28px'
-                        style={{cursor: 'pointer'}}
+                        style={{ cursor: 'pointer' }}
                     />
                 }
                 position='left'
@@ -145,14 +145,13 @@ export default function DashboardNavbar() {
                     const isProfileRoute =
                         location.pathname === '/profile' ||
                         location.pathname === '/profile-settings';
-                    const isAdminRoute =
-                        location.pathname.startsWith('/admin');
+                    const isAdminRoute = location.pathname.startsWith('/admin');
                     const isActive =
                         item.path === '/profile-settings'
                             ? isProfileRoute
                             : item.path === '/admin'
-                                ? isAdminRoute
-                                : location.pathname === item.path;
+                              ? isAdminRoute
+                              : location.pathname === item.path;
                     return (
                         <NavLink
                             key={item.label}

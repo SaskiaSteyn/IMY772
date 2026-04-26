@@ -1,19 +1,19 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
 import {
-    TextInput,
-    PasswordInput,
-    Checkbox,
-    Button,
-    Divider,
-    Text,
-    Stack,
-    Title,
     Anchor,
+    Button,
+    Checkbox,
+    Divider,
+    PasswordInput,
+    Stack,
+    Text,
+    TextInput,
+    Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useGoogleLogin } from '@react-oauth/google';
-import { useAuth } from '../context/AuthContext.jsx';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/auth-context.jsx';
 import './auth.scss';
 
 function GoogleIcon() {
@@ -81,7 +81,11 @@ function getLoginErrorMessage(error) {
         return 'Login endpoint was not found. Confirm the backend server is running and API URL is correct.';
     }
 
-    if (String(error?.message || '').toLowerCase().includes('failed to fetch')) {
+    if (
+        String(error?.message || '')
+            .toLowerCase()
+            .includes('failed to fetch')
+    ) {
         return 'Cannot reach the backend server. Start the backend and try again.';
     }
 
@@ -92,7 +96,7 @@ export default function Login() {
     const navigate = useNavigate();
     const { login, googleLogin } = useAuth();
     const isGoogleAuthEnabled = Boolean(
-        import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim()
+        import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim(),
     );
     const [loading, setLoading] = useState(false);
     const [googleLoading, setGoogleLoading] = useState(false);

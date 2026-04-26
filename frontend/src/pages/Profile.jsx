@@ -8,7 +8,7 @@ import ProfileBioCard from '../components/profile-bio-card.jsx';
 import ProfileEducationCard from '../components/profile-education-card.jsx';
 import ProfileExperienceCard from '../components/profile-experience-card.jsx';
 import ProfileSidebarCard from '../components/profile-sidebar-card.jsx';
-import { useAuth } from '../context/AuthContext.jsx';
+import { useAuth } from '../context/auth-context.jsx';
 import './profile.scss';
 
 const interests = [
@@ -242,7 +242,8 @@ export default function Profile() {
     const [profileLoading, setProfileLoading] = useState(true);
     const [profileError, setProfileError] = useState('');
     const [isSaving, setIsSaving] = useState(false);
-    const [pendingProfileImageFile, setPendingProfileImageFile] = useState(null);
+    const [pendingProfileImageFile, setPendingProfileImageFile] =
+        useState(null);
     const [pendingProfileImagePreview, setPendingProfileImagePreview] =
         useState('');
     const [removeProfileImage, setRemoveProfileImage] = useState(false);
@@ -389,7 +390,9 @@ export default function Profile() {
         }
 
         if (!PROFILE_IMAGE_ALLOWED_TYPES.includes(file.type)) {
-            setProfileError('Only JPEG and PNG images are allowed for profile images.');
+            setProfileError(
+                'Only JPEG and PNG images are allowed for profile images.',
+            );
             setProfileImageInputKey((previous) => previous + 1);
             return;
         }
