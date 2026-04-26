@@ -29,16 +29,33 @@ export default function TDSChart({ samples }) {
                                 },
                             )
                         }
-                        tick={{ fontSize: 12 }}
+                        tick={{
+                            fontSize: 12,
+                            fill: '#000',
+                            fontWeight: 'bold',
+                        }}
                     >
                         <Label
                             value='Collection Date'
                             position='insideBottomRight'
                             offset={-5}
+                            fill='#000'
+                            fontWeight='bold'
                         />
                     </XAxis>
-                    <YAxis tick={{ fontSize: 12 }}>
-                        <Label value='TDS (mg/L)' angle={-90} />
+                    <YAxis
+                        tick={{
+                            fontSize: 12,
+                            fill: '#000',
+                            fontWeight: 'bold',
+                        }}
+                    >
+                        <Label
+                            value='TDS (mg/L)'
+                            angle={-90}
+                            fill='#000'
+                            fontWeight='bold'
+                        />
                     </YAxis>
                     <Tooltip
                         formatter={(value) => {
@@ -51,8 +68,8 @@ export default function TDSChart({ samples }) {
                     <Area
                         type='monotone'
                         dataKey='tds'
-                        stroke='#82ca9d'
-                        fill='#82ca9d'
+                        stroke='#087f5b'
+                        fill='#087f5b'
                         fillOpacity={0.6}
                         name='TDS (mg/L)'
                     />
