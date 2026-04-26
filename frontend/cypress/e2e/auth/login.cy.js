@@ -1,8 +1,6 @@
 describe('Login flow (mocked)', () => {
-  // let meRequestCount = 0; // Removed for simplification
 
   beforeEach(() => {
-    // meRequestCount = 0; // Removed for simplification
 
     cy.clearCookies();
     cy.clearLocalStorage();
@@ -34,9 +32,9 @@ describe('Login flow (mocked)', () => {
     cy.get('input[type="email"]').type('test@mail.com');
     cy.get('input[type="password"]').type('123456');
     cy.contains('button', 'Sign In').click();
-
+    
     cy.wait('@loginRequest');
-
+    
     cy.url().should('include', '/dashboard');
   });
 

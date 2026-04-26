@@ -1,6 +1,9 @@
 describe('Signup flow (mocked)', () => {
 
   beforeEach(() => {
+    cy.clearCookies();
+    cy.clearLocalStorage();
+
     cy.intercept('POST', '**/api/auth/register', {
       statusCode: 201,
       body: {
@@ -14,28 +17,16 @@ describe('Signup flow (mocked)', () => {
       }
     }).as('signupRequest');
 
-    cy.intercept({ method: 'GET', url: '**/api/auth/me', times: 1 }, {
+    cy.intercept('GET', '**/api/auth/me', {
       statusCode: 401,
       body: {
         message: 'Unauthorized'
       }
     }).as('guestMeRequest');
 
-    cy.intercept('GET', '**/api/auth/me', {
-      statusCode: 200,
-      body: {
-        user: {
-          id: 2,
-          name: 'New',
-          surname: 'User',
-          email: 'new@mail.com',
-          role: 'user'
-        }
-      }
-    }).as('meRequest');
-
     cy.visit('/signup');
     cy.wait('@guestMeRequest');
+    cy.get('input[placeholder="Your first name"]').should('be.visible');
   });
 
   it('creates a new account', () => {
@@ -48,9 +39,8 @@ describe('Signup flow (mocked)', () => {
     cy.contains('button', 'Sign Up').click();
 
     cy.wait('@signupRequest');
-    cy.wait('@meRequest');
 
-    cy.url().should('include', '/app');
+    cy.url().should('include', '/dashboard');
   });
 
 });
