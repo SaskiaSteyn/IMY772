@@ -4,7 +4,7 @@
  * Prisma is mocked so no real database connection is required.
  */
 
-import { jest } from '@jest/globals'
+import {jest} from '@jest/globals'
 
 // ─── Mock prisma BEFORE importing the router ─────────────────────────────────
 
@@ -17,14 +17,14 @@ const mockPrismaSample = {
 }
 
 jest.unstable_mockModule('../lib/prisma.js', () => ({
-    default: { sample: mockPrismaSample },
+    default: {sample: mockPrismaSample},
 }))
 
 // ─── Lazy imports ─────────────────────────────────────────────────────────────
 
-const { default: express } = await import('express')
-const { default: supertest } = await import('supertest')
-const { default: samplesRouter } = await import('../routes/samples.routes.js')
+const {default: express} = await import('express')
+const {default: supertest} = await import('supertest')
+const {default: samplesRouter} = await import('../routes/samples.routes.js')
 
 // ─── Build minimal test app ───────────────────────────────────────────────────
 
@@ -54,7 +54,7 @@ const sampleFixture = {
     collection_date: new Date('2024-01-15').toISOString(),
     location_name: 'Test River',
     collected_by: 'Researcher A',
-    predicted_sir_profile: 'Susceptible',
+    predicted_sir_profile: 'Not Resistant',
 }
 
 // ─── POST /api/samples ────────────────────────────────────────────────────────
@@ -114,7 +114,7 @@ describe('POST /api/samples', () => {
             collection_date: '2024-02-20',
             location_name: 'Test Dam',
             collected_by: 'Researcher B',
-            predicted_sir_profile: 'Intermediate',
+            predicted_sir_profile: 'Not Resistant',
         })
 
         expect(res.status).toBe(201)
@@ -130,7 +130,7 @@ describe('POST /api/samples', () => {
                 latitude: 25.12,
                 longitude: 28.45,
                 collected_by: 'Researcher B',
-                predicted_sir_profile: 'Intermediate',
+                predicted_sir_profile: 'Not Resistant',
             }),
         })
         expect(mockPrismaSample.create.mock.calls[0][0].data.collection_date).toBeInstanceOf(Date)
@@ -225,7 +225,7 @@ describe('PUT /api/samples/:sampleID', () => {
     beforeEach(() => jest.clearAllMocks())
 
     test('returns 400 when sampleID is not an integer', async () => {
-        const res = await api().put('/api/samples/not-a-number').send({ latitude: '25.55' })
+        const res = await api().put('/api/samples/not-a-number').send({latitude: '25.55'})
 
         expect(res.status).toBe(400)
         expect(res.body.errors).toBeDefined()
@@ -255,7 +255,7 @@ describe('PUT /api/samples/:sampleID', () => {
         expect(res.status).toBe(200)
         expect(res.body.sample.ph).toBe(8.1)
         expect(mockPrismaSample.update).toHaveBeenCalledWith({
-            where: { sampleID: 1 },
+            where: {sampleID: 1},
             data: {
                 ph: 8.1,
                 predicted_sir_profile: 'Resistant',
@@ -276,7 +276,7 @@ describe('PUT /api/samples/:sampleID', () => {
             latitude: 25.5,
             longitude: 28.8,
             collected_by: 'Researcher B',
-            predicted_sir_profile: 'Intermediate',
+            predicted_sir_profile: 'Not Resistant',
         })
 
         const res = await api().put('/api/samples/1').send({
@@ -291,12 +291,12 @@ describe('PUT /api/samples/:sampleID', () => {
             latitude: '25.5',
             longitude: '28.8',
             collected_by: 'Researcher B',
-            predicted_sir_profile: 'Intermediate',
+            predicted_sir_profile: 'Not Resistant',
         })
 
         expect(res.status).toBe(200)
         expect(mockPrismaSample.update).toHaveBeenCalledWith({
-            where: { sampleID: 1 },
+            where: {sampleID: 1},
             data: expect.objectContaining({
                 water_temperature: 18.5,
                 ph: 7.4,
@@ -308,7 +308,7 @@ describe('PUT /api/samples/:sampleID', () => {
                 latitude: 25.5,
                 longitude: 28.8,
                 collected_by: 'Researcher B',
-                predicted_sir_profile: 'Intermediate',
+                predicted_sir_profile: 'Not Resistant',
             }),
         })
         expect(mockPrismaSample.update.mock.calls[0][0].data.collection_date).toBeInstanceOf(Date)
@@ -319,7 +319,7 @@ describe('PUT /api/samples/:sampleID', () => {
         error.code = 'P2025'
         mockPrismaSample.update.mockRejectedValue(error)
 
-        const res = await api().put('/api/samples/999').send({ latitude: '25.55' })
+        const res = await api().put('/api/samples/999').send({latitude: '25.55'})
 
         expect(res.status).toBe(404)
         expect(res.body.message).toMatch(/not found/i)
@@ -328,7 +328,7 @@ describe('PUT /api/samples/:sampleID', () => {
     test('returns 500 when update fails unexpectedly', async () => {
         mockPrismaSample.update.mockRejectedValue(new Error('db down'))
 
-        const res = await api().put('/api/samples/1').send({ longitude: '29.01' })
+        const res = await api().put('/api/samples/1').send({longitude: '29.01'})
 
         expect(res.status).toBe(500)
         expect(res.body.message).toMatch(/failed to update sample/i)
@@ -355,7 +355,7 @@ describe('DELETE /api/samples/:sampleID', () => {
         expect(res.status).toBe(200)
         expect(res.body.message).toMatch(/deleted successfully/i)
         expect(mockPrismaSample.delete).toHaveBeenCalledWith({
-            where: { sampleID: 1 },
+            where: {sampleID: 1},
         })
     })
 
