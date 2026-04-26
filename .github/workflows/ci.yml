@@ -125,7 +125,7 @@ jobs:
               run: cd frontend && yarn build
 
             - name: Run Cypress tests
-              run: cd frontend && yarn cy:run
+              run: cd frontend && npx cypress run
 
             - name: Upload Cypress coverage to Codecov
               uses: codecov/codecov-action@v4
