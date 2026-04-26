@@ -1,7 +1,7 @@
 import {useEffect, useState, useImperativeHandle, forwardRef} from 'react';
 import {SimpleGrid, TextInput, NumberInput, Select, Stack} from '@mantine/core';
 import {DatePickerInput} from '@mantine/dates';
-import {useAuth} from '../../../context/AuthContext';
+import {useAuth} from '../../../context/auth-context';
 import styles from './sample-info-step.module.scss';
 
 const SampleInfoStep = forwardRef(({formData, setFormData, analysisType, setAnalysisType, onValidationChange}, ref) => {
