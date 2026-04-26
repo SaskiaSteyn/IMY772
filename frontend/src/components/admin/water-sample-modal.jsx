@@ -1,4 +1,3 @@
-import { useMemo, useState } from 'react'
 import {
     Alert,
     Button,
@@ -13,7 +12,8 @@ import {
     TextInput,
     Textarea,
     Title,
-} from '@mantine/core'
+} from '@mantine/core';
+import { useMemo, useState } from 'react';
 
 const initialSampleForm = {
     water_temperature: '',
@@ -28,24 +28,24 @@ const initialSampleForm = {
     longitude: '',
     collected_by: '',
     predicted_sir_profile: '',
-}
+};
 
 const emptyMetagenomicRecord = {
     sequence_name: '',
     element_type: '',
     class: '',
     subclass: '',
-}
+};
 
 const emptyWgsRecord = {
     isolateID: '',
     organism: '',
     virulenceGenesText: '',
-}
+};
 
 function mapSampleToForm(sample) {
     if (!sample) {
-        return initialSampleForm
+        return initialSampleForm;
     }
 
     return {
@@ -63,18 +63,18 @@ function mapSampleToForm(sample) {
         longitude: sample.longitude ?? '',
         collected_by: sample.collected_by ?? '',
         predicted_sir_profile: sample.predicted_sir_profile ?? '',
-    }
+    };
 }
 
 function buildSamplePayload(sampleForm) {
     const toNumberOrNull = (value) => {
         if (value === '' || value === null || value === undefined) {
-            return null
+            return null;
         }
 
-        const parsed = Number(value)
-        return Number.isFinite(parsed) ? parsed : null
-    }
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : null;
+    };
 
     return {
         water_temperature: toNumberOrNull(sampleForm.water_temperature),
@@ -89,7 +89,7 @@ function buildSamplePayload(sampleForm) {
         longitude: toNumberOrNull(sampleForm.longitude),
         collected_by: sampleForm.collected_by || null,
         predicted_sir_profile: sampleForm.predicted_sir_profile || null,
-    }
+    };
 }
 
 export default function WaterSampleModal({
@@ -101,83 +101,87 @@ export default function WaterSampleModal({
     initialData = null,
 }) {
     const [sampleForm, setSampleForm] = useState(() =>
-        mapSampleToForm(initialData)
-    )
+        mapSampleToForm(initialData),
+    );
     const [metagenomicRecords, setMetagenomicRecords] = useState(() => [
         emptyMetagenomicRecord,
-    ])
-    const [wgsRecords, setWgsRecords] = useState(() => [emptyWgsRecord])
-    const [amrGenesText, setAmrGenesText] = useState('')
-    const [error, setError] = useState('')
+    ]);
+    const [wgsRecords, setWgsRecords] = useState(() => [emptyWgsRecord]);
+    const [amrGenesText, setAmrGenesText] = useState('');
+    const [error, setError] = useState('');
 
-    const isEditing = mode === 'edit'
+    const isEditing = mode === 'edit';
+
+    const modalTitle = isEditing ? 'Edit Water Sample' : 'Create Water Sample';
 
     const analysisType = useMemo(
         () => String(sampleForm.sample_analysis_type || '').toLowerCase(),
-        [sampleForm.sample_analysis_type]
-    )
+        [sampleForm.sample_analysis_type],
+    );
 
     function updateSampleField(key, value) {
-        setSampleForm((prev) => ({ ...prev, [key]: value }))
+        setSampleForm((prev) => ({ ...prev, [key]: value }));
     }
 
     function updateMetagenomic(index, key, value) {
         setMetagenomicRecords((prev) => {
-            const next = [...prev]
-            next[index] = { ...next[index], [key]: value }
-            return next
-        })
+            const next = [...prev];
+            next[index] = { ...next[index], [key]: value };
+            return next;
+        });
     }
 
     function addMetagenomicRecord() {
-        setMetagenomicRecords((prev) => [...prev, emptyMetagenomicRecord])
+        setMetagenomicRecords((prev) => [...prev, emptyMetagenomicRecord]);
     }
 
     function removeMetagenomicRecord(index) {
-        setMetagenomicRecords((prev) => prev.filter((_, i) => i !== index))
+        setMetagenomicRecords((prev) => prev.filter((_, i) => i !== index));
     }
 
     function updateWgs(index, key, value) {
         setWgsRecords((prev) => {
-            const next = [...prev]
-            next[index] = { ...next[index], [key]: value }
-            return next
-        })
+            const next = [...prev];
+            next[index] = { ...next[index], [key]: value };
+            return next;
+        });
     }
 
     function addWgsRecord() {
-        setWgsRecords((prev) => [...prev, emptyWgsRecord])
+        setWgsRecords((prev) => [...prev, emptyWgsRecord]);
     }
 
     function removeWgsRecord(index) {
-        setWgsRecords((prev) => prev.filter((_, i) => i !== index))
+        setWgsRecords((prev) => prev.filter((_, i) => i !== index));
     }
 
     async function handleSubmit(event) {
-        event.preventDefault()
+        event.preventDefault();
 
         if (sampleForm.latitude === '' || sampleForm.longitude === '') {
-            setError('Latitude and longitude are required.')
-            return
+            setError('Latitude and longitude are required.');
+            return;
         }
 
-        const payload = buildSamplePayload(sampleForm)
+        const payload = buildSamplePayload(sampleForm);
 
         if (!isEditing) {
             if (analysisType === 'metagenomic') {
                 payload.metagenomic = metagenomicRecords
                     .map((record) => ({
-                        sequence_name: String(record.sequence_name || '').trim(),
+                        sequence_name: String(
+                            record.sequence_name || '',
+                        ).trim(),
                         element_type: String(record.element_type || '').trim(),
                         class: String(record.class || '').trim(),
                         subclass: String(record.subclass || '').trim(),
                     }))
-                    .filter((record) => record.sequence_name)
+                    .filter((record) => record.sequence_name);
 
                 payload.amrResistanceGenes = amrGenesText
                     .split(',')
                     .map((gene) => gene.trim())
-                    .filter(Boolean)
+                    .filter(Boolean);
             }
 
             if (analysisType === 'wgs') {
@@ -195,15 +199,15 @@ export default function WaterSampleModal({
                             .map((gene) => gene.trim())
                             .filter(Boolean),
                     }))
-                    .filter((record) => Number.isInteger(record.isolateID))
+                    .filter((record) => Number.isInteger(record.isolateID));
             }
         }
 
         try {
-            setError('')
-            await onSubmit(payload)
+            setError('');
+            await onSubmit(payload);
         } catch (submitError) {
-            setError(submitError.message || 'Failed to save water sample.')
+            setError(submitError.message || 'Failed to save water sample.');
         }
     }
 
@@ -211,7 +215,11 @@ export default function WaterSampleModal({
         <Modal
             opened={opened}
             onClose={onClose}
-            title={isEditing ? 'Edit Water Sample' : 'Create Water Sample'}
+            title={
+                <Title order={2} fw={800} lh={1.15}>
+                    {modalTitle}
+                </Title>
+            }
             centered
             size='xl'
             radius='md'
@@ -224,7 +232,6 @@ export default function WaterSampleModal({
                         </Alert>
                     )}
 
-                    <Title order={4}>Sample Data</Title>
                     <SimpleGrid cols={{ base: 1, sm: 2 }} spacing='sm'>
                         <TextInput
                             label='Location'
@@ -232,7 +239,7 @@ export default function WaterSampleModal({
                             onChange={(event) =>
                                 updateSampleField(
                                     'location_name',
-                                    event.currentTarget.value
+                                    event.currentTarget.value,
                                 )
                             }
                         />
@@ -242,7 +249,7 @@ export default function WaterSampleModal({
                             onChange={(event) =>
                                 updateSampleField(
                                     'collected_by',
-                                    event.currentTarget.value
+                                    event.currentTarget.value,
                                 )
                             }
                         />
@@ -253,7 +260,7 @@ export default function WaterSampleModal({
                             onChange={(event) =>
                                 updateSampleField(
                                     'collection_date',
-                                    event.currentTarget.value
+                                    event.currentTarget.value,
                                 )
                             }
                         />
@@ -265,7 +272,10 @@ export default function WaterSampleModal({
                             ]}
                             value={sampleForm.sample_analysis_type || null}
                             onChange={(value) =>
-                                updateSampleField('sample_analysis_type', value || '')
+                                updateSampleField(
+                                    'sample_analysis_type',
+                                    value || '',
+                                )
                             }
                             allowDeselect
                         />
@@ -275,7 +285,7 @@ export default function WaterSampleModal({
                             onChange={(event) =>
                                 updateSampleField(
                                     'isolation_source',
-                                    event.currentTarget.value
+                                    event.currentTarget.value,
                                 )
                             }
                         />
@@ -285,21 +295,25 @@ export default function WaterSampleModal({
                             onChange={(event) =>
                                 updateSampleField(
                                     'predicted_sir_profile',
-                                    event.currentTarget.value
+                                    event.currentTarget.value,
                                 )
                             }
                         />
                         <NumberInput
                             label='Latitude'
                             value={sampleForm.latitude}
-                            onChange={(value) => updateSampleField('latitude', value)}
+                            onChange={(value) =>
+                                updateSampleField('latitude', value)
+                            }
                             required
                             decimalScale={8}
                         />
                         <NumberInput
                             label='Longitude'
                             value={sampleForm.longitude}
-                            onChange={(value) => updateSampleField('longitude', value)}
+                            onChange={(value) =>
+                                updateSampleField('longitude', value)
+                            }
                             required
                             decimalScale={8}
                         />
@@ -320,7 +334,9 @@ export default function WaterSampleModal({
                         <NumberInput
                             label='TDS'
                             value={sampleForm.tds}
-                            onChange={(value) => updateSampleField('tds', value)}
+                            onChange={(value) =>
+                                updateSampleField('tds', value)
+                            }
                             decimalScale={2}
                         />
                         <NumberInput
@@ -334,8 +350,7 @@ export default function WaterSampleModal({
                     {!isEditing && analysisType === 'metagenomic' && (
                         <>
                             <Divider />
-                            <Group justify='space-between'>
-                                <Title order={4}>Metagenomic Records</Title>
+                            <Group justify='flex-end'>
                                 <Button
                                     type='button'
                                     variant='outline'
@@ -347,7 +362,10 @@ export default function WaterSampleModal({
                             </Group>
                             {metagenomicRecords.map((record, index) => (
                                 <Stack key={`meta-${index}`} gap='xs'>
-                                    <SimpleGrid cols={{ base: 1, sm: 2 }} spacing='sm'>
+                                    <SimpleGrid
+                                        cols={{ base: 1, sm: 2 }}
+                                        spacing='sm'
+                                    >
                                         <TextInput
                                             label='Sequence Name'
                                             value={record.sequence_name}
@@ -355,7 +373,7 @@ export default function WaterSampleModal({
                                                 updateMetagenomic(
                                                     index,
                                                     'sequence_name',
-                                                    event.currentTarget.value
+                                                    event.currentTarget.value,
                                                 )
                                             }
                                         />
@@ -366,7 +384,7 @@ export default function WaterSampleModal({
                                                 updateMetagenomic(
                                                     index,
                                                     'element_type',
-                                                    event.currentTarget.value
+                                                    event.currentTarget.value,
                                                 )
                                             }
                                         />
@@ -377,7 +395,7 @@ export default function WaterSampleModal({
                                                 updateMetagenomic(
                                                     index,
                                                     'class',
-                                                    event.currentTarget.value
+                                                    event.currentTarget.value,
                                                 )
                                             }
                                         />
@@ -388,7 +406,7 @@ export default function WaterSampleModal({
                                                 updateMetagenomic(
                                                     index,
                                                     'subclass',
-                                                    event.currentTarget.value
+                                                    event.currentTarget.value,
                                                 )
                                             }
                                         />
@@ -399,7 +417,11 @@ export default function WaterSampleModal({
                                                 type='button'
                                                 color='red'
                                                 variant='subtle'
-                                                onClick={() => removeMetagenomicRecord(index)}
+                                                onClick={() =>
+                                                    removeMetagenomicRecord(
+                                                        index,
+                                                    )
+                                                }
                                             >
                                                 Remove
                                             </Button>
@@ -423,8 +445,7 @@ export default function WaterSampleModal({
                     {!isEditing && analysisType === 'wgs' && (
                         <>
                             <Divider />
-                            <Group justify='space-between'>
-                                <Title order={4}>WGS Records</Title>
+                            <Group justify='flex-end'>
                                 <Button
                                     type='button'
                                     variant='outline'
@@ -436,12 +457,19 @@ export default function WaterSampleModal({
                             </Group>
                             {wgsRecords.map((record, index) => (
                                 <Stack key={`wgs-${index}`} gap='xs'>
-                                    <SimpleGrid cols={{ base: 1, sm: 2 }} spacing='sm'>
+                                    <SimpleGrid
+                                        cols={{ base: 1, sm: 2 }}
+                                        spacing='sm'
+                                    >
                                         <NumberInput
                                             label='Isolate ID'
                                             value={record.isolateID}
                                             onChange={(value) =>
-                                                updateWgs(index, 'isolateID', value)
+                                                updateWgs(
+                                                    index,
+                                                    'isolateID',
+                                                    value,
+                                                )
                                             }
                                             allowDecimal={false}
                                         />
@@ -452,7 +480,7 @@ export default function WaterSampleModal({
                                                 updateWgs(
                                                     index,
                                                     'organism',
-                                                    event.currentTarget.value
+                                                    event.currentTarget.value,
                                                 )
                                             }
                                         />
@@ -465,7 +493,7 @@ export default function WaterSampleModal({
                                             updateWgs(
                                                 index,
                                                 'virulenceGenesText',
-                                                event.currentTarget.value
+                                                event.currentTarget.value,
                                             )
                                         }
                                         minRows={2}
@@ -477,7 +505,9 @@ export default function WaterSampleModal({
                                                 type='button'
                                                 color='red'
                                                 variant='subtle'
-                                                onClick={() => removeWgsRecord(index)}
+                                                onClick={() =>
+                                                    removeWgsRecord(index)
+                                                }
                                             >
                                                 Remove
                                             </Button>
@@ -490,7 +520,8 @@ export default function WaterSampleModal({
 
                     {!isEditing && !analysisType && (
                         <Text size='sm' c='dimmed'>
-                            Select an analysis type to add optional child records.
+                            Select an analysis type to add optional child
+                            records.
                         </Text>
                     )}
 
@@ -498,18 +529,22 @@ export default function WaterSampleModal({
                         <Button
                             type='button'
                             variant='outline'
-                            color='gray'
+                            color='themeColors.6'
                             onClick={onClose}
                             disabled={loading}
                         >
                             Cancel
                         </Button>
-                        <Button type='submit' color='dark' loading={loading}>
+                        <Button
+                            type='submit'
+                            color='themeColors.6'
+                            loading={loading}
+                        >
                             {isEditing ? 'Save Changes' : 'Create Sample'}
                         </Button>
                     </Group>
                 </Stack>
             </form>
         </Modal>
-    )
+    );
 }
