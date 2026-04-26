@@ -29,16 +29,33 @@ export default function DissolvedOxygenChart({ samples }) {
                                 },
                             )
                         }
-                        tick={{ fontSize: 12 }}
+                        tick={{
+                            fontSize: 12,
+                            fill: '#000',
+                            fontWeight: 'bold',
+                        }}
                     >
                         <Label
                             value='Collection Date'
                             position='insideBottomRight'
                             offset={-5}
+                            fill='#000'
+                            fontWeight='bold'
                         />
                     </XAxis>
-                    <YAxis tick={{ fontSize: 12 }}>
-                        <Label value='Dissolved Oxygen (mg/L)' angle={-90} />
+                    <YAxis
+                        tick={{
+                            fontSize: 12,
+                            fill: '#000',
+                            fontWeight: 'bold',
+                        }}
+                    >
+                        <Label
+                            value='Dissolved Oxygen (mg/L)'
+                            angle={-90}
+                            fill='#000'
+                            fontWeight='bold'
+                        />
                     </YAxis>
                     <Tooltip
                         formatter={(value) => {
@@ -51,7 +68,7 @@ export default function DissolvedOxygenChart({ samples }) {
                     <Line
                         type='monotone'
                         dataKey='do'
-                        stroke='#ffc658'
+                        stroke='#5f3dc4'
                         name='Dissolved Oxygen (mg/L)'
                         connectNulls
                         dot={{ r: 4 }}
