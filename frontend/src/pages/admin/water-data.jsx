@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { adminApi } from '../../api/admin.js';
 import DeleteReasonModal from '../../components/admin/delete-reason-modal.jsx';
 import WaterSampleModal from '../../components/admin/water-sample-modal.jsx';
+import { formatSirProfileLabel } from '../../lib/sir-profile';
 
 function toNumber(value) {
     if (value === '' || value === null || value === undefined) {
@@ -149,7 +150,10 @@ function sortRows(rows, field, direction) {
                       .filter(Boolean)
                       .join(', ')
                 : '';
-            const profile = String(row.predicted_sir_profile || '').trim();
+            const profile = formatSirProfileLabel(
+                row.predicted_sir_profile,
+                '',
+            );
             return [genes, profile].filter(Boolean).join(' ');
         }
 
@@ -212,7 +216,7 @@ function getOrganismsResistanceText(row) {
         ? row.amrResistanceGenes.map((item) => item?.geneSymbol).filter(Boolean)
         : [];
     const uniqueGenes = [...new Set(genes)];
-    const profile = String(row.predicted_sir_profile || '').trim();
+    const profile = formatSirProfileLabel(row.predicted_sir_profile, '');
 
     if (uniqueGenes.length > 0 && profile) {
         return `${uniqueGenes.join(', ')} (${profile})`;

@@ -17,8 +17,14 @@ const mockPrismaSample = {
     delete: jest.fn(),
 }
 
+const mockPredictSirProfileWithAI = jest.fn()
+
 jest.unstable_mockModule('../lib/prisma.js', () => ({
     default: { sample: mockPrismaSample },
+}))
+
+jest.unstable_mockModule('../lib/sir-prediction.js', () => ({
+    predictSirProfileWithAI: mockPredictSirProfileWithAI,
 }))
 
 // ─── Lazy imports ─────────────────────────────────────────────────────────────
@@ -161,6 +167,64 @@ describe('POST /api/samples', () => {
 
         expect(res.status).toBe(500)
         expect(res.body.message).toMatch(/failed to create sample/i)
+    })
+})
+
+// ─── POST /api/samples/predict-sir ───────────────────────────────────────────
+
+describe('POST /api/samples/predict-sir', () => {
+    beforeEach(() => jest.clearAllMocks())
+
+    test('returns 400 when coordinates are missing', async () => {
+        const res = await api().post('/api/samples/predict-sir').set('Cookie', authCookie()).send({})
+
+        expect(res.status).toBe(400)
+        expect(res.body.errors).toBeDefined()
+    })
+
+    test('returns prediction when request is valid', async () => {
+        mockPrismaSample.findMany.mockResolvedValue([
+            {
+                latitude: 25.13,
+                longitude: 28.42,
+                predicted_sir_profile: 'Resistant',
+            },
+        ])
+        mockPredictSirProfileWithAI.mockResolvedValue({
+            predicted_sir_profile: 'resistant',
+            confidence: 0.81,
+            usedOpenAI: true,
+        })
+
+        const res = await api().post('/api/samples/predict-sir').set('Cookie', authCookie()).send({
+            latitude: '25.12',
+            longitude: '28.45',
+            ph: '7.1',
+        })
+
+        expect(res.status).toBe(200)
+        expect(res.body.prediction).toBeDefined()
+        expect(res.body.prediction.predicted_sir_profile).toBe('resistant')
+        expect(mockPrismaSample.findMany).toHaveBeenCalled()
+        expect(mockPredictSirProfileWithAI).toHaveBeenCalledWith({
+            inputSample: expect.objectContaining({
+                latitude: '25.12',
+                longitude: '28.45',
+            }),
+            trainingSamples: expect.any(Array),
+        })
+    })
+
+    test('returns 500 when prediction fails unexpectedly', async () => {
+        mockPrismaSample.findMany.mockRejectedValue(new Error('db down'))
+
+        const res = await api().post('/api/samples/predict-sir').set('Cookie', authCookie()).send({
+            latitude: '25.12',
+            longitude: '28.45',
+        })
+
+        expect(res.status).toBe(500)
+        expect(res.body.message).toMatch(/failed to predict sir profile/i)
     })
 })
 
