@@ -1,5 +1,5 @@
-import WaterDataManager from '../../components/admin/WaterDataManager.jsx'
-import { measurementsFields } from './waterConfigs.js'
+import WaterDataManager from '../../components/admin/water-data-manager.jsx';
+import { measurementsFields } from './water-configs.js';
 
 export default function Measurements() {
     return (
@@ -8,5 +8,5 @@ export default function Measurements() {
             title='Measurements'
             fields={measurementsFields}
         />
-    )
+    );
 }

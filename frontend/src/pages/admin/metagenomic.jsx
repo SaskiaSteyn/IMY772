@@ -1,5 +1,5 @@
-import WaterDataManager from '../../components/admin/WaterDataManager.jsx'
-import { metagenomicFields } from './waterConfigs.js'
+import WaterDataManager from '../../components/admin/water-data-manager.jsx';
+import { metagenomicFields } from './water-configs.js';
 
 export default function Metagenomic() {
     return (
@@ -8,5 +8,5 @@ export default function Metagenomic() {
             title='Metagenomic'
             fields={metagenomicFields}
         />
-    )
+    );
 }

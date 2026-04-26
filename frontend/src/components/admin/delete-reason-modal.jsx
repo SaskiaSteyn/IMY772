@@ -7,6 +7,7 @@ import {
     Stack,
     Text,
     Textarea,
+    Title,
 } from '@mantine/core'
 
 export default function DeleteReasonModal({
@@ -42,13 +43,19 @@ export default function DeleteReasonModal({
         <Modal
             opened={opened}
             onClose={handleClose}
-            title={title}
+            title={
+                <Title order={2} fw={800} lh={1.15}>
+                    {title}
+                </Title>
+            }
             centered
             radius='md'
             size='md'
         >
-            <Stack gap='sm'>
-                <Text size='sm'>{description}</Text>
+            <Stack gap='md'>
+                <Text size='sm' c='dimmed'>
+                    {description}
+                </Text>
                 {error && (
                     <Alert color='red' variant='light'>
                         {error}
@@ -61,7 +68,7 @@ export default function DeleteReasonModal({
                     value={reason}
                     onChange={(event) => setReason(event.currentTarget.value)}
                 />
-                <Group justify='flex-end' mt='sm'>
+                <Group justify='flex-end' mt='md'>
                     <Button
                         variant='outline'
                         color='gray'
@@ -70,7 +77,11 @@ export default function DeleteReasonModal({
                     >
                         Cancel
                     </Button>
-                    <Button color='red' onClick={handleConfirm} loading={loading}>
+                    <Button
+                        style={{ backgroundColor: '#c53030' }}
+                        onClick={handleConfirm}
+                        loading={loading}
+                    >
                         {confirmLabel}
                     </Button>
                 </Group>

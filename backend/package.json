@@ -5,6 +5,9 @@
     "type": "module",
     "scripts": {
         "start": "node server.js",
+        "test": "node --experimental-vm-modules node_modules/.bin/jest",
+        "test:coverage": "node --experimental-vm-modules node_modules/.bin/jest --coverage",
+        "test:coverage:view": "node --experimental-vm-modules node_modules/.bin/jest --coverage && open coverage/lcov-report/index.html",
         "seed:admin": "dotenv -e ../.env -- node src/utils/seed-admin.js",
         "seed": "dotenv -e ../.env -- node prisma/seed.js",
         "prisma:generate": "dotenv -e ../.env -- prisma generate",
@@ -35,6 +38,8 @@
     },
     "devDependencies": {
         "dotenv-cli": "^7.4.4",
-        "prisma": "^6.6.0"
+        "jest": "^30.3.0",
+        "prisma": "^6.6.0",
+        "supertest": "^7.2.2"
     }
 }
