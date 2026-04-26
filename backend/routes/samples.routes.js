@@ -22,7 +22,14 @@ router.post(
         body('collection_date').optional().isISO8601().withMessage('Collection date must be valid ISO8601'),
         body('location_name').optional().trim().isString(),
         body('collected_by').optional().trim().isString(),
-        body('predicted_sir_profile').optional().isIn(['Not Resistant', 'Resistant']),
+        body('predicted_sir_profile')
+            .optional()
+            .trim()
+            .custom((value) => {
+                const validValues = ['susceptible', 'intermediate', 'resistant'];
+                return validValues.includes(value.toLowerCase());
+            })
+            .withMessage('predicted_sir_profile must be Susceptible, Intermediate, or Resistant'),
     ],
     async (req, res) => {
         const errors = validationResult(req)
@@ -134,7 +141,14 @@ router.put(
         body('longitude').optional().isDecimal(),
         body('collected_by').optional().trim().isString(),
         body('uploaded_by').isInt(),
-        body('predicted_sir_profile').optional().isIn(['Not Resistant', 'Resistant']),
+        body('predicted_sir_profile')
+            .optional()
+            .trim()
+            .custom((value) => {
+                const validValues = ['susceptible', 'intermediate', 'resistant'];
+                return validValues.includes(value.toLowerCase());
+            })
+            .withMessage('predicted_sir_profile must be Susceptible, Intermediate, or Resistant'),
     ],
     async (req, res) => {
         const errors = validationResult(req)

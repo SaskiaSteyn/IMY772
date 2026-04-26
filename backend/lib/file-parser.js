@@ -16,7 +16,8 @@ export async function parseCSVFile(fileContent) {
                 let sirProfile = record.predicted_sir_profile;
                 if (sirProfile) {
                     const lower = sirProfile.toLowerCase();
-                    if (lower === 'not resistant') sirProfile = 'Not Resistant';
+                    if (lower === 'susceptible') sirProfile = 'Susceptible';
+                    else if (lower === 'intermediate') sirProfile = 'Intermediate';
                     else if (lower === 'resistant') sirProfile = 'Resistant';
                     else sirProfile = null;
                 }
@@ -75,7 +76,8 @@ export async function parseJSONFile(fileContent) {
             let sirProfile = sample.predicted_sir_profile;
             if (sirProfile) {
                 const lower = sirProfile.toLowerCase();
-                if (lower === 'not resistant') sirProfile = 'Not Resistant';
+                if (lower === 'susceptible') sirProfile = 'Susceptible';
+                else if (lower === 'intermediate') sirProfile = 'Intermediate';
                 else if (lower === 'resistant') sirProfile = 'Resistant';
                 else sirProfile = null;
             }
@@ -125,8 +127,8 @@ export function validateSamples(samples) {
         if (sample.ph && isNaN(parseFloat(sample.ph))) errors.push(`Sample ${index}: ph must be numeric`);
         if (sample.tds && isNaN(parseFloat(sample.tds))) errors.push(`Sample ${index}: tds must be numeric`);
         if (sample.do && isNaN(parseFloat(sample.do))) errors.push(`Sample ${index}: do must be numeric`);
-        if (sample.predicted_sir_profile && !['Not Resistant', 'Resistant'].includes(sample.predicted_sir_profile)) {
-            errors.push(`Sample ${index}: predicted_sir_profile must be "Not Resistant" or "Resistant" (case-insensitive)`);
+        if (sample.predicted_sir_profile && !['Susceptible', 'Intermediate', 'Resistant'].includes(sample.predicted_sir_profile)) {
+            errors.push(`Sample ${index}: predicted_sir_profile must be "Susceptible", "Intermediate", or "Resistant" (case-insensitive)`);
         }
     });
     return {isValid: errors.length === 0, errors};
