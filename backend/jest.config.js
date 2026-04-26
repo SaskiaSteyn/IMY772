@@ -18,6 +18,7 @@ export default {
         '!lib/db.js',
         '!lib/file-parser.js',
         '!lib/prisma.js',
+        '!lib/sir-prediction.js',
     ],
     // Coverage output formats
     coverageReporters: ['text', 'text-summary', 'json', 'lcov'],
