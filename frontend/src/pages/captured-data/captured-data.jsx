@@ -30,7 +30,7 @@ import {
     updateAmrGene,
     updateVirulenceGene,
 } from '../../api/sample-data-management.js';
-import {useAuth} from '../../context/AuthContext.jsx';
+import {useAuth} from '../../context/auth-context.jsx';
 import './captured-data.scss';
 
 const initialSamples = [
