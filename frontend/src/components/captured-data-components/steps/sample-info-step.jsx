@@ -62,12 +62,12 @@ const SampleInfoStep = forwardRef(({formData, setFormData, analysisType, setAnal
 
     const {user} = useAuth();
 
-    // Set default value for collected_by to user.userID if not already set
+    // Set default value for uploaded_by to user.userID when component mounts
     useEffect(() => {
-        if (user && !formData.collected_by) {
-            setFormData(prev => ({...prev, collected_by: user.userID}));
+        if (user?.userID && !formData.uploaded_by) {
+            setFormData(prev => ({...prev, uploaded_by: user.userID}));
         }
-    }, [user, setFormData, formData.collected_by]);
+    }, [user?.userID, formData.uploaded_by]);
 
     return (
         <Stack gap="md">

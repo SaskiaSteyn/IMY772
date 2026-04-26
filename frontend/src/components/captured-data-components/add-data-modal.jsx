@@ -35,7 +35,8 @@ const AddDataModal = ({opened, onClose, onAddEntry}) => {
         location_name: '',
         latitude: -25.7479,
         longitude: 28.2293,
-        collected_by: '',
+        collected_by: 'Researcher A',
+        uploaded_by: '',
         metagenomicRecords: [
             {sequence_name: '', element_type: '', class: '', subclass: ''},
         ],
@@ -70,7 +71,8 @@ const AddDataModal = ({opened, onClose, onAddEntry}) => {
             location_name: '',
             latitude: -25.7479,
             longitude: 28.2293,
-            collected_by: '',
+            collected_by: 'Researcher A',
+            uploaded_by: '',
             metagenomicRecords: [
                 {sequence_name: '', element_type: '', class: '', subclass: ''},
             ],
@@ -155,6 +157,7 @@ const AddDataModal = ({opened, onClose, onAddEntry}) => {
             latitude: formData.latitude,
             longitude: formData.longitude,
             collected_by: formData.collected_by,
+            uploaded_by: formData.uploaded_by,
         };
 
         if (isMetagenomic) {

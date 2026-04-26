@@ -20,6 +20,7 @@ router.post(
         body('collection_date').optional().isISO8601().withMessage('Collection date must be valid ISO8601'),
         body('location_name').optional().trim().isString(),
         body('collected_by').optional().trim().isString(),
+        body('uploaded_by').optional().isInt(),
         body('predicted_sir_profile').optional().isIn(['Not Resistant', 'Resistant']),
     ],
     async (req, res) => {
@@ -40,6 +41,7 @@ router.post(
             latitude,
             longitude,
             collected_by,
+            uploaded_by,
             predicted_sir_profile,
         } = req.body
 
@@ -57,6 +59,7 @@ router.post(
                     latitude: parseFloat(latitude),
                     longitude: parseFloat(longitude),
                     collected_by,
+                    uploaded_by: uploaded_by ? parseInt(uploaded_by) : null,
                     predicted_sir_profile,
                 },
             })
@@ -129,6 +132,7 @@ router.put(
         body('latitude').optional().isDecimal(),
         body('longitude').optional().isDecimal(),
         body('collected_by').optional().trim().isString(),
+        body('uploaded_by').isInt(),
         body('predicted_sir_profile').optional().isIn(['Not Resistant', 'Resistant']),
     ],
     async (req, res) => {
@@ -152,6 +156,7 @@ router.put(
         if (req.body.latitude !== undefined) updateData.latitude = parseFloat(req.body.latitude)
         if (req.body.longitude !== undefined) updateData.longitude = parseFloat(req.body.longitude)
         if (req.body.collected_by !== undefined) updateData.collected_by = req.body.collected_by
+        if (req.body.uploaded_by !== undefined) updateData.uploaded_by = parseInt(req.body.uploaded_by)
         if (req.body.predicted_sir_profile !== undefined) updateData.predicted_sir_profile = req.body.predicted_sir_profile
 
         try {

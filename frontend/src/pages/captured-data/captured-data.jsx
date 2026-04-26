@@ -115,8 +115,6 @@ const CapturedData = () => {
     const [selectedUpdateSampleId, setSelectedUpdateSampleId] = useState(null);
     const [updateDataOpened, setUpdateDataOpened] = useState(false);
 
-    const userFullName = user ? `${user.userID}` : null;
-
     const handleEditMetagenomicClick = (record) => {
         setRecordToEdit(record);
         setEditMetagenomicModalOpened(true);
@@ -277,7 +275,7 @@ const CapturedData = () => {
     };
 
     // Filter data for current user
-    const userSamples = userFullName ? samples.filter((s) => s.collected_by === userFullName) : [];
+    const userSamples = user?.userID ? samples.filter((s) => s.uploaded_by == user.userID) : [];
     const userSampleIds = new Set(userSamples.map((s) => s.sampleID));
     const filteredMetagenomic = metageonomicData.filter((m) => userSampleIds.has(m.sampleID));
     const filteredWgs = wgsData.filter((w) => userSampleIds.has(w.sampleID));

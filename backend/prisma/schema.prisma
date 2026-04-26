@@ -45,6 +45,7 @@ model Sample {
   latitude                Decimal                @db.Decimal(10, 8)
   longitude               Decimal                @db.Decimal(11, 8)
   collected_by            String?                @db.VarChar(255)
+  uploaded_by             Int?
   predicted_sir_profile   String?                @db.VarChar(255)
   created_at              DateTime               @default(now())
   updated_at              DateTime               @updatedAt
