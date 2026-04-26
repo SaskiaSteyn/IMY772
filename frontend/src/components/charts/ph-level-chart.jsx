@@ -29,16 +29,33 @@ export default function PHLevelChart({ samples }) {
                                 },
                             )
                         }
-                        tick={{ fontSize: 12 }}
+                        tick={{
+                            fontSize: 12,
+                            fill: '#000',
+                            fontWeight: 'bold',
+                        }}
                     >
                         <Label
                             value='Collection Date'
                             position='insideBottomRight'
                             offset={-5}
+                            fill='#000'
+                            fontWeight='bold'
                         />
                     </XAxis>
-                    <YAxis tick={{ fontSize: 12 }}>
-                        <Label value='pH' angle={-90} />
+                    <YAxis
+                        tick={{
+                            fontSize: 12,
+                            fill: '#000',
+                            fontWeight: 'bold',
+                        }}
+                    >
+                        <Label
+                            value='pH'
+                            angle={-90}
+                            fill='#000'
+                            fontWeight='bold'
+                        />
                     </YAxis>
                     <Tooltip
                         formatter={(value) => {
@@ -51,7 +68,7 @@ export default function PHLevelChart({ samples }) {
                     <Line
                         type='monotone'
                         dataKey='ph'
-                        stroke='#8884d8'
+                        stroke='#0b7285'
                         name='pH Level'
                         connectNulls
                         dot={{ r: 4 }}
