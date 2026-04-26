@@ -1,6 +1,7 @@
 import {Router} from 'express'
 import {body, param, validationResult} from 'express-validator'
 import prisma from '../lib/prisma.js'
+import {requireAuth} from '../middleware/auth.middleware.js'
 
 const router = Router()
 
@@ -8,6 +9,7 @@ const router = Router()
 
 router.post(
     '/',
+    requireAuth,
     [
         body('latitude').isDecimal().withMessage('Latitude must be a decimal'),
         body('longitude').isDecimal().withMessage('Longitude must be a decimal'),
@@ -20,7 +22,6 @@ router.post(
         body('collection_date').optional().isISO8601().withMessage('Collection date must be valid ISO8601'),
         body('location_name').optional().trim().isString(),
         body('collected_by').optional().trim().isString(),
-        body('uploaded_by').optional().isInt(),
         body('predicted_sir_profile').optional().isIn(['Not Resistant', 'Resistant']),
     ],
     async (req, res) => {
@@ -59,7 +60,7 @@ router.post(
                     latitude: parseFloat(latitude),
                     longitude: parseFloat(longitude),
                     collected_by,
-                    uploaded_by: uploaded_by ? parseInt(uploaded_by) : null,
+                    uploaded_by: req.user.userID,
                     predicted_sir_profile,
                 },
             })

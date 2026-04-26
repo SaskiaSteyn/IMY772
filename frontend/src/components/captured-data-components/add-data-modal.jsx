@@ -1,4 +1,4 @@
-import {useState, useRef} from 'react';
+import {useState, useRef, useEffect} from 'react';
 import {
     Modal,
     Stepper,
@@ -9,6 +9,7 @@ import {
     Stack,
 } from '@mantine/core';
 import {ArrowRight, ArrowLeft} from 'lucide-react';
+import {useAuth} from '../../context/auth-context';
 
 import MethodSelectionStep from './steps/method-selection-step';
 import SampleInfoStep from './steps/sample-info-step';
@@ -20,6 +21,7 @@ import JsonUploadStep from './steps/json-upload-step';
 import ExpandedDataModal from './expanded-data-modal';
 
 const AddDataModal = ({opened, onClose, onAddEntry}) => {
+    const {user} = useAuth();
     const [topStep, setTopStep] = useState(1);
     const [stepperIndex, setStepperIndex] = useState(0);
     const [analysisType, setAnalysisType] = useState('');
@@ -36,7 +38,7 @@ const AddDataModal = ({opened, onClose, onAddEntry}) => {
         latitude: -25.7479,
         longitude: 28.2293,
         collected_by: 'Researcher A',
-        uploaded_by: '',
+        uploaded_by: user?.userID || '',
         metagenomicRecords: [
             {sequence_name: '', element_type: '', class: '', subclass: ''},
         ],
@@ -72,7 +74,7 @@ const AddDataModal = ({opened, onClose, onAddEntry}) => {
             latitude: -25.7479,
             longitude: 28.2293,
             collected_by: 'Researcher A',
-            uploaded_by: '',
+            uploaded_by: user?.userID || '',
             metagenomicRecords: [
                 {sequence_name: '', element_type: '', class: '', subclass: ''},
             ],

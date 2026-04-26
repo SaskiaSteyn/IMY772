@@ -1,7 +1,8 @@
-import { Router } from 'express';
+import {Router} from 'express';
 import multer from 'multer';
-import { parseCSVFile, parseJSONFile, validateSamples } from '../lib/file-parser.js';
+import {parseCSVFile, parseJSONFile, validateSamples} from '../lib/file-parser.js';
 import prisma from '../lib/prisma.js';
+import {requireAuth} from '../middleware/auth.middleware.js';
 
 const router = Router();
 
@@ -29,12 +30,12 @@ const upload = multer({
  * POST /api/bulk-upload
  * Upload and process CSV or JSON file with sample data
  */
-router.post('/', upload.single('file'), async (req, res) => {
+router.post('/', requireAuth, upload.single('file'), async (req, res) => {
     try {
         if (!req.file) {
             return res
                 .status(400)
-                .json({ error: 'No file provided' });
+                .json({error: 'No file provided'});
         }
 
         const fileExtension = req.file.originalname.split('.').pop().toLowerCase();
@@ -48,7 +49,7 @@ router.post('/', upload.single('file'), async (req, res) => {
         } else {
             return res
                 .status(400)
-                .json({ error: 'Invalid file extension. Use .csv or .json' });
+                .json({error: 'Invalid file extension. Use .csv or .json'});
         }
 
         // Validate parsed data
@@ -90,6 +91,7 @@ router.post('/', upload.single('file'), async (req, res) => {
                         location_name: sample.location_name,
                         collected_by: sample.collected_by,
                         predicted_sir_profile: sample.predicted_sir_profile,
+                        uploaded_by: req.user.userID,
                     },
                 });
 
