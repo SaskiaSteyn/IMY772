@@ -5,6 +5,7 @@
  */
 
 import { jest } from '@jest/globals'
+import jwt from 'jsonwebtoken'
 
 // ─── Mock prisma BEFORE importing the router ─────────────────────────────────
 
@@ -23,6 +24,7 @@ jest.unstable_mockModule('../lib/prisma.js', () => ({
 // ─── Lazy imports ─────────────────────────────────────────────────────────────
 
 const { default: express } = await import('express')
+const cookieParser = (await import('cookie-parser')).default
 const { default: supertest } = await import('supertest')
 const { default: samplesRouter } = await import('../routes/samples.routes.js')
 
@@ -31,12 +33,23 @@ const { default: samplesRouter } = await import('../routes/samples.routes.js')
 function buildApp() {
     const app = express()
     app.use(express.json())
+    app.use(cookieParser())
     app.use('/api/samples', samplesRouter)
     return app
 }
 
 function api() {
     return supertest(buildApp())
+}
+
+const TEST_SECRET = process.env.JWT_SECRET || 'dev_jwt_secret_change_me'
+
+function signToken(payload = { userID: 1, role: 'user', email: 'user@example.com' }) {
+    return jwt.sign(payload, TEST_SECRET, { expiresIn: '1h' })
+}
+
+function authCookie(payload) {
+    return [`token=${signToken(payload)}`]
 }
 
 // ─── Sample fixture ───────────────────────────────────────────────────────────
@@ -54,6 +67,7 @@ const sampleFixture = {
     collection_date: new Date('2024-01-15').toISOString(),
     location_name: 'Test River',
     collected_by: 'Researcher A',
+    uploaded_by: 1,
     predicted_sir_profile: 'Susceptible',
 }
 
@@ -63,13 +77,13 @@ describe('POST /api/samples', () => {
     beforeEach(() => jest.clearAllMocks())
 
     test('returns 400 when latitude and longitude are missing', async () => {
-        const res = await api().post('/api/samples').send({})
+        const res = await api().post('/api/samples').set('Cookie', authCookie()).send({})
         expect(res.status).toBe(400)
         expect(res.body.errors).toBeDefined()
     })
 
     test('returns 400 when latitude is not a decimal', async () => {
-        const res = await api().post('/api/samples').send({
+        const res = await api().post('/api/samples').set('Cookie', authCookie()).send({
             latitude: 'not-a-number',
             longitude: '28.45',
         })
@@ -77,7 +91,7 @@ describe('POST /api/samples', () => {
     })
 
     test('returns 400 when predicted_sir_profile is invalid', async () => {
-        const res = await api().post('/api/samples').send({
+        const res = await api().post('/api/samples').set('Cookie', authCookie()).send({
             latitude: '25.12',
             longitude: '28.45',
             predicted_sir_profile: 'Unknown',
@@ -88,7 +102,7 @@ describe('POST /api/samples', () => {
     test('returns 201 with created sample on success', async () => {
         mockPrismaSample.create.mockResolvedValue(sampleFixture)
 
-        const res = await api().post('/api/samples').send({
+        const res = await api().post('/api/samples').set('Cookie', authCookie()).send({
             latitude: '25.12',
             longitude: '28.45',
             sample_analysis_type: 'WGS',
@@ -102,7 +116,7 @@ describe('POST /api/samples', () => {
     test('parses optional create fields before saving', async () => {
         mockPrismaSample.create.mockResolvedValue(sampleFixture)
 
-        const res = await api().post('/api/samples').send({
+        const res = await api().post('/api/samples').set('Cookie', authCookie()).send({
             latitude: '25.12',
             longitude: '28.45',
             water_temperature: '18.5',
@@ -130,6 +144,7 @@ describe('POST /api/samples', () => {
                 latitude: 25.12,
                 longitude: 28.45,
                 collected_by: 'Researcher B',
+                uploaded_by: 1,
                 predicted_sir_profile: 'Intermediate',
             }),
         })
@@ -139,7 +154,7 @@ describe('POST /api/samples', () => {
     test('returns 500 when sample creation fails', async () => {
         mockPrismaSample.create.mockRejectedValue(new Error('db down'))
 
-        const res = await api().post('/api/samples').send({
+        const res = await api().post('/api/samples').set('Cookie', authCookie()).send({
             latitude: '25.12',
             longitude: '28.45',
         })
@@ -276,7 +291,7 @@ describe('PUT /api/samples/:sampleID', () => {
             latitude: 25.5,
             longitude: 28.8,
             collected_by: 'Researcher B',
-            predicted_sir_profile: 'Intermediate',
+            predicted_sir_profile: 'Susceptible',
         })
 
         const res = await api().put('/api/samples/1').send({
@@ -291,7 +306,7 @@ describe('PUT /api/samples/:sampleID', () => {
             latitude: '25.5',
             longitude: '28.8',
             collected_by: 'Researcher B',
-            predicted_sir_profile: 'Intermediate',
+            predicted_sir_profile: 'Susceptible',
         })
 
         expect(res.status).toBe(200)
@@ -308,7 +323,7 @@ describe('PUT /api/samples/:sampleID', () => {
                 latitude: 25.5,
                 longitude: 28.8,
                 collected_by: 'Researcher B',
-                predicted_sir_profile: 'Intermediate',
+                predicted_sir_profile: 'Susceptible',
             }),
         })
         expect(mockPrismaSample.update.mock.calls[0][0].data.collection_date).toBeInstanceOf(Date)

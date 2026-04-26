@@ -51,29 +51,29 @@ export default function DashboardNavbar() {
         },
         ...(isAuthenticated
             ? [
-                  {
-                      label: 'Capture Data',
-                      icon: ChartColumnIncreasing,
-                      onClick: () => navigate('/capture-data'),
-                      path: '/capture-data',
-                  },
-                  {
-                      label: 'Profile Settings',
-                      icon: User,
-                      onClick: () => navigate('/profile-settings'),
-                      path: '/profile-settings',
-                  },
-                  ...(isAdmin
-                      ? [
-                            {
-                                label: 'Admin Dashboard',
-                                icon: Shield,
-                                onClick: () => navigate('/admin/water-data'),
-                                path: '/admin',
-                            },
-                        ]
-                      : []),
-              ]
+                {
+                    label: 'Data',
+                    icon: ChartColumnIncreasing,
+                    onClick: () => navigate('/capture-data'),
+                    path: '/capture-data',
+                },
+                {
+                    label: 'Profile Settings',
+                    icon: User,
+                    onClick: () => navigate('/profile-settings'),
+                    path: '/profile-settings',
+                },
+                ...(isAdmin
+                    ? [
+                        {
+                            label: 'Admin Dashboard',
+                            icon: Shield,
+                            onClick: () => navigate('/admin/water-data'),
+                            path: '/admin',
+                        },
+                    ]
+                    : []),
+            ]
             : []),
     ];
 

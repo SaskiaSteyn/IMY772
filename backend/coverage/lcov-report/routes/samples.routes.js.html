@@ -25,7 +25,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>78/78</span>
+                <span class='fraction'>82/82</span>
             </div>
         
             
@@ -39,14 +39,14 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>5/5</span>
+                <span class='fraction'>7/7</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>66/66</span>
+                <span class='fraction'>70/70</span>
             </div>
         
             
@@ -266,7 +266,27 @@
 <a name='L201'></a><a href='#L201'>201</a>
 <a name='L202'></a><a href='#L202'>202</a>
 <a name='L203'></a><a href='#L203'>203</a>
-<a name='L204'></a><a href='#L204'>204</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L204'></a><a href='#L204'>204</a>
+<a name='L205'></a><a href='#L205'>205</a>
+<a name='L206'></a><a href='#L206'>206</a>
+<a name='L207'></a><a href='#L207'>207</a>
+<a name='L208'></a><a href='#L208'>208</a>
+<a name='L209'></a><a href='#L209'>209</a>
+<a name='L210'></a><a href='#L210'>210</a>
+<a name='L211'></a><a href='#L211'>211</a>
+<a name='L212'></a><a href='#L212'>212</a>
+<a name='L213'></a><a href='#L213'>213</a>
+<a name='L214'></a><a href='#L214'>214</a>
+<a name='L215'></a><a href='#L215'>215</a>
+<a name='L216'></a><a href='#L216'>216</a>
+<a name='L217'></a><a href='#L217'>217</a>
+<a name='L218'></a><a href='#L218'>218</a>
+<a name='L219'></a><a href='#L219'>219</a>
+<a name='L220'></a><a href='#L220'>220</a>
+<a name='L221'></a><a href='#L221'>221</a>
+<a name='L222'></a><a href='#L222'>222</a>
+<a name='L223'></a><a href='#L223'>223</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -287,6 +307,14 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -309,10 +337,12 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -396,6 +426,14 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -469,9 +507,10 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { Router } from 'express'
-import { body, param, validationResult } from 'express-validator'
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import {Router} from 'express'
+import {body, param, validationResult} from 'express-validator'
 import prisma from '../lib/prisma.js'
+import {requireAuth} from '../middleware/auth.middleware.js'
 &nbsp;
 const router = Router()
 &nbsp;
@@ -479,6 +518,7 @@ const router = Router()
 &nbsp;
 router.post(
     '/',
+    requireAuth,
     [
         body('latitude').isDecimal().withMessage('Latitude must be a decimal'),
         body('longitude').isDecimal().withMessage('Longitude must be a decimal'),
@@ -491,12 +531,19 @@ router.post(
         body('collection_date').optional().isISO8601().withMessage('Collection date must be valid ISO8601'),
         body('location_name').optional().trim().isString(),
         body('collected_by').optional().trim().isString(),
-        body('predicted_sir_profile').optional().isIn(['Susceptible', 'Intermediate', 'Resistant']),
+        body('predicted_sir_profile')
+            .optional()
+            .trim()
+            .custom((value) =&gt; {
+                const validValues = ['susceptible', 'intermediate', 'resistant'];
+                return validValues.includes(value.toLowerCase());
+            })
+            .withMessage('predicted_sir_profile must be Susceptible, Intermediate, or Resistant'),
     ],
     async (req, res) =&gt; {
         const errors = validationResult(req)
         if (!errors.isEmpty()) {
-            return res.status(400).json({ errors: errors.array() })
+            return res.status(400).json({errors: errors.array()})
         }
 &nbsp;
         const {
@@ -511,6 +558,7 @@ router.post(
             latitude,
             longitude,
             collected_by,
+            uploaded_by,
             predicted_sir_profile,
         } = req.body
 &nbsp;
@@ -528,14 +576,15 @@ router.post(
                     latitude: parseFloat(latitude),
                     longitude: parseFloat(longitude),
                     collected_by,
+                    uploaded_by: req.user.userID,
                     predicted_sir_profile,
                 },
             })
 &nbsp;
-            return res.status(201).json({ sample })
+            return res.status(201).json({sample})
         } catch (err) {
             console.error('Create sample error:', err)
-            return res.status(500).json({ message: 'Failed to create sample' })
+            return res.status(500).json({message: 'Failed to create sample'})
         }
     }
 )
@@ -546,10 +595,10 @@ router.get('/', async (req, res) =&gt; {
     try {
         const samples = await prisma.sample.findMany()
 &nbsp;
-        return res.json({ samples })
+        return res.json({samples})
     } catch (err) {
         console.error('Get samples error:', err)
-        return res.status(500).json({ message: 'Failed to retrieve samples' })
+        return res.status(500).json({message: 'Failed to retrieve samples'})
     }
 })
 &nbsp;
@@ -561,24 +610,24 @@ router.get(
     async (req, res) =&gt; {
         const errors = validationResult(req)
         if (!errors.isEmpty()) {
-            return res.status(400).json({ errors: errors.array() })
+            return res.status(400).json({errors: errors.array()})
         }
 &nbsp;
-        const { sampleID } = req.params
+        const {sampleID} = req.params
 &nbsp;
         try {
             const sample = await prisma.sample.findUnique({
-                where: { sampleID: parseInt(sampleID) },
+                where: {sampleID: parseInt(sampleID)},
             })
 &nbsp;
             if (!sample) {
-                return res.status(404).json({ message: 'Sample not found' })
+                return res.status(404).json({message: 'Sample not found'})
             }
 &nbsp;
-            return res.json({ sample })
+            return res.json({sample})
         } catch (err) {
             console.error('Get sample error:', err)
-            return res.status(500).json({ message: 'Failed to retrieve sample' })
+            return res.status(500).json({message: 'Failed to retrieve sample'})
         }
     }
 )
@@ -600,18 +649,26 @@ router.put(
         body('latitude').optional().isDecimal(),
         body('longitude').optional().isDecimal(),
         body('collected_by').optional().trim().isString(),
-        body('predicted_sir_profile').optional().isIn(['Susceptible', 'Intermediate', 'Resistant']),
+        body('uploaded_by').optional().isInt(),
+        body('predicted_sir_profile')
+            .optional()
+            .trim()
+            .custom((value) =&gt; {
+                const validValues = ['susceptible', 'intermediate', 'resistant'];
+                return validValues.includes(value.toLowerCase());
+            })
+            .withMessage('predicted_sir_profile must be Susceptible, Intermediate, or Resistant'),
     ],
     async (req, res) =&gt; {
         const errors = validationResult(req)
         if (!errors.isEmpty()) {
-            return res.status(400).json({ errors: errors.array() })
+            return res.status(400).json({errors: errors.array()})
         }
 &nbsp;
-        const { sampleID } = req.params
+        const {sampleID} = req.params
         const updateData = {}
 &nbsp;
-        // Build update object only with provided fields
+        // Build update object only with provided fields (exclude uploaded_by - it's immutable)
         if (req.body.water_temperature !== undefined) updateData.water_temperature = parseFloat(req.body.water_temperature)
         if (req.body.ph !== undefined) updateData.ph = parseFloat(req.body.ph)
         if (req.body.tds !== undefined) updateData.tds = parseFloat(req.body.tds)
@@ -627,17 +684,17 @@ router.put(
 &nbsp;
         try {
             const sample = await prisma.sample.update({
-                where: { sampleID: parseInt(sampleID) },
+                where: {sampleID: parseInt(sampleID)},
                 data: updateData,
             })
 &nbsp;
-            return res.json({ sample })
+            return res.json({sample})
         } catch (err) {
             if (err.code === 'P2025') {
-                return res.status(404).json({ message: 'Sample not found' })
+                return res.status(404).json({message: 'Sample not found'})
             }
             console.error('Update sample error:', err)
-            return res.status(500).json({ message: 'Failed to update sample' })
+            return res.status(500).json({message: 'Failed to update sample'})
         }
     }
 )
@@ -650,23 +707,23 @@ router.delete(
     async (req, res) =&gt; {
         const errors = validationResult(req)
         if (!errors.isEmpty()) {
-            return res.status(400).json({ errors: errors.array() })
+            return res.status(400).json({errors: errors.array()})
         }
 &nbsp;
-        const { sampleID } = req.params
+        const {sampleID} = req.params
 &nbsp;
         try {
             await prisma.sample.delete({
-                where: { sampleID: parseInt(sampleID) },
+                where: {sampleID: parseInt(sampleID)},
             })
 &nbsp;
-            return res.json({ message: 'Sample deleted successfully' })
+            return res.json({message: 'Sample deleted successfully'})
         } catch (err) {
             if (err.code === 'P2025') {
-                return res.status(404).json({ message: 'Sample not found' })
+                return res.status(404).json({message: 'Sample not found'})
             }
             console.error('Delete sample error:', err)
-            return res.status(500).json({ message: 'Failed to delete sample' })
+            return res.status(500).json({message: 'Failed to delete sample'})
         }
     }
 )
@@ -679,7 +736,7 @@ export default router
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-04-25T18:33:30.974Z
+                at 2026-04-26T15:24:26.797Z
             </div>
         <script src="../prettify.js"></script>
         <script>

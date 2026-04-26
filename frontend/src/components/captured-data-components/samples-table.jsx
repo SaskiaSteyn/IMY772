@@ -1,6 +1,8 @@
-import { DataTable } from 'mantine-datatable';
+import {DataTable} from 'mantine-datatable';
+import {ActionIcon, Group} from '@mantine/core';
+import {Pencil, Maximize2} from 'lucide-react';
 
-const SamplesTable = ({ records, highlightedSampleIds }) => {
+const SamplesTable = ({records, highlightedSampleIds, onEditClick, onExpandClick}) => {
     return (
         <DataTable
             striped
@@ -49,14 +51,40 @@ const SamplesTable = ({ records, highlightedSampleIds }) => {
                     title: 'Analysis Type',
                     width: 140,
                 },
-                { accessor: 'location_name', title: 'Location' },
-                { accessor: 'collected_by', title: 'Collected By', width: 140 },
+                {accessor: 'location_name', title: 'Location'},
+                {accessor: 'collected_by', title: 'Collected By', width: 140},
+                {
+                    accessor: 'actions',
+                    title: '',
+                    width: 80,
+                    textAlignment: 'center',
+                    render: (record) => (
+                        <Group justify='center' gap={4}>
+                            <ActionIcon
+                                size='sm'
+                                variant='subtle'
+                                onClick={() => onExpandClick(record)}
+                                title='View full sample data'
+                            >
+                                <Maximize2 size={16} />
+                            </ActionIcon>
+                            <ActionIcon
+                                size='sm'
+                                variant='subtle'
+                                onClick={() => onEditClick(record)}
+                                title='Edit record'
+                            >
+                                <Pencil size={16} />
+                            </ActionIcon>
+                        </Group>
+                    ),
+                },
             ]}
             noRecordsText=''
             noRecordsIcon={<></>}
             minHeight={300}
             styles={{
-                emptyState: { display: 'none' },
+                emptyState: {display: 'none'},
             }}
         />
     );
