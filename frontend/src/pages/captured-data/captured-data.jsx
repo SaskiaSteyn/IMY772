@@ -1,6 +1,6 @@
 import {useState, useEffect} from 'react';
 import {Tabs, Button, Group, Title, Container, Stack} from '@mantine/core';
-import {Plus, Upload} from 'lucide-react';
+import {Plus, Upload, Pencil} from 'lucide-react';
 import DashboardNavbar from '../../components/dashboard/dashboard-navbar.jsx';
 import SamplesTable from '../../components/captured-data-components/samples-table';
 import MetagenomicTable from '../../components/captured-data-components/metagenomics-table';
@@ -15,6 +15,8 @@ import EditWgsModal from '../../components/captured-data-components/edit-wgs-mod
 import EditAmrGenesModal from '../../components/captured-data-components/edit-amr-genes-modal';
 import EditVirulenceGenesModal from '../../components/captured-data-components/edit-virulence-genes-modal';
 import ExpandedDataModal from '../../components/captured-data-components/expanded-data-modal.jsx';
+import UpdateSampleSearchModal from '../../components/captured-data-components/update-sample-search-modal';
+import UpdateDataModal from '../../components/captured-data-components/update-data-modal';
 import {
     createFullSample,
     fetchAllSamples,
@@ -31,7 +33,6 @@ import {
 import {useAuth} from '../../context/AuthContext.jsx';
 import './captured-data.scss';
 
-// Initial dummy data (copied from SamplesTable)
 const initialSamples = [
     {
         sampleID: 1001,
@@ -110,89 +111,11 @@ const CapturedData = () => {
         virulenceGenes: [],
     });
 
+    const [updateSearchOpened, setUpdateSearchOpened] = useState(false);
+    const [selectedUpdateSampleId, setSelectedUpdateSampleId] = useState(null);
+    const [updateDataOpened, setUpdateDataOpened] = useState(false);
+
     const userFullName = user ? `${user.userID}` : null;
-
-    // Clear highlight after 2 seconds (or 3 seconds for bulk uploads)
-    useEffect(() => {
-        if (highlightedSampleIds.size > 0) {
-            const timeoutDuration = highlightedSampleIds.size > 1 ? 3000 : 2000;
-            const timer = setTimeout(() => {
-                setHighlightedSampleIds(new Set());
-            }, timeoutDuration);
-            return () => clearTimeout(timer);
-        }
-    }, [highlightedSampleIds]);
-
-    // Fetch all data from API on component mount
-    useEffect(() => {
-        const loadAllData = async () => {
-            try {
-                const [samplesData, metaData, wgsDataResult, amrData, virulenceData] = await Promise.all([
-                    fetchAllSamples(),
-                    fetchAllMetagenomic(),
-                    fetchAllWgs(),
-                    fetchAllAmrGenes(),
-                    fetchAllVirulenceGenes(),
-                ]);
-                setSamples(samplesData);
-                setMetageonomicData(metaData);
-                setWgsData(wgsDataResult);
-                setAmrGenesData(amrData);
-                setVirulenceGenesData(virulenceData);
-            } catch (error) {
-                console.error('Failed to fetch data:', error);
-                setSamples(initialSamples);
-            }
-        };
-        loadAllData();
-    }, []);
-
-    const handleAddEntry = async (newEntry) => {
-        try {
-            const createdSample = await createFullSample(newEntry);
-            setSamples((prev) => [createdSample, ...prev]);
-            console.log('Sample created successfully:', createdSample);
-            setHighlightedSampleIds(new Set([createdSample.sampleID]));
-            setActiveTab('samples');
-            window.scrollTo({top: 0, behavior: 'smooth'});
-        } catch (err) {
-            console.error('Error creating sample:', err);
-        }
-    };
-
-    const handleUploadSuccess = async (uploadedSampleIds) => {
-        console.log('handleUploadSuccess called with sampleIds:', uploadedSampleIds);
-        try {
-            console.log('Fetching all samples...');
-            const data = await fetchAllSamples();
-            console.log('Fetched samples:', data);
-            if (data && data.length > 0) {
-                setSamples(data);
-                setActiveTab('samples');
-                console.log('Updated samples, total count:', data.length);
-            }
-        } catch (error) {
-            console.error('Failed to refresh samples:', error);
-        }
-    };
-
-    // Edit handlers
-    const handleEditSampleClick = (record) => {
-        setRecordToEdit(record);
-        setEditSampleModalOpened(true);
-    };
-
-    const handleEditSampleSave = async (sampleID, updateData) => {
-        try {
-            await updateSample(sampleID, updateData);
-            const data = await fetchAllSamples();
-            setSamples(data);
-            setHighlightedSampleIds(new Set([sampleID]));
-            setEditSampleModalOpened(false);
-        } catch (error) {
-            console.error('Error updating sample:', error);
-        }
-    };
 
     const handleEditMetagenomicClick = (record) => {
         setRecordToEdit(record);
@@ -260,9 +183,83 @@ const CapturedData = () => {
         }
     };
 
-    // Expand handler: gathers all data related to the sample
+    // Clear highlight after 2 seconds (or 3 seconds for bulk uploads)
+    useEffect(() => {
+        if (highlightedSampleIds.size > 0) {
+            const timeoutDuration = highlightedSampleIds.size > 1 ? 3000 : 2000;
+            const timer = setTimeout(() => {
+                setHighlightedSampleIds(new Set());
+            }, timeoutDuration);
+            return () => clearTimeout(timer);
+        }
+    }, [highlightedSampleIds]);
+
+    // Fetch all data from API on component mount
+    useEffect(() => {
+        const loadAllData = async () => {
+            try {
+                const [samplesData, metaData, wgsDataResult, amrData, virulenceData] = await Promise.all([
+                    fetchAllSamples(),
+                    fetchAllMetagenomic(),
+                    fetchAllWgs(),
+                    fetchAllAmrGenes(),
+                    fetchAllVirulenceGenes(),
+                ]);
+                setSamples(samplesData);
+                setMetageonomicData(metaData);
+                setWgsData(wgsDataResult);
+                setAmrGenesData(amrData);
+                setVirulenceGenesData(virulenceData);
+            } catch (error) {
+                console.error('Failed to fetch data:', error);
+                setSamples(initialSamples);
+            }
+        };
+        loadAllData();
+    }, []);
+
+    const handleAddEntry = async (newEntry) => {
+        try {
+            const createdSample = await createFullSample(newEntry);
+            setSamples((prev) => [createdSample, ...prev]);
+            setHighlightedSampleIds(new Set([createdSample.sampleID]));
+            setActiveTab('samples');
+            window.scrollTo({top: 0, behavior: 'smooth'});
+        } catch (err) {
+            console.error('Error creating sample:', err);
+        }
+    };
+
+    const handleUploadSuccess = async () => {
+        try {
+            const data = await fetchAllSamples();
+            setSamples(data);
+            setActiveTab('samples');
+        } catch (error) {
+            console.error('Failed to refresh samples:', error);
+        }
+    };
+
+    // Edit handlers (unchanged)
+    const handleEditSampleClick = (record) => {
+        setRecordToEdit(record);
+        setEditSampleModalOpened(true);
+    };
+    const handleEditSampleSave = async (sampleID, updateData) => {
+        try {
+            await updateSample(sampleID, updateData);
+            const data = await fetchAllSamples();
+            setSamples(data);
+            setHighlightedSampleIds(new Set([sampleID]));
+            setEditSampleModalOpened(false);
+        } catch (error) {
+            console.error('Error updating sample:', error);
+        }
+    };
+    // ... (other edit handlers remain exactly the same)
+
+    // Expand handler (unchanged)
     const handleExpandClick = (record) => {
-        // Extract sampleID from record (works for all table types)
         let sampleID = record.sampleID;
         if (!sampleID && record.wgs) sampleID = record.wgs.sampleID;
         if (!sampleID) return;
@@ -271,7 +268,6 @@ const CapturedData = () => {
         const metagenomic = metageonomicData.filter(m => m.sampleID === sampleID);
         const wgs = wgsData.filter(w => w.sampleID === sampleID);
         const amrGenes = amrGenesData.filter(a => a.sampleID === sampleID);
-        // Virulence genes: match via isolateID belonging to this sample
         const wgsForSample = wgsData.filter(w => w.sampleID === sampleID);
         const isolateIds = new Set(wgsForSample.map(w => w.isolateID));
         const virulenceGenes = virulenceGenesData.filter(v => isolateIds.has(v.isolateID));
@@ -289,6 +285,31 @@ const CapturedData = () => {
     const filteredAmrGenes = amrGenesData.filter((a) => userSampleIds.has(a.sampleID));
     const filteredVirulenceGenes = virulenceGenesData.filter((v) => userIsolateIds.has(v.isolateID));
 
+    // Callback when a sample is selected for update
+    const handleSelectSampleForUpdate = (sampleID) => {
+        setSelectedUpdateSampleId(sampleID);
+        setUpdateDataOpened(true);
+    };
+
+    // Callback after successful update
+    const handleUpdateSuccess = async () => {
+        // Refresh all data
+        const [samplesData, metaData, wgsDataResult, amrData, virulenceData] = await Promise.all([
+            fetchAllSamples(),
+            fetchAllMetagenomic(),
+            fetchAllWgs(),
+            fetchAllAmrGenes(),
+            fetchAllVirulenceGenes(),
+        ]);
+        setSamples(samplesData);
+        setMetageonomicData(metaData);
+        setWgsData(wgsDataResult);
+        setAmrGenesData(amrData);
+        setVirulenceGenesData(virulenceData);
+        setHighlightedSampleIds(new Set([selectedUpdateSampleId]));
+        setActiveTab('samples');
+    };
+
     return (
         <div className='captured-data-page'>
             <DashboardNavbar />
@@ -305,6 +326,13 @@ const CapturedData = () => {
                                 onClick={() => setBulkUploadModalOpened(true)}
                             >
                                 Upload Bulk Data
+                            </Button>
+                            <Button
+                                leftSection={<Pencil size={18} />}
+                                variant='outline'
+                                onClick={() => setUpdateSearchOpened(true)}
+                            >
+                                Update Existing Sample
                             </Button>
                             <Button
                                 leftSection={<Plus size={18} />}
@@ -384,6 +412,20 @@ const CapturedData = () => {
                 wgs={expandedData.wgs}
                 amrGenes={expandedData.amrGenes}
                 virulenceGenes={expandedData.virulenceGenes}
+            />
+
+            <UpdateSampleSearchModal
+                opened={updateSearchOpened}
+                onClose={() => setUpdateSearchOpened(false)}
+                samples={userSamples}
+                onSelectSample={handleSelectSampleForUpdate}
+            />
+
+            <UpdateDataModal
+                opened={updateDataOpened}
+                onClose={() => setUpdateDataOpened(false)}
+                sampleID={selectedUpdateSampleId}
+                onUpdateSuccess={handleUpdateSuccess}
             />
         </div>
     );
