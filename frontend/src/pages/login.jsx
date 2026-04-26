@@ -95,6 +95,7 @@ function getLoginErrorMessage(error) {
 export default function Login() {
     const navigate = useNavigate();
     const { login, googleLogin } = useAuth();
+    const brandImageSrc = `${import.meta.env.BASE_URL}favicon.svg`;
     const isGoogleAuthEnabled = Boolean(
         import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim(),
     );
@@ -141,7 +142,7 @@ export default function Login() {
         <div className='auth-page'>
             <div className='auth-card'>
                 <div className='auth-brand'>
-                    <img src='/favicon.svg' alt='MicroTrack' />
+                    <img src={brandImageSrc} alt='MicroTrack' />
                     <Text size='lg'>
                         <strong>Micro</strong>Track
                     </Text>
