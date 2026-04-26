@@ -501,7 +501,6 @@ export default function Profile() {
         const payload = {
             name: draftData.name,
             surname: draftData.surname,
-            role: draftData.role,
             email: draftData.email,
             bio: draftData.bio,
             interests: draftData.interestsCsv

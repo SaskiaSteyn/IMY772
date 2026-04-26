@@ -58,7 +58,12 @@ export default function ProfileSidebarCard({
                 value={draftData.surname}
                 onChange={(e) => onUpdateField('surname', e.currentTarget.value)}
               />
-              <TextInput label="Role" value={draftData.role} onChange={(e) => onUpdateField('role', e.currentTarget.value)} />
+              <Box>
+                <Text size="xs" c="dimmed" fw={600} mb={4}>
+                  Role
+                </Text>
+                <Text size="sm">{draftData.role}</Text>
+              </Box>
               <TextInput label="Email" value={draftData.email} onChange={(e) => onUpdateField('email', e.currentTarget.value)} />
               <FileInput
                 key={profileImageInputKey}
