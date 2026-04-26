@@ -124,10 +124,10 @@ jobs:
             - name: Build frontend
               run: cd frontend && yarn build
 
-            - name: Run frontend tests
-              run: cd frontend && yarn test --run --coverage
+            - name: Run Cypress tests
+              run: cd frontend && yarn cy:run
 
-            - name: Upload frontend coverage to Codecov
+            - name: Upload Cypress coverage to Codecov
               uses: codecov/codecov-action@v4
               with:
                   files: ./frontend/coverage/coverage-final.json
@@ -139,8 +139,8 @@ jobs:
             - name: Frontend Test Summary
               if: always()
               run: |
-                  echo "### Frontend Tests Summary" >> $GITHUB_STEP_SUMMARY
-                  echo "✅ Build & Tests completed" >> $GITHUB_STEP_SUMMARY
+                  echo "### Frontend Cypress Tests Summary" >> $GITHUB_STEP_SUMMARY
+                  echo "✅ Build & Cypress Tests completed" >> $GITHUB_STEP_SUMMARY
                   if [ -f frontend/coverage/coverage-summary.json ]; then
                     echo "" >> $GITHUB_STEP_SUMMARY
                     echo "**Coverage Report:**" >> $GITHUB_STEP_SUMMARY
