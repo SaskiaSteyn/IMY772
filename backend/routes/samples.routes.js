@@ -140,7 +140,7 @@ router.put(
         body('latitude').optional().isDecimal(),
         body('longitude').optional().isDecimal(),
         body('collected_by').optional().trim().isString(),
-        body('uploaded_by').isInt(),
+        body('uploaded_by').optional().isInt(),
         body('predicted_sir_profile')
             .optional()
             .trim()
