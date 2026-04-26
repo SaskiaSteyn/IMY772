@@ -159,7 +159,7 @@ router.put(
         const {sampleID} = req.params
         const updateData = {}
 
-        // Build update object only with provided fields
+        // Build update object only with provided fields (exclude uploaded_by - it's immutable)
         if (req.body.water_temperature !== undefined) updateData.water_temperature = parseFloat(req.body.water_temperature)
         if (req.body.ph !== undefined) updateData.ph = parseFloat(req.body.ph)
         if (req.body.tds !== undefined) updateData.tds = parseFloat(req.body.tds)
@@ -171,7 +171,6 @@ router.put(
         if (req.body.latitude !== undefined) updateData.latitude = parseFloat(req.body.latitude)
         if (req.body.longitude !== undefined) updateData.longitude = parseFloat(req.body.longitude)
         if (req.body.collected_by !== undefined) updateData.collected_by = req.body.collected_by
-        if (req.body.uploaded_by !== undefined) updateData.uploaded_by = parseInt(req.body.uploaded_by)
         if (req.body.predicted_sir_profile !== undefined) updateData.predicted_sir_profile = req.body.predicted_sir_profile
 
         try {

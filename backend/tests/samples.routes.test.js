@@ -6,6 +6,7 @@
 
 import {jest} from '@jest/globals'
 import jwt from 'jsonwebtoken'
+import cookieParser from 'cookie-parser'
 
 // ─── Mock prisma BEFORE importing the router ─────────────────────────────────
 
@@ -32,6 +33,7 @@ const {default: samplesRouter} = await import('../routes/samples.routes.js')
 function buildApp() {
     const app = express()
     app.use(express.json())
+    app.use(cookieParser())
     app.use('/api/samples', samplesRouter)
     return app
 }
@@ -263,7 +265,6 @@ describe('PUT /api/samples/:sampleID', () => {
         const res = await api().put('/api/samples/1').send({
             ph: '8.1',
             predicted_sir_profile: 'Resistant',
-            uploaded_by: 1,
         })
 
         expect(res.status).toBe(200)
@@ -305,7 +306,6 @@ describe('PUT /api/samples/:sampleID', () => {
             latitude: '25.5',
             longitude: '28.8',
             collected_by: 'Researcher B',
-            uploaded_by: 1,
             predicted_sir_profile: 'Susceptible',
         })
 
@@ -335,7 +335,7 @@ describe('PUT /api/samples/:sampleID', () => {
         error.code = 'P2025'
         mockPrismaSample.update.mockRejectedValue(error)
 
-        const res = await api().put('/api/samples/999').send({latitude: '25.55', uploaded_by: 1})
+        const res = await api().put('/api/samples/999').send({latitude: '25.55'})
 
         expect(res.status).toBe(404)
         expect(res.body.message).toMatch(/not found/i)
@@ -344,7 +344,7 @@ describe('PUT /api/samples/:sampleID', () => {
     test('returns 500 when update fails unexpectedly', async () => {
         mockPrismaSample.update.mockRejectedValue(new Error('db down'))
 
-        const res = await api().put('/api/samples/1').send({longitude: '29.01', uploaded_by: 1})
+        const res = await api().put('/api/samples/1').send({longitude: '29.01'})
 
         expect(res.status).toBe(500)
         expect(res.body.message).toMatch(/failed to update sample/i)
