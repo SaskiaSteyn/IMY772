@@ -6,7 +6,6 @@
 
 import {jest} from '@jest/globals'
 import jwt from 'jsonwebtoken'
-import cookieParser from 'cookie-parser'
 
 // ─── Mock prisma BEFORE importing the router ─────────────────────────────────
 
@@ -33,7 +32,6 @@ const {default: samplesRouter} = await import('../routes/samples.routes.js')
 function buildApp() {
     const app = express()
     app.use(express.json())
-    app.use(cookieParser())
     app.use('/api/samples', samplesRouter)
     return app
 }
@@ -323,7 +321,6 @@ describe('PUT /api/samples/:sampleID', () => {
                 latitude: 25.5,
                 longitude: 28.8,
                 collected_by: 'Researcher B',
-                uploaded_by: 1,
                 predicted_sir_profile: 'Susceptible',
             }),
         })
