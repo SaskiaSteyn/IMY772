@@ -14,6 +14,7 @@ import EditMetagenomicModal from '../../components/captured-data-components/edit
 import EditWgsModal from '../../components/captured-data-components/edit-wgs-modal';
 import EditAmrGenesModal from '../../components/captured-data-components/edit-amr-genes-modal';
 import EditVirulenceGenesModal from '../../components/captured-data-components/edit-virulence-genes-modal';
+import ExpandedDataModal from '../../components/captured-data-components/expanded-data-modal.jsx';
 import {
     createFullSample,
     fetchAllSamples,
@@ -44,7 +45,6 @@ const initialSamples = [
         location_name: 'University of Pretoria',
         collected_by: 'Riley Carter',
         predicted_sir_profile: '',
-        // Additional fields from modal
         latitude: -25.7479,
         longitude: 28.2293,
     },
@@ -100,12 +100,21 @@ const CapturedData = () => {
     const [editVirulenceGenesModalOpened, setEditVirulenceGenesModalOpened] = useState(false);
     const [recordToEdit, setRecordToEdit] = useState(null);
 
+    // Expanded modal state
+    const [expandedModalOpened, setExpandedModalOpened] = useState(false);
+    const [expandedData, setExpandedData] = useState({
+        sample: null,
+        metagenomic: [],
+        wgs: [],
+        amrGenes: [],
+        virulenceGenes: [],
+    });
+
     const userFullName = user ? `${user.userID}` : null;
 
     // Clear highlight after 2 seconds (or 3 seconds for bulk uploads)
     useEffect(() => {
         if (highlightedSampleIds.size > 0) {
-            // Longer timeout for bulk uploads (multiple highlights)
             const timeoutDuration = highlightedSampleIds.size > 1 ? 3000 : 2000;
             const timer = setTimeout(() => {
                 setHighlightedSampleIds(new Set());
@@ -135,7 +144,6 @@ const CapturedData = () => {
                 setSamples(initialSamples);
             }
         };
-
         loadAllData();
     }, []);
 
@@ -144,25 +152,16 @@ const CapturedData = () => {
             const createdSample = await createFullSample(newEntry);
             setSamples((prev) => [createdSample, ...prev]);
             console.log('Sample created successfully:', createdSample);
-
-            // Highlight the new sample and switch to samples tab
             setHighlightedSampleIds(new Set([createdSample.sampleID]));
             setActiveTab('samples');
-
-            // Scroll to the top where the new sample appears
             window.scrollTo({top: 0, behavior: 'smooth'});
         } catch (err) {
             console.error('Error creating sample:', err);
-            // Optionally show a notification to the user
         }
     };
 
     const handleUploadSuccess = async (uploadedSampleIds) => {
-        console.log(
-            'handleUploadSuccess called with sampleIds:',
-            uploadedSampleIds,
-        );
-        // Refetch samples after successful upload
+        console.log('handleUploadSuccess called with sampleIds:', uploadedSampleIds);
         try {
             console.log('Fetching all samples...');
             const data = await fetchAllSamples();
@@ -261,36 +260,34 @@ const CapturedData = () => {
         }
     };
 
+    // Expand handler: gathers all data related to the sample
+    const handleExpandClick = (record) => {
+        // Extract sampleID from record (works for all table types)
+        let sampleID = record.sampleID;
+        if (!sampleID && record.wgs) sampleID = record.wgs.sampleID;
+        if (!sampleID) return;
+
+        const sample = samples.find(s => s.sampleID === sampleID);
+        const metagenomic = metageonomicData.filter(m => m.sampleID === sampleID);
+        const wgs = wgsData.filter(w => w.sampleID === sampleID);
+        const amrGenes = amrGenesData.filter(a => a.sampleID === sampleID);
+        // Virulence genes: match via isolateID belonging to this sample
+        const wgsForSample = wgsData.filter(w => w.sampleID === sampleID);
+        const isolateIds = new Set(wgsForSample.map(w => w.isolateID));
+        const virulenceGenes = virulenceGenesData.filter(v => isolateIds.has(v.isolateID));
+
+        setExpandedData({sample, metagenomic, wgs, amrGenes, virulenceGenes});
+        setExpandedModalOpened(true);
+    };
+
     // Filter data for current user
-    const userSamples = userFullName
-        ? samples.filter((s) => s.collected_by === userFullName)
-        : [];
-
-    // Get sampleIDs from user's samples
+    const userSamples = userFullName ? samples.filter((s) => s.collected_by === userFullName) : [];
     const userSampleIds = new Set(userSamples.map((s) => s.sampleID));
-
-    // Filter metagenomic records by sampleID
-    const filteredMetagenomic = metageonomicData.filter((m) =>
-        userSampleIds.has(m.sampleID)
-    );
-
-    // Filter WGS records by sampleID
-    const filteredWgs = wgsData.filter((w) =>
-        userSampleIds.has(w.sampleID)
-    );
-
-    // Get isolateIDs from filtered WGS records
+    const filteredMetagenomic = metageonomicData.filter((m) => userSampleIds.has(m.sampleID));
+    const filteredWgs = wgsData.filter((w) => userSampleIds.has(w.sampleID));
     const userIsolateIds = new Set(filteredWgs.map((w) => w.isolateID));
-
-    // Filter AMR genes by sampleID
-    const filteredAmrGenes = amrGenesData.filter((a) =>
-        userSampleIds.has(a.sampleID)
-    );
-
-    // Filter virulence genes by isolateID
-    const filteredVirulenceGenes = virulenceGenesData.filter((v) =>
-        userIsolateIds.has(v.isolateID)
-    );
+    const filteredAmrGenes = amrGenesData.filter((a) => userSampleIds.has(a.sampleID));
+    const filteredVirulenceGenes = virulenceGenesData.filter((v) => userIsolateIds.has(v.isolateID));
 
     return (
         <div className='captured-data-page'>
@@ -318,19 +315,13 @@ const CapturedData = () => {
                         </Group>
                     </Group>
 
-                    <Tabs
-                        value={activeTab}
-                        onChange={setActiveTab}
-                        className='data-tabs'
-                    >
+                    <Tabs value={activeTab} onChange={setActiveTab} className='data-tabs'>
                         <Tabs.List>
                             <Tabs.Tab value='samples'>Samples</Tabs.Tab>
                             <Tabs.Tab value='metagenomic'>Metagenomic</Tabs.Tab>
                             <Tabs.Tab value='wgs'>WGS</Tabs.Tab>
                             <Tabs.Tab value='amr'>AMR Genes</Tabs.Tab>
-                            <Tabs.Tab value='virulence'>
-                                Virulence Genes
-                            </Tabs.Tab>
+                            <Tabs.Tab value='virulence'>Virulence Genes</Tabs.Tab>
                         </Tabs.List>
 
                         <Tabs.Panel value='samples' pt='md'>
@@ -338,6 +329,7 @@ const CapturedData = () => {
                                 records={userSamples}
                                 highlightedSampleIds={highlightedSampleIds}
                                 onEditClick={handleEditSampleClick}
+                                onExpandClick={handleExpandClick}
                             />
                         </Tabs.Panel>
                         <Tabs.Panel value='metagenomic' pt='md'>
@@ -345,6 +337,7 @@ const CapturedData = () => {
                                 records={filteredMetagenomic}
                                 highlightedSampleIds={highlightedSampleIds}
                                 onEditClick={handleEditMetagenomicClick}
+                                onExpandClick={handleExpandClick}
                             />
                         </Tabs.Panel>
                         <Tabs.Panel value='wgs' pt='md'>
@@ -352,6 +345,7 @@ const CapturedData = () => {
                                 records={filteredWgs}
                                 highlightedSampleIds={highlightedSampleIds}
                                 onEditClick={handleEditWgsClick}
+                                onExpandClick={handleExpandClick}
                             />
                         </Tabs.Panel>
                         <Tabs.Panel value='amr' pt='md'>
@@ -359,6 +353,7 @@ const CapturedData = () => {
                                 records={filteredAmrGenes}
                                 highlightedSampleIds={highlightedSampleIds}
                                 onEditClick={handleEditAmrGenesClick}
+                                onExpandClick={handleExpandClick}
                             />
                         </Tabs.Panel>
                         <Tabs.Panel value='virulence' pt='md'>
@@ -366,51 +361,29 @@ const CapturedData = () => {
                                 records={filteredVirulenceGenes}
                                 highlightedSampleIds={highlightedSampleIds}
                                 onEditClick={handleEditVirulenceGenesClick}
+                                onExpandClick={handleExpandClick}
                             />
                         </Tabs.Panel>
                     </Tabs>
                 </Stack>
             </Container>
 
-            <AddDataModal
-                opened={modalOpened}
-                onClose={() => setModalOpened(false)}
-                onAddEntry={handleAddEntry}
-            />
-            <BulkUploadModal
-                isOpen={bulkUploadModalOpened}
-                onClose={() => setBulkUploadModalOpened(false)}
-                onUploadSuccess={handleUploadSuccess}
-            />
-            <EditSampleModal
-                opened={editSampleModalOpened}
-                onClose={() => setEditSampleModalOpened(false)}
-                record={recordToEdit}
-                onSave={handleEditSampleSave}
-            />
-            <EditMetagenomicModal
-                opened={editMetagenomicModalOpened}
-                onClose={() => setEditMetagenomicModalOpened(false)}
-                record={recordToEdit}
-                onSave={handleEditMetagenomicSave}
-            />
-            <EditWgsModal
-                opened={editWgsModalOpened}
-                onClose={() => setEditWgsModalOpened(false)}
-                record={recordToEdit}
-                onSave={handleEditWgsSave}
-            />
-            <EditAmrGenesModal
-                opened={editAmrGenesModalOpened}
-                onClose={() => setEditAmrGenesModalOpened(false)}
-                record={recordToEdit}
-                onSave={handleEditAmrGenesSave}
-            />
-            <EditVirulenceGenesModal
-                opened={editVirulenceGenesModalOpened}
-                onClose={() => setEditVirulenceGenesModalOpened(false)}
-                record={recordToEdit}
-                onSave={handleEditVirulenceGenesSave}
+            <AddDataModal opened={modalOpened} onClose={() => setModalOpened(false)} onAddEntry={handleAddEntry} />
+            <BulkUploadModal isOpen={bulkUploadModalOpened} onClose={() => setBulkUploadModalOpened(false)} onUploadSuccess={handleUploadSuccess} />
+            <EditSampleModal opened={editSampleModalOpened} onClose={() => setEditSampleModalOpened(false)} record={recordToEdit} onSave={handleEditSampleSave} />
+            <EditMetagenomicModal opened={editMetagenomicModalOpened} onClose={() => setEditMetagenomicModalOpened(false)} record={recordToEdit} onSave={handleEditMetagenomicSave} />
+            <EditWgsModal opened={editWgsModalOpened} onClose={() => setEditWgsModalOpened(false)} record={recordToEdit} onSave={handleEditWgsSave} />
+            <EditAmrGenesModal opened={editAmrGenesModalOpened} onClose={() => setEditAmrGenesModalOpened(false)} record={recordToEdit} onSave={handleEditAmrGenesSave} />
+            <EditVirulenceGenesModal opened={editVirulenceGenesModalOpened} onClose={() => setEditVirulenceGenesModalOpened(false)} record={recordToEdit} onSave={handleEditVirulenceGenesSave} />
+
+            <ExpandedDataModal
+                opened={expandedModalOpened}
+                onClose={() => setExpandedModalOpened(false)}
+                sample={expandedData.sample}
+                metagenomic={expandedData.metagenomic}
+                wgs={expandedData.wgs}
+                amrGenes={expandedData.amrGenes}
+                virulenceGenes={expandedData.virulenceGenes}
             />
         </div>
     );

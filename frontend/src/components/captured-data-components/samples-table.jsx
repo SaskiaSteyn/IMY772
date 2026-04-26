@@ -1,8 +1,8 @@
 import {DataTable} from 'mantine-datatable';
 import {ActionIcon, Group} from '@mantine/core';
-import {Pencil} from 'lucide-react';
+import {Pencil, Maximize2} from 'lucide-react';
 
-const SamplesTable = ({records, highlightedSampleIds, onEditClick}) => {
+const SamplesTable = ({records, highlightedSampleIds, onEditClick, onExpandClick}) => {
     return (
         <DataTable
             striped
@@ -56,10 +56,18 @@ const SamplesTable = ({records, highlightedSampleIds, onEditClick}) => {
                 {
                     accessor: 'actions',
                     title: '',
-                    width: 50,
+                    width: 80,
                     textAlignment: 'center',
                     render: (record) => (
-                        <Group justify='center' gap={0}>
+                        <Group justify='center' gap={4}>
+                            <ActionIcon
+                                size='sm'
+                                variant='subtle'
+                                onClick={() => onExpandClick(record)}
+                                title='View full sample data'
+                            >
+                                <Maximize2 size={16} />
+                            </ActionIcon>
                             <ActionIcon
                                 size='sm'
                                 variant='subtle'
