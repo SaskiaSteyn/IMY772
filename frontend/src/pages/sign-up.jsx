@@ -69,6 +69,7 @@ function GoogleSignInButton({ loading, onSuccess, onError }) {
 export default function SignUp() {
     const navigate = useNavigate();
     const { register, googleLogin } = useAuth();
+    const brandImageSrc = `${import.meta.env.BASE_URL}favicon.svg`;
     const [loading, setLoading] = useState(false);
     const [googleLoading, setGoogleLoading] = useState(false);
     const [error, setError] = useState('');
@@ -133,7 +134,7 @@ export default function SignUp() {
         <div className='auth-page'>
             <div className='auth-card'>
                 <div className='auth-brand'>
-                    <img src='/favicon.svg' alt='MicroTrack' />
+                    <img src={brandImageSrc} alt='MicroTrack' />
                     <Text size='lg'>
                         <strong>Micro</strong>Track
                     </Text>
