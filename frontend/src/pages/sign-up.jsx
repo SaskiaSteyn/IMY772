@@ -1,20 +1,20 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
 import {
-    TextInput,
-    PasswordInput,
-    Checkbox,
-    Button,
-    Divider,
-    Text,
-    Stack,
-    Title,
     Anchor,
-} from '@mantine/core'
-import { useForm } from '@mantine/form'
-import { useGoogleLogin } from '@react-oauth/google'
-import { useAuth } from '../context/AuthContext.jsx'
-import './auth.scss'
+    Button,
+    Checkbox,
+    Divider,
+    PasswordInput,
+    Stack,
+    Text,
+    TextInput,
+    Title,
+} from '@mantine/core';
+import { useForm } from '@mantine/form';
+import { useGoogleLogin } from '@react-oauth/google';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/auth-context.jsx';
+import './auth.scss';
 
 function GoogleIcon() {
     return (
@@ -41,7 +41,7 @@ function GoogleIcon() {
                 d='M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z'
             />
         </svg>
-    )
+    );
 }
 
 function GoogleSignInButton({ loading, onSuccess, onError }) {
@@ -50,7 +50,7 @@ function GoogleSignInButton({ loading, onSuccess, onError }) {
         onError,
         flow: 'implicit',
         scope: 'openid email profile',
-    })
+    });
 
     return (
         <Button
@@ -63,18 +63,19 @@ function GoogleSignInButton({ loading, onSuccess, onError }) {
         >
             Sign in with Google
         </Button>
-    )
+    );
 }
 
 export default function SignUp() {
-    const navigate = useNavigate()
-    const { register, googleLogin } = useAuth()
-    const [loading, setLoading] = useState(false)
-    const [googleLoading, setGoogleLoading] = useState(false)
-    const [error, setError] = useState('')
+    const navigate = useNavigate();
+    const { register, googleLogin } = useAuth();
+    const brandImageSrc = `${import.meta.env.BASE_URL}favicon.svg`;
+    const [loading, setLoading] = useState(false);
+    const [googleLoading, setGoogleLoading] = useState(false);
+    const [error, setError] = useState('');
     const isGoogleAuthEnabled = Boolean(
-        import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim()
-    )
+        import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim(),
+    );
 
     const form = useForm({
         initialValues: {
@@ -96,36 +97,36 @@ export default function SignUp() {
             confirmPassword: (v, values) =>
                 v === values.password ? null : 'Passwords do not match',
         },
-    })
+    });
 
     async function handleSubmit(values) {
-        setLoading(true)
-        setError('')
+        setLoading(true);
+        setError('');
         try {
             await register(
                 values.name,
                 values.surname,
                 values.email,
-                values.password
-            )
-            navigate('/app')
+                values.password,
+            );
+            navigate('/app');
         } catch (err) {
-            setError(err.message)
+            setError(err.message);
         } finally {
-            setLoading(false)
+            setLoading(false);
         }
     }
 
     async function handleGoogleSuccess(tokenResponse) {
-        setGoogleLoading(true)
-        setError('')
+        setGoogleLoading(true);
+        setError('');
         try {
-            await googleLogin({ accessToken: tokenResponse.access_token })
-            navigate('/app')
+            await googleLogin({ accessToken: tokenResponse.access_token });
+            navigate('/app');
         } catch (err) {
-            setError(err.message)
+            setError(err.message);
         } finally {
-            setGoogleLoading(false)
+            setGoogleLoading(false);
         }
     }
 
@@ -133,7 +134,7 @@ export default function SignUp() {
         <div className='auth-page'>
             <div className='auth-card'>
                 <div className='auth-brand'>
-                    <img src='/favicon.svg' alt='MicroTrack' />
+                    <img src={brandImageSrc} alt='MicroTrack' />
                     <Text size='lg'>
                         <strong>Micro</strong>Track
                     </Text>
@@ -239,5 +240,5 @@ export default function SignUp() {
                 </form>
             </div>
         </div>
-    )
+    );
 }

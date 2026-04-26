@@ -2,12 +2,17 @@ import { Router } from 'express'
 import { body, validationResult } from 'express-validator'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
+import multer from 'multer'
 import { OAuth2Client } from 'google-auth-library'
+import sharp from 'sharp'
 import prisma from '../lib/prisma.js'
 
 const router = Router()
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
 const jwtSecret = process.env.JWT_SECRET || 'dev_jwt_secret_change_me'
+const PROFILE_IMAGE_MAX_UPLOAD_BYTES = 2 * 1024 * 1024
+const PROFILE_IMAGE_ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/jpg', 'image/png'])
+const PROFILE_IMAGE_TARGET_SIZE = 320
 
 const publicUserSelect = {
     userID: true,
@@ -16,6 +21,12 @@ const publicUserSelect = {
     email: true,
     role: true,
     created_at: true,
+}
+
+const meUserSelect = {
+    ...publicUserSelect,
+    profile_image_data: true,
+    profile_image_mime_type: true,
 }
 
 const loginUserSelect = {
@@ -30,6 +41,29 @@ const profileUserSelect = {
     education: true,
     experience: true,
 }
+
+const profileUserSelectWithImage = {
+    ...profileUserSelect,
+    profile_image_data: true,
+    profile_image_mime_type: true,
+    profile_image_size_bytes: true,
+    profile_image_updated_at: true,
+}
+
+const profileImageUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+        fileSize: PROFILE_IMAGE_MAX_UPLOAD_BYTES,
+    },
+    fileFilter: (_req, file, cb) => {
+        if (!PROFILE_IMAGE_ALLOWED_MIME_TYPES.has(file.mimetype)) {
+            cb(new Error('Only JPEG and PNG images are allowed'))
+            return
+        }
+
+        cb(null, true)
+    },
+})
 
 // ─── Cookie helper ───────────────────────────────────────────────────────────
 
@@ -62,6 +96,135 @@ function getUserIdFromCookie(req) {
         return payload.userID
     } catch {
         return null
+    }
+}
+
+function parsePositiveInt(rawValue) {
+    const parsed = Number(rawValue)
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+        return null
+    }
+
+    return parsed
+}
+
+function toPublicUser(user) {
+    return {
+        userID: user.userID,
+        name: user.name,
+        surname: user.surname,
+        email: user.email,
+        role: user.role,
+        created_at: user.created_at,
+    }
+}
+
+function toAuthenticatedUser(user) {
+    const profileImage = getProfileImageDataUrl(user)
+
+    return {
+        ...toPublicUser(user),
+        hasProfileImage: Boolean(profileImage),
+        profileImage,
+    }
+}
+
+function getProfileImageDataUrl(user) {
+    if (!user?.profile_image_data || !user?.profile_image_mime_type) {
+        return null
+    }
+
+    const base64Image = Buffer.from(user.profile_image_data).toString('base64')
+    return `data:${user.profile_image_mime_type};base64,${base64Image}`
+}
+
+function buildProfilePayload(user, options = {}) {
+    const { includeEmail = true, includeUserId = false } = options
+    const profileImage = getProfileImageDataUrl(user)
+
+    const payload = {
+        ...(includeUserId ? { userID: user.userID } : {}),
+        name: user.name,
+        surname: user.surname,
+        role: user.role,
+        bio: user.bio || '',
+        interests: Array.isArray(user.interests) ? user.interests : [],
+        education: Array.isArray(user.education) ? user.education : [],
+        experience: Array.isArray(user.experience) ? user.experience : [],
+        hasProfileImage: Boolean(profileImage),
+        profileImage,
+    }
+
+    if (includeEmail) {
+        payload.email = user.email
+    }
+
+    return payload
+}
+
+function handleProfileImageUpload(req, res, next) {
+    profileImageUpload.single('image')(req, res, (error) => {
+        if (!error) {
+            next()
+            return
+        }
+
+        if (error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE') {
+            return res.status(413).json({
+                message: `Profile image must be ${Math.floor(PROFILE_IMAGE_MAX_UPLOAD_BYTES / (1024 * 1024))}MB or smaller`,
+            })
+        }
+
+        return res.status(400).json({
+            message: error.message || 'Invalid profile image upload',
+        })
+    })
+}
+
+async function processProfileImageUpload(file) {
+    if (!file?.buffer) {
+        throw new Error('Profile image file is required')
+    }
+
+    const image = sharp(file.buffer, { failOn: 'error' })
+    const metadata = await image.metadata()
+    const detectedFormat = metadata.format
+
+    if (detectedFormat !== 'jpeg' && detectedFormat !== 'png') {
+        throw new Error('Only JPEG and PNG images are allowed')
+    }
+
+    const transformed = image.rotate().resize(PROFILE_IMAGE_TARGET_SIZE, PROFILE_IMAGE_TARGET_SIZE, {
+        fit: 'cover',
+        position: 'centre',
+    })
+
+    if (detectedFormat === 'png') {
+        const output = await transformed
+            .png({
+                compressionLevel: 9,
+                adaptiveFiltering: true,
+            })
+            .toBuffer()
+
+        return {
+            data: output,
+            mimeType: 'image/png',
+            sizeBytes: output.length,
+        }
+    }
+
+    const output = await transformed
+        .jpeg({
+            quality: 82,
+            mozjpeg: true,
+        })
+        .toBuffer()
+
+    return {
+        data: output,
+        mimeType: 'image/jpeg',
+        sizeBytes: output.length,
     }
 }
 
@@ -212,16 +375,29 @@ router.get('/me', async (req, res) => {
 
     try {
         const payload = jwt.verify(token, jwtSecret)
-        const user = await prisma.user.findUnique({
-            where: { userID: payload.userID },
-            select: publicUserSelect,
-        })
+        let user
+
+        try {
+            user = await prisma.user.findUnique({
+                where: { userID: payload.userID },
+                select: meUserSelect,
+            })
+        } catch (error) {
+            if (error.code !== 'P2022') {
+                throw error
+            }
+
+            user = await prisma.user.findUnique({
+                where: { userID: payload.userID },
+                select: publicUserSelect,
+            })
+        }
 
         if (!user) {
             return res.json({ user: null })
         }
 
-        return res.json({ user: safeUser(user) })
+        return res.json({ user: toAuthenticatedUser(user) })
     } catch (err) {
         return res.json({ user: null })
     }
@@ -241,7 +417,7 @@ router.get('/profile', async (req, res) => {
         try {
             user = await prisma.user.findUnique({
                 where: { userID },
-                select: profileUserSelect,
+                select: profileUserSelectWithImage,
             })
         } catch (error) {
             if (error.code !== 'P2022') {
@@ -259,16 +435,7 @@ router.get('/profile', async (req, res) => {
         }
 
         return res.json({
-            profile: {
-                name: user.name,
-                surname: user.surname,
-                role: user.role,
-                email: user.email,
-                bio: user.bio || '',
-                interests: Array.isArray(user.interests) ? user.interests : [],
-                education: Array.isArray(user.education) ? user.education : [],
-                experience: Array.isArray(user.experience) ? user.experience : [],
-            },
+            profile: buildProfilePayload(user),
         })
     } catch (err) {
         console.error('Get profile error:', err)
@@ -347,7 +514,7 @@ router.put('/profile', async (req, res) => {
                     ...baseData,
                     ...profileData,
                 },
-                select: profileUserSelect,
+                select: profileUserSelectWithImage,
             })
         } catch (error) {
             if (error.code !== 'P2022') {
@@ -368,21 +535,150 @@ router.put('/profile', async (req, res) => {
         })
 
         return res.json({
-            user: safeUser(updated),
-            profile: {
-                name: updated.name,
-                surname: updated.surname,
-                role: updated.role,
-                email: updated.email,
-                bio: updated.bio || '',
-                interests: Array.isArray(updated.interests) ? updated.interests : [],
-                education: Array.isArray(updated.education) ? updated.education : [],
-                experience: Array.isArray(updated.experience) ? updated.experience : [],
-            },
+            user: toPublicUser(updated),
+            profile: buildProfilePayload(updated),
         })
     } catch (err) {
         console.error('Update profile error:', err)
         return res.status(500).json({ message: 'Failed to save profile' })
+    }
+})
+
+// ─── GET /api/auth/users/:id/profile ────────────────────────────────────────
+
+router.get('/users/:id/profile', async (req, res) => {
+    const requesterId = getUserIdFromCookie(req)
+    if (!requesterId) {
+        return res.status(401).json({ message: 'Not authenticated' })
+    }
+
+    const targetUserId = parsePositiveInt(req.params.id)
+    if (!targetUserId) {
+        return res.status(400).json({ message: 'Invalid user id' })
+    }
+
+    try {
+        let user
+
+        try {
+            user = await prisma.user.findUnique({
+                where: { userID: targetUserId },
+                select: profileUserSelectWithImage,
+            })
+        } catch (error) {
+            if (error.code !== 'P2022') {
+                throw error
+            }
+
+            user = await prisma.user.findUnique({
+                where: { userID: targetUserId },
+                select: profileUserSelect,
+            })
+        }
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' })
+        }
+
+        return res.json({
+            profile: buildProfilePayload(user, {
+                includeEmail: false,
+                includeUserId: true,
+            }),
+        })
+    } catch (error) {
+        console.error('Get public profile error:', error)
+        return res.status(500).json({ message: 'Failed to load profile' })
+    }
+})
+
+// ─── PUT /api/auth/profile-image ────────────────────────────────────────────
+
+router.put('/profile-image', handleProfileImageUpload, async (req, res) => {
+    const userID = getUserIdFromCookie(req)
+    if (!userID) {
+        return res.status(401).json({ message: 'Not authenticated' })
+    }
+
+    if (!req.file) {
+        return res.status(400).json({ message: 'Profile image is required' })
+    }
+
+    try {
+        const processedImage = await processProfileImageUpload(req.file)
+
+        const updated = await prisma.user.update({
+            where: { userID },
+            data: {
+                profile_image_data: processedImage.data,
+                profile_image_mime_type: processedImage.mimeType,
+                profile_image_size_bytes: processedImage.sizeBytes,
+                profile_image_updated_at: new Date(),
+            },
+            select: profileUserSelectWithImage,
+        })
+
+        return res.json({
+            message: 'Profile image updated',
+            profile: buildProfilePayload(updated),
+        })
+    } catch (error) {
+        if (error.code === 'P2022') {
+            return res.status(503).json({
+                message: 'Profile image storage is unavailable until migrations are applied',
+            })
+        }
+
+        if (error.code === 'P2025') {
+            return res.status(404).json({ message: 'User not found' })
+        }
+
+        if (error?.message?.includes('JPEG and PNG')) {
+            return res.status(400).json({ message: error.message })
+        }
+
+        console.error('Update profile image error:', error)
+        return res.status(500).json({ message: 'Failed to update profile image' })
+    }
+})
+
+// ─── DELETE /api/auth/profile-image ─────────────────────────────────────────
+
+router.delete('/profile-image', async (req, res) => {
+    const userID = getUserIdFromCookie(req)
+    if (!userID) {
+        return res.status(401).json({ message: 'Not authenticated' })
+    }
+
+    try {
+        const updated = await prisma.user.update({
+            where: { userID },
+            data: {
+                profile_image_data: null,
+                profile_image_mime_type: null,
+                profile_image_size_bytes: null,
+                profile_image_updated_at: null,
+            },
+            select: profileUserSelectWithImage,
+        })
+
+        return res.json({
+            message: 'Profile image removed',
+            profile: buildProfilePayload(updated),
+        })
+    } catch (error) {
+        if (error.code === 'P2022') {
+            return res.status(503).json({
+                message: 'Profile image storage is unavailable until migrations are applied',
+            })
+        }
+
+        if (error.code === 'P2025') {
+            return res.status(404).json({ message: 'User not found' })
+        }
+
+        console.error('Remove profile image error:', error)
+        return res.status(500).json({ message: 'Failed to remove profile image' })
     }
 })
 

@@ -2,35 +2,283 @@
 
 .admin-page {
     min-height: 100vh;
-    background-color: $background-color;
+    background-color: #fff;
+    color: #000;
     display: flex;
     flex-direction: column;
 }
 
 .admin-shell {
     width: 100%;
-    padding: 1.25rem 0.75rem 2rem;
+    padding: 0.5rem 1rem;
 }
 
-.admin-card {
-    border-color: $border-color;
-    background-color: #fff;
+.admin-book {
+    border: 0;
+    border-radius: 0;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: none;
+}
+
+.admin-book-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    padding: 0.8rem 1rem 0.45rem;
+    background: #fff;
+}
+
+.admin-book-content {
+    padding: 0.85rem 1rem 1rem;
+    background: #fff;
 }
 
 .admin-input {
-    border-color: $primary-color !important;
+    border-color: #c3c3c3 !important;
 
     &:focus {
-        border-color: $accent-color !important;
+        border-color: #1f1f1f !important;
     }
 }
 
 .admin-nav-group {
     width: 100%;
+    display: flex;
+    align-items: flex-end;
+    gap: 0;
+    flex-wrap: wrap;
+    border-bottom: 1px solid #e0e0e0;
+    padding-inline: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    background: #fff;
+    position: relative;
+}
+
+.admin-tab-link {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    text-decoration: none;
+    background: transparent;
+    color: #000;
+    font-weight: 500;
+    font-size: 0.9rem;
+    letter-spacing: 0.01em;
+    position: relative;
+    transition:
+        color 0.12s ease,
+        border-color 0.12s ease;
+}
+
+.admin-tab-link:hover {
+    color: #000;
+    border-bottom-color: transparent;
+}
+
+.admin-tab-link-active {
+    color: #000;
+    border-bottom: 2px solid var(--mantine-color-themeColors-6);
+    position: relative;
+    z-index: 1;
+}
+
+.admin-tab-link-active:hover {
+    color: #000;
+    border-bottom: 2px solid var(--mantine-color-themeColors-6);
+}
+
+.admin-section {
+    margin-bottom: 0.6rem;
+}
+
+.admin-table-shell {
+    padding-top: 0.15rem;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: #fff;
+}
+
+.admin-search {
+    min-width: 260px;
+}
+
+.admin-search-right {
+    min-width: 280px;
+}
+
+.admin-search-input {
+    min-height: 2.25rem;
+    color: #000 !important;
+    border-color: #c7c7c7 !important;
+}
+
+.admin-search-input::placeholder {
+    color: #000;
+    opacity: 0.65;
+}
+
+.admin-table {
+    .mantine-Table-th {
+        background: #fafafa;
+        font-size: 0.8rem;
+        letter-spacing: 0.01em;
+        cursor: pointer;
+    }
+}
+
+.admin-water-table {
+    .mantine-Table-table {
+        border: 0;
+        background: transparent;
+    }
+
+    .mantine-Table-thead {
+        border-top: 0;
+        background: transparent;
+    }
+
+    .mantine-Table-th {
+        background: transparent;
+        border-top: 0;
+        border-left: 0;
+        border-right: 0;
+        border-bottom: 1px solid #d6d9de;
+        color: #000;
+        font-size: 0.76rem;
+        font-weight: 700;
+        letter-spacing: 0.015em;
+        padding: 0.54rem 0.88rem;
+        white-space: nowrap;
+    }
+
+    .mantine-Table-td {
+        border-left: 0;
+        border-right: 0;
+        border-top: 0;
+        border-bottom: 1px solid #eceff3;
+        padding: 0.5rem 0.88rem;
+        font-size: 0.8rem;
+        color: #000;
+        vertical-align: middle;
+    }
+
+    .mantine-Table-tr:last-child .mantine-Table-td {
+        border-bottom-color: #e4e8ee;
+    }
+
+    .mantine-Table-tr:hover .mantine-Table-td {
+        background: #f8fafc;
+    }
+
+    .col-text {
+        text-align: left;
+    }
+
+    .col-num {
+        text-align: center;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .col-organisms,
+    .col-resistance {
+        min-width: 200px;
+    }
+
+    .col-actions {
+        width: 76px;
+        text-align: right;
+    }
+}
+
+.admin-th-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    line-height: 1;
+
+    svg {
+        opacity: 0.55;
+        stroke-width: 2;
+    }
+}
+
+.admin-action-icon {
+    color: #000;
+
+    &:hover {
+        color: #000;
+        background: transparent;
+    }
+}
+
+.admin-delete-action {
+    color: #c53030;
+
+    &:hover {
+        color: #c53030;
+        background: #f7efef;
+    }
+}
+
+.admin-subcard {
+    border: 1px solid #d9d9d9;
+    border-radius: 0.4rem;
+    padding: 0.7rem;
+    background: #fcfcfc;
+}
+
+.admin-metric-chip {
+    border: 1px solid #d9d9d9;
+    border-radius: 0.4rem;
+    padding: 0.75rem;
+    background: #fcfcfc;
 }
 
 @media (max-width: 48em) {
     .admin-shell {
         padding: 1rem 0.5rem 1.5rem;
+    }
+
+    .admin-book-header {
+        padding: 0.72rem 0.75rem 0.45rem;
+    }
+
+    .admin-nav-group {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        gap: 0.2rem;
+        padding-inline: 0.75rem;
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+
+    .admin-nav-group::-webkit-scrollbar {
+        display: none;
+    }
+
+    .admin-tab-link {
+        flex: 0 0 auto;
+        padding: 0.44rem 0.62rem;
+        font-size: 0.82rem;
+        gap: 0.32rem;
+    }
+
+    .admin-tab-icon {
+        width: 0.84rem;
+        height: 0.84rem;
+    }
+
+    .admin-book-content {
+        padding: 0.75rem;
+    }
+
+    .admin-search {
+        min-width: 100%;
     }
 }

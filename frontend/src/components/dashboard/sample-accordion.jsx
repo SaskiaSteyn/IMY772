@@ -1,4 +1,5 @@
 import { Accordion, Divider, Group, Stack, Text, Title } from '@mantine/core';
+import { formatSirProfileLabel } from '../../lib/sir-profile';
 import './sample-accordion.scss';
 
 export default function SampleAccordion({ samples }) {
@@ -82,9 +83,10 @@ export default function SampleAccordion({ samples }) {
                                     },
                                     {
                                         label: 'Predicted SIR Profile',
-                                        value:
-                                            sample.predicted_sir_profile ||
+                                        value: formatSirProfileLabel(
+                                            sample.predicted_sir_profile,
                                             'N/A',
+                                        ),
                                     },
                                 ]}
                             />

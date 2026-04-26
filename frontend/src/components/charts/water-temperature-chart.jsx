@@ -29,16 +29,33 @@ export default function WaterTemperatureChart({ samples }) {
                                 },
                             )
                         }
-                        tick={{ fontSize: 12 }}
+                        tick={{
+                            fontSize: 12,
+                            fill: '#000',
+                            fontWeight: 'bold',
+                        }}
                     >
                         <Label
                             value='Collection Date'
                             position='insideBottomRight'
                             offset={-5}
+                            fill='#000'
+                            fontWeight='bold'
                         />
                     </XAxis>
-                    <YAxis tick={{ fontSize: 12 }}>
-                        <Label value='Temperature (°C)' angle={-90} />
+                    <YAxis
+                        tick={{
+                            fontSize: 12,
+                            fill: '#000',
+                            fontWeight: 'bold',
+                        }}
+                    >
+                        <Label
+                            value='Temperature (°C)'
+                            angle={-90}
+                            fill='#000'
+                            fontWeight='bold'
+                        />
                     </YAxis>
                     <Tooltip
                         formatter={(value) => {
@@ -50,7 +67,7 @@ export default function WaterTemperatureChart({ samples }) {
                     />
                     <Bar
                         dataKey='water_temperature'
-                        fill='#ff7300'
+                        fill='#364fc7'
                         name='Temperature (°C)'
                     />
                 </BarChart>

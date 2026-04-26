@@ -1,6 +1,8 @@
-import { DataTable } from 'mantine-datatable';
+import {DataTable} from 'mantine-datatable';
+import {ActionIcon, Group} from '@mantine/core';
+import {Pencil, Maximize2} from 'lucide-react';
 
-const MetagenomicsTable = ({ records, highlightedSampleIds }) => {
+const MetagenomicsTable = ({records, highlightedSampleIds, onEditClick, onExpandClick}) => {
     return (
         <DataTable
             striped
@@ -21,29 +23,57 @@ const MetagenomicsTable = ({ records, highlightedSampleIds }) => {
                     textAlignment: 'center',
                 },
                 {
-                    accessor: 'water_temperature',
-                    title: 'Temp (°C)',
-                    width: 110,
-                    textAlignment: 'center',
+                    accessor: 'sequence_name',
+                    title: 'Sequence Name',
+                    width: 150,
                 },
                 {
-                    accessor: 'ph',
-                    title: 'pH',
+                    accessor: 'element_type',
+                    title: 'Element Type',
+                    width: 120,
+                },
+                {
+                    accessor: 'class',
+                    title: 'Class',
+                    width: 100,
+                },
+                {
+                    accessor: 'subclass',
+                    title: 'Subclass',
+                    width: 100,
+                },
+                {
+                    accessor: 'actions',
+                    title: '',
                     width: 80,
                     textAlignment: 'center',
+                    render: (record) => (
+                        <Group justify='center' gap={4}>
+                            <ActionIcon
+                                size='sm'
+                                variant='subtle'
+                                onClick={() => onExpandClick(record)}
+                                title='View full sample data'
+                            >
+                                <Maximize2 size={16} />
+                            </ActionIcon>
+                            <ActionIcon
+                                size='sm'
+                                variant='subtle'
+                                onClick={() => onEditClick(record)}
+                                title='Edit record'
+                            >
+                                <Pencil size={16} />
+                            </ActionIcon>
+                        </Group>
+                    ),
                 },
-                {
-                    accessor: 'sample_analysis_type',
-                    title: 'Analysis Type',
-                    width: 140,
-                },
-                { accessor: 'location_name', title: 'Location' },
             ]}
             noRecordsText=''
             noRecordsIcon={<></>}
             minHeight={300}
             styles={{
-                emptyState: { display: 'none' },
+                emptyState: {display: 'none'},
             }}
         />
     );

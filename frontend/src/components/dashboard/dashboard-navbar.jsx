@@ -1,27 +1,36 @@
-import {Avatar, Button, Drawer, NavLink} from '@mantine/core'
+import { Avatar, Button, Drawer, NavLink } from '@mantine/core';
 import {
     ChartColumnIncreasing,
     LayoutDashboard,
     Menu,
     Shield,
     User,
-} from 'lucide-react'
-import {useState} from 'react'
-import {useLocation, useNavigate} from 'react-router-dom'
-import {useAuth} from '../../context/AuthContext.jsx'
-import './dashboard-navbar.scss'
+} from 'lucide-react';
+import { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/auth-context.jsx';
+import './dashboard-navbar.scss';
 
 export default function DashboardNavbar() {
     const [drawerOpened, setDrawerOpened] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
-    const {user, logout} = useAuth();
+    const { user, logout } = useAuth();
     const isAuthenticated = Boolean(user);
     const isAdmin = user?.role === 'admin';
+    const avatarSeed =
+        `${user?.name || ''} ${user?.surname || ''}`.trim() ||
+        user?.email ||
+        'User';
+    const avatarSrc =
+        user?.profileImage ||
+        `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(
+            avatarSeed,
+        )}`;
 
     const handleLogout = async () => {
         setDrawerOpened(false);
-        navigate('/dashboard', {replace: true});
+        navigate('/dashboard', { replace: true });
         await logout();
     };
 
@@ -43,7 +52,7 @@ export default function DashboardNavbar() {
         ...(isAuthenticated
             ? [
                 {
-                    label: 'Capture Data',
+                    label: 'Data',
                     icon: ChartColumnIncreasing,
                     onClick: () => navigate('/capture-data'),
                     path: '/capture-data',
@@ -59,7 +68,7 @@ export default function DashboardNavbar() {
                         {
                             label: 'Admin Dashboard',
                             icon: Shield,
-                            onClick: () => navigate('/admin/users'),
+                            onClick: () => navigate('/admin/water-data'),
                             path: '/admin',
                         },
                     ]
@@ -100,11 +109,11 @@ export default function DashboardNavbar() {
                                 Logout
                             </Button>
                             <Avatar
-                                src='https://api.dicebear.com/7.x/avataaars/svg?seed=Felix'
+                                src={avatarSrc}
                                 alt='User avatar'
                                 radius='xl'
                                 size='md'
-                                style={{cursor: 'pointer'}}
+                                style={{ cursor: 'pointer' }}
                                 onClick={handleProfileClick}
                             />
                         </div>
@@ -124,7 +133,7 @@ export default function DashboardNavbar() {
                         src='/microtrack-logo.png'
                         alt='MicroTrack'
                         height='28px'
-                        style={{cursor: 'pointer'}}
+                        style={{ cursor: 'pointer' }}
                     />
                 }
                 position='left'
@@ -136,14 +145,13 @@ export default function DashboardNavbar() {
                     const isProfileRoute =
                         location.pathname === '/profile' ||
                         location.pathname === '/profile-settings';
-                    const isAdminRoute =
-                        location.pathname.startsWith('/admin');
+                    const isAdminRoute = location.pathname.startsWith('/admin');
                     const isActive =
                         item.path === '/profile-settings'
                             ? isProfileRoute
                             : item.path === '/admin'
-                                ? isAdminRoute
-                                : location.pathname === item.path;
+                              ? isAdminRoute
+                              : location.pathname === item.path;
                     return (
                         <NavLink
                             key={item.label}

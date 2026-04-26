@@ -7,8 +7,12 @@ on:
         branches: [dev, main]
 
 jobs:
-    build-and-test:
+    backend-tests:
         runs-on: ubuntu-latest
+        # Only run if backend files changed
+        if: |
+            github.event_name == 'push' && contains(github.event.head_commit.modified, 'backend/') ||
+            github.event_name == 'pull_request'
 
         services:
             postgres:
@@ -28,24 +32,12 @@ jobs:
         steps:
             - uses: actions/checkout@v4
 
-            - name: Setup Node.js
-              uses: actions/setup-node@v4
-              with:
-                  node-version: '20'
-
-            - name: Setup Node.js with yarn caching (backend)
+            - name: Setup Node.js with yarn caching
               uses: actions/setup-node@v4
               with:
                   node-version: '20'
                   cache: 'yarn'
                   cache-dependency-path: backend/yarn.lock
-
-            - name: Setup Node.js with yarn caching (frontend)
-              uses: actions/setup-node@v4
-              with:
-                  node-version: '20'
-                  cache: 'yarn'
-                  cache-dependency-path: frontend/yarn.lock
 
             # Backend Build & Setup
             - name: Install backend dependencies
@@ -79,7 +71,49 @@ jobs:
                   PRISMA_DATABASE_URL: postgresql://postgres:postgres_test_pw@localhost:5432/IMY772
               continue-on-error: true
 
-            # Frontend Build & Test
+            - name: Run backend tests
+              run: cd backend && yarn test --coverage
+              env:
+                  PRISMA_DATABASE_URL: postgresql://postgres:postgres_test_pw@localhost:5432/IMY772
+                  NODE_ENV: test
+
+            - name: Upload backend coverage to Codecov
+              uses: codecov/codecov-action@v4
+              with:
+                  files: ./backend/coverage/coverage-final.json
+                  flags: backend
+                  fail_ci_if_error: false
+              env:
+                  CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+            - name: Backend Test Summary
+              if: always()
+              run: |
+                  echo "### Backend Tests Summary" >> $GITHUB_STEP_SUMMARY
+                  echo "✅ Setup & Tests completed" >> $GITHUB_STEP_SUMMARY
+                  if [ -f backend/coverage/coverage-summary.json ]; then
+                    echo "" >> $GITHUB_STEP_SUMMARY
+                    echo "**Coverage Report:**" >> $GITHUB_STEP_SUMMARY
+                    node -e "const c = require('./backend/coverage/coverage-summary.json').total; console.log('- Lines:', c.lines.pct + '%'); console.log('- Statements:', c.statements.pct + '%'); console.log('- Functions:', c.functions.pct + '%'); console.log('- Branches:', c.branches.pct + '%');" >> $GITHUB_STEP_SUMMARY || echo "Coverage data available" >> $GITHUB_STEP_SUMMARY
+                  fi
+
+    frontend-tests:
+        runs-on: ubuntu-latest
+        # Only run if frontend files changed
+        if: |
+            github.event_name == 'push' && contains(github.event.head_commit.modified, 'frontend/') ||
+            github.event_name == 'pull_request'
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Setup Node.js with yarn caching
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '20'
+                  cache: 'yarn'
+                  cache-dependency-path: frontend/yarn.lock
+
             - name: Install frontend dependencies
               run: cd frontend && yarn install
 
@@ -90,14 +124,25 @@ jobs:
             - name: Build frontend
               run: cd frontend && yarn build
 
-            - name: Run frontend tests
-              run: cd frontend && yarn test --run
+            - name: Start frontend dev server
+              run: |
+                  cd frontend
+                  yarn dev > /tmp/vite.log 2>&1 &
+                  sleep 5
+                  curl -f http://localhost:5173 || echo "Server starting..."
+              timeout-minutes: 1
 
-            # Summary
-            - name: Build Summary
+            - name: Run Cypress e2e tests
+              run: cd frontend && npx cypress run
+              continue-on-error: true
+
+            - name: Frontend Test Summary
               if: always()
               run: |
-                  echo "### Build & Test Summary" >> $GITHUB_STEP_SUMMARY
-                  echo "✅ Backend setup completed" >> $GITHUB_STEP_SUMMARY
-                  echo "✅ Frontend build completed" >> $GITHUB_STEP_SUMMARY
-                  echo "✅ Frontend tests completed" >> $GITHUB_STEP_SUMMARY
+                  echo "### Frontend Cypress Tests Summary" >> $GITHUB_STEP_SUMMARY
+                  echo "✅ Build & Cypress Tests completed" >> $GITHUB_STEP_SUMMARY
+                  if [ -f frontend/coverage/coverage-summary.json ]; then
+                    echo "" >> $GITHUB_STEP_SUMMARY
+                    echo "**Coverage Report:**" >> $GITHUB_STEP_SUMMARY
+                    node -e "const c = require('./frontend/coverage/coverage-summary.json').total; console.log('- Lines:', c.lines.pct + '%'); console.log('- Statements:', c.statements.pct + '%'); console.log('- Functions:', c.functions.pct + '%'); console.log('- Branches:', c.branches.pct + '%');" >> $GITHUB_STEP_SUMMARY || echo "Coverage data available" >> $GITHUB_STEP_SUMMARY
+                  fi

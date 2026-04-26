@@ -4,6 +4,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import AppRouter from './app-router.jsx';
+import { AuthProvider } from './context/auth-context.jsx';
 import './index.scss';
 
 const themeColors = [
@@ -43,7 +44,9 @@ createRoot(document.getElementById('root')).render(
     <StrictMode>
         <BrowserRouter>
             <MantineProvider theme={theme}>
-                <AppRouter />
+                <AuthProvider>
+                    <AppRouter />
+                </AuthProvider>
             </MantineProvider>
         </BrowserRouter>
     </StrictMode>,

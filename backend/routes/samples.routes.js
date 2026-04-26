@@ -1,6 +1,8 @@
 import { Router } from 'express'
 import { body, param, validationResult } from 'express-validator'
 import prisma from '../lib/prisma.js'
+import { predictSirProfileWithAI } from '../lib/sir-prediction.js'
+import { requireAuth } from '../middleware/auth.middleware.js'
 
 const router = Router()
 
@@ -8,6 +10,7 @@ const router = Router()
 
 router.post(
     '/',
+    requireAuth,
     [
         body('latitude').isDecimal().withMessage('Latitude must be a decimal'),
         body('longitude').isDecimal().withMessage('Longitude must be a decimal'),
@@ -20,7 +23,14 @@ router.post(
         body('collection_date').optional().isISO8601().withMessage('Collection date must be valid ISO8601'),
         body('location_name').optional().trim().isString(),
         body('collected_by').optional().trim().isString(),
-        body('predicted_sir_profile').optional().isIn(['Susceptible', 'Intermediate', 'Resistant']),
+        body('predicted_sir_profile')
+            .optional()
+            .trim()
+            .custom((value) => {
+                const validValues = ['susceptible', 'intermediate', 'resistant']
+                return validValues.includes(value.toLowerCase())
+            })
+            .withMessage('predicted_sir_profile must be Susceptible, Intermediate, or Resistant'),
     ],
     async (req, res) => {
         const errors = validationResult(req)
@@ -40,6 +50,7 @@ router.post(
             latitude,
             longitude,
             collected_by,
+            uploaded_by,
             predicted_sir_profile,
         } = req.body
 
@@ -57,6 +68,7 @@ router.post(
                     latitude: parseFloat(latitude),
                     longitude: parseFloat(longitude),
                     collected_by,
+                    uploaded_by: req.user.userID,
                     predicted_sir_profile,
                 },
             })
@@ -81,6 +93,64 @@ router.get('/', async (req, res) => {
         return res.status(500).json({ message: 'Failed to retrieve samples' })
     }
 })
+
+// ─── POST /api/samples/predict-sir - Predict SIR profile from sample context ─
+
+router.post(
+    '/predict-sir',
+    requireAuth,
+    [
+        body('latitude').isDecimal().withMessage('Latitude must be a decimal'),
+        body('longitude').isDecimal().withMessage('Longitude must be a decimal'),
+        body('water_temperature').optional({ nullable: true }).isDecimal().withMessage('Water temperature must be decimal'),
+        body('ph').optional({ nullable: true }).isDecimal().withMessage('pH must be decimal'),
+        body('tds').optional({ nullable: true }).isDecimal().withMessage('TDS must be decimal'),
+        body('do').optional({ nullable: true }).isDecimal().withMessage('DO must be decimal'),
+        body('sample_analysis_type').optional({ nullable: true }).trim().isString(),
+        body('isolation_source').optional({ nullable: true }).trim().isString(),
+    ],
+    async (req, res) => {
+        const errors = validationResult(req)
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ errors: errors.array() })
+        }
+
+        try {
+            const trainingSamples = await prisma.sample.findMany({
+                where: {
+                    predicted_sir_profile: {
+                        not: null,
+                    },
+                },
+                orderBy: {
+                    sampleID: 'desc',
+                },
+                take: 1000,
+                select: {
+                    latitude: true,
+                    longitude: true,
+                    water_temperature: true,
+                    ph: true,
+                    tds: true,
+                    do: true,
+                    sample_analysis_type: true,
+                    isolation_source: true,
+                    predicted_sir_profile: true,
+                },
+            })
+
+            const prediction = await predictSirProfileWithAI({
+                inputSample: req.body,
+                trainingSamples,
+            })
+
+            return res.json({ prediction })
+        } catch (err) {
+            console.error('Predict SIR profile error:', err)
+            return res.status(500).json({ message: 'Failed to predict SIR profile' })
+        }
+    }
+)
 
 // ─── GET /api/samples/:sampleID - Get sample by ID ──────────────────────────
 
@@ -129,7 +199,15 @@ router.put(
         body('latitude').optional().isDecimal(),
         body('longitude').optional().isDecimal(),
         body('collected_by').optional().trim().isString(),
-        body('predicted_sir_profile').optional().isIn(['Susceptible', 'Intermediate', 'Resistant']),
+        body('uploaded_by').optional().isInt(),
+        body('predicted_sir_profile')
+            .optional()
+            .trim()
+            .custom((value) => {
+                const validValues = ['susceptible', 'intermediate', 'resistant']
+                return validValues.includes(value.toLowerCase())
+            })
+            .withMessage('predicted_sir_profile must be Susceptible, Intermediate, or Resistant'),
     ],
     async (req, res) => {
         const errors = validationResult(req)
@@ -140,7 +218,7 @@ router.put(
         const { sampleID } = req.params
         const updateData = {}
 
-        // Build update object only with provided fields
+        // Build update object only with provided fields (exclude uploaded_by - it's immutable)
         if (req.body.water_temperature !== undefined) updateData.water_temperature = parseFloat(req.body.water_temperature)
         if (req.body.ph !== undefined) updateData.ph = parseFloat(req.body.ph)
         if (req.body.tds !== undefined) updateData.tds = parseFloat(req.body.tds)
