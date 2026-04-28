@@ -116,3 +116,43 @@ export const fetchAllSamples = async () => {
         throw error;
     }
 };
+
+export const extractSamplesFromImage = async (file) => {
+    if (!file) {
+        throw new Error('Image file is required for OCR extraction');
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(`${API_URL}/api/ocr/extract`, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+        throw new Error(data.details || data.error || 'Image extraction failed');
+    }
+
+    return data;
+};
+
+export const ingestReviewedSamples = async (samples) => {
+    if (!Array.isArray(samples) || samples.length === 0) {
+        throw new Error('At least one reviewed sample is required');
+    }
+
+    try {
+        const response = await request('/api/ocr/ingest-reviewed', {
+            method: 'POST',
+            body: JSON.stringify({ samples }),
+        });
+        return response.results;
+    } catch (error) {
+        console.error('API Error ingesting reviewed samples:', error);
+        throw error;
+    }
+};

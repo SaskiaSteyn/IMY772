@@ -4,6 +4,14 @@ import prisma from '../lib/prisma.js'
 
 const router = Router()
 
+function isDatabaseUnavailableError(err) {
+    return (
+        err?.name === 'PrismaClientInitializationError' ||
+        err?.code === 'P1001' ||
+        err?.message?.includes("Can't reach database server")
+    )
+}
+
 // ─── POST /api/samples - Create a new sample ─────────────────────────────────
 
 router.post(
@@ -63,6 +71,10 @@ router.post(
 
             return res.status(201).json({ sample })
         } catch (err) {
+            if (isDatabaseUnavailableError(err)) {
+                return res.status(503).json({ message: 'Database is unavailable, please try again later' })
+            }
+
             console.error('Create sample error:', err)
             return res.status(500).json({ message: 'Failed to create sample' })
         }
@@ -77,6 +89,10 @@ router.get('/', async (req, res) => {
 
         return res.json({ samples })
     } catch (err) {
+        if (isDatabaseUnavailableError(err)) {
+            return res.status(503).json({ message: 'Database is unavailable, please try again later' })
+        }
+
         console.error('Get samples error:', err)
         return res.status(500).json({ message: 'Failed to retrieve samples' })
     }
@@ -106,6 +122,10 @@ router.get(
 
             return res.json({ sample })
         } catch (err) {
+            if (isDatabaseUnavailableError(err)) {
+                return res.status(503).json({ message: 'Database is unavailable, please try again later' })
+            }
+
             console.error('Get sample error:', err)
             return res.status(500).json({ message: 'Failed to retrieve sample' })
         }
@@ -165,6 +185,11 @@ router.put(
             if (err.code === 'P2025') {
                 return res.status(404).json({ message: 'Sample not found' })
             }
+
+            if (isDatabaseUnavailableError(err)) {
+                return res.status(503).json({ message: 'Database is unavailable, please try again later' })
+            }
+
             console.error('Update sample error:', err)
             return res.status(500).json({ message: 'Failed to update sample' })
         }
@@ -194,6 +219,11 @@ router.delete(
             if (err.code === 'P2025') {
                 return res.status(404).json({ message: 'Sample not found' })
             }
+
+            if (isDatabaseUnavailableError(err)) {
+                return res.status(503).json({ message: 'Database is unavailable, please try again later' })
+            }
+
             console.error('Delete sample error:', err)
             return res.status(500).json({ message: 'Failed to delete sample' })
         }

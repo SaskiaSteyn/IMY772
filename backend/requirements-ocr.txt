@@ -1,0 +1,5 @@
+# OCR Worker Python Dependencies
+# Install with: pip install -r requirements-ocr.txt
+
+paddleocr>=2.8.0
+pillow>=10.0.0

@@ -9,9 +9,11 @@ import authRouter from './routes/auth.routes.js'
 import bulkUploadRouter from './routes/bulk-upload.routes.js'
 import metagenomicRouter from './routes/metagenomic.routes.js'
 import mockDataRouter from './routes/mockdata.routes.js'
+import ocrRouter from './routes/ocr.routes.js'
 import samplesRouter from './routes/samples.routes.js'
 import virulenceGenesRouter from './routes/virulencegenes.routes.js'
 import wgsRouter from './routes/wgs.routes.js'
+import { getOCRService } from './lib/ocr-service.js'
 
 dotenv.config()
 dotenv.config({ path: '../.env' })
@@ -34,6 +36,7 @@ app.use('/api/auth', authRouter)
 app.use('/api/admin', adminRouter)
 app.use('/api/samples', samplesRouter)
 app.use('/api/bulk-upload', bulkUploadRouter)
+app.use('/api/ocr', ocrRouter)
 app.use('/api/metagenomic', metagenomicRouter)
 app.use('/api/wgs', wgsRouter)
 app.use('/api/amr-resistance-genes', amrResistanceGenesRouter)
@@ -46,7 +49,7 @@ app.get('/health', (_req, res) => {
 
 // Simple connection pool
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: process.env.DATABASE_URL || process.env.PRISMA_DATABASE_URL,
 })
 
 //
@@ -161,6 +164,38 @@ app.get('/get-virulenceGenes', async (req, res) => {
     }
 })
 
-app.listen(port, () => {
+app.listen(port, async () => {
     console.log(`Backend running on http://localhost:${port}`)
+
+    // Initialize OCR service
+    try {
+        const ocrService = getOCRService()
+        await ocrService.initialize()
+    } catch (error) {
+        console.error('Failed to initialize OCR service:', error)
+        // OCR service failure should not prevent server startup, but warn user
+    }
+})
+
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+    console.log('SIGTERM received, shutting down gracefully...')
+    try {
+        const ocrService = getOCRService()
+        await ocrService.shutdown()
+    } catch (error) {
+        console.error('Error during OCR service shutdown:', error)
+    }
+    process.exit(0)
+})
+
+process.on('SIGINT', async () => {
+    console.log('SIGINT received, shutting down gracefully...')
+    try {
+        const ocrService = getOCRService()
+        await ocrService.shutdown()
+    } catch (error) {
+        console.error('Error during OCR service shutdown:', error)
+    }
+    process.exit(0)
 })

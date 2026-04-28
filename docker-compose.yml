@@ -19,7 +19,7 @@ services:
             retries: 5
 
     backend:
-        image: node:20-alpine
+        image: node:20-slim
         container_name: imy772-backend
         restart: unless-stopped
         working_dir: /app
@@ -31,8 +31,13 @@ services:
             - '3000:3000'
         command: >
             sh -c "
+            apt-get update &&
+            apt-get install -y python3 python3-pip build-essential libatlas-base-dev liblapack-dev gfortran libgl1 openssl &&
+            python3 -m pip install --upgrade pip setuptools wheel &&
+            python3 -m pip install --no-cache-dir paddleocr pillow || true &&
             yarn install &&
-            npx prisma migrate deploy || npx prisma migrate resolve --rolled-back &&
+            npx prisma generate &&
+            npx prisma migrate deploy || true &&
             mkdir -p /app/state &&
             if [ ! -f /app/state/.seeded ]; then
               node prisma/seed.js &&
@@ -43,10 +48,12 @@ services:
         depends_on:
             db:
                 condition: service_healthy
-        env_file:
-            - .env
         environment:
+            DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db:5433/IMY772
             PRISMA_DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db:5433/IMY772
+            OCR_WORKER_TIMEOUT_MS: '30000'
+            OCR_CONFIDENCE_THRESHOLD: '0.75'
+            OCR_PADDLE_LANGUAGES: 'en'
         healthcheck:
             test:
                 [

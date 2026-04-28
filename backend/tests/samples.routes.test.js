@@ -181,6 +181,18 @@ describe('GET /api/samples', () => {
         expect(res.status).toBe(500)
         expect(res.body.message).toMatch(/failed to retrieve samples/i)
     })
+
+    test('returns 503 when the database is unavailable', async () => {
+        const error = new Error("Can't reach database server at localhost:5432")
+        error.name = 'PrismaClientInitializationError'
+        error.code = 'P1001'
+        mockPrismaSample.findMany.mockRejectedValue(error)
+
+        const res = await api().get('/api/samples')
+
+        expect(res.status).toBe(503)
+        expect(res.body.message).toMatch(/database is unavailable/i)
+    })
 })
 
 // ─── GET /api/samples/:sampleID ───────────────────────────────────────────────

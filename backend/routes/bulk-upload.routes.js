@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { parseCSVFile, parseJSONFile, validateSamples } from '../lib/file-parser.js';
-import prisma from '../lib/prisma.js';
+import { insertSamplesWithRelations } from '../lib/sample-ingestion.js';
 
 const router = Router();
 
@@ -61,95 +61,7 @@ router.post('/', upload.single('file'), async (req, res) => {
         }
 
         // Insert data into database
-        const results = {
-            totalSamples: samples.length,
-            successCount: 0,
-            failureCount: 0,
-            errors: [],
-            sampleIDs: [],
-        };
-
-        for (let i = 0; i < samples.length; i++) {
-            try {
-                const sample = samples[i];
-
-                // Create the sample
-                const createdSample = await prisma.sample.create({
-                    data: {
-                        latitude: sample.latitude,
-                        longitude: sample.longitude,
-                        water_temperature: sample.water_temperature,
-                        ph: sample.ph,
-                        tds: sample.tds,
-                        do: sample.do,
-                        sample_analysis_type: sample.sample_analysis_type,
-                        isolation_source: sample.isolation_source,
-                        collection_date: sample.collection_date
-                            ? new Date(sample.collection_date)
-                            : null,
-                        location_name: sample.location_name,
-                        collected_by: sample.collected_by,
-                        predicted_sir_profile: sample.predicted_sir_profile,
-                    },
-                });
-
-                const sampleID = createdSample.sampleID;
-                results.sampleIDs.push(sampleID);
-
-                // Create metagenomic records if present
-                if (
-                    sample.metagenomic &&
-                    Array.isArray(sample.metagenomic) &&
-                    sample.metagenomic.length > 0
-                ) {
-                    // Collect all unique AMR genes from all metagenomic records
-                    const allAmrGenes = new Set();
-                    for (const metaRecord of sample.metagenomic) {
-                        if (
-                            metaRecord.amr_resistance_genes &&
-                            Array.isArray(metaRecord.amr_resistance_genes)
-                        ) {
-                            metaRecord.amr_resistance_genes.forEach((gene) => {
-                                if (gene && gene.trim() !== '') {
-                                    allAmrGenes.add(gene.trim());
-                                }
-                            });
-                        }
-                    }
-
-                    // Create AMR resistance genes
-                    for (const geneSymbol of allAmrGenes) {
-                        await prisma.amrResistanceGene.create({
-                            data: {
-                                sampleID,
-                                geneSymbol,
-                            },
-                        });
-                    }
-
-                    // Create metagenomic records
-                    for (const metaRecord of sample.metagenomic) {
-                        await prisma.metagenomic.create({
-                            data: {
-                                sampleID,
-                                sequence_name: metaRecord.sequence_name,
-                                element_type: metaRecord.element_type,
-                                class: metaRecord.class,
-                                subclass: metaRecord.subclass,
-                            },
-                        });
-                    }
-                }
-
-                results.successCount++;
-            } catch (error) {
-                results.failureCount++;
-                results.errors.push({
-                    sampleIndex: i,
-                    error: error.message,
-                });
-            }
-        }
+        const results = await insertSamplesWithRelations(samples);
 
         res.json({
             message: 'File processed successfully',

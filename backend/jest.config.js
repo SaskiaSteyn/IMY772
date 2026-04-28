@@ -1,7 +1,8 @@
 export default {
     testEnvironment: 'node',
-    // No transform needed — Node handles ESM natively with --experimental-vm-modules
-    transform: {},
+    moduleNameMapper: {
+        '^(\\.{1,2}/.*)\\.js$': '$1',
+    },
     // Collect coverage from source files (excluding migrations and seeds)
     collectCoverageFrom: [
         'routes/**/*.js',
