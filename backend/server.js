@@ -2,19 +2,19 @@ import cookieParser from 'cookie-parser'
 import cors from 'cors'
 import dotenv from 'dotenv'
 import express from 'express'
-import { Pool } from 'pg'
-import amrResistanceGenesRouter from './routes/amrresistancegenes.routes.js'
+import {Pool} from 'pg'
+import prisma from './lib/prisma.js'
 import adminRouter from './routes/admin.routes.js'
 import authRouter from './routes/auth.routes.js'
 import bulkUploadRouter from './routes/bulk-upload.routes.js'
-import metagenomicRouter from './routes/metagenomic.routes.js'
 import mockDataRouter from './routes/mockdata.routes.js'
 import samplesRouter from './routes/samples.routes.js'
-import virulenceGenesRouter from './routes/virulencegenes.routes.js'
-import wgsRouter from './routes/wgs.routes.js'
+import isolatesRouter from './routes/isolates.routes.js'
+import amrFindingsRouter from './routes/amr-findings.routes.js'
+import predictedPhenotypesRouter from './routes/predicted-phenotypes.routes.js'
 
 dotenv.config()
-dotenv.config({ path: '../.env' })
+dotenv.config({path: '../.env'})
 
 const app = express()
 const port = process.env.PORT || 3000
@@ -22,8 +22,8 @@ const port = process.env.PORT || 3000
 // Middleware
 const corsOptions =
     process.env.NODE_ENV === 'production'
-        ? { origin: process.env.FRONTEND_URL, credentials: true }
-        : { origin: true, credentials: true } // Allow all origins in development
+        ? {origin: process.env.FRONTEND_URL, credentials: true}
+        : {origin: true, credentials: true} // Allow all origins in development
 
 app.use(cors(corsOptions))
 app.use(express.json())
@@ -33,15 +33,14 @@ app.use(cookieParser())
 app.use('/api/auth', authRouter)
 app.use('/api/admin', adminRouter)
 app.use('/api/samples', samplesRouter)
+app.use('/api/isolates', isolatesRouter)
+app.use('/api/amr-findings', amrFindingsRouter)
+app.use('/api/predicted-phenotypes', predictedPhenotypesRouter)
 app.use('/api/bulk-upload', bulkUploadRouter)
-app.use('/api/metagenomic', metagenomicRouter)
-app.use('/api/wgs', wgsRouter)
-app.use('/api/amr-resistance-genes', amrResistanceGenesRouter)
-app.use('/api/virulence-genes', virulenceGenesRouter)
 app.use('/api', mockDataRouter)
 
 app.get('/health', (_req, res) => {
-    res.json({ status: 'ok' })
+    res.json({status: 'ok'})
 })
 
 // Simple connection pool
@@ -93,10 +92,10 @@ app.get('/get-samples', async (req, res) => {
 
 app.get('/get-metagenomic', async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM metagenomic')
+        const result = await prisma.amrFinding.findMany()
         res.json({
-            message: 'Metagenomic data retrieved successfully',
-            metagenomics: result.rows,
+            message: 'Metagenomic analysis data retrieved successfully',
+            data: result,
         })
     } catch (err) {
         console.error(err)
@@ -111,10 +110,12 @@ app.get('/get-metagenomic', async (req, res) => {
 
 app.get('/get-wgs', async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM wgs')
+        const result = await prisma.isolate.findMany({
+            include: {sample: true},
+        })
         res.json({
-            message: 'WGS data retrieved successfully',
-            wgs: result.rows,
+            message: 'WGS isolate data retrieved successfully',
+            wgs: result,
         })
     } catch (err) {
         console.error(err)
@@ -125,37 +126,41 @@ app.get('/get-wgs', async (req, res) => {
     }
 })
 
-// Get AMR resistance genes Endpoint
+// Get AMR findings Endpoint
 
 app.get('/get-amrResistanceGenes', async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM amrResistanceGenes')
+        const result = await prisma.amrFinding.findMany({
+            include: {sample: true},
+        })
         res.json({
-            message: 'AMR resistance genes retrieved successfully',
-            amrResistanceGenes: result.rows,
+            message: 'AMR findings retrieved successfully',
+            amrFindings: result,
         })
     } catch (err) {
         console.error(err)
         res.status(500).json({
-            message: 'Failed to retrieve AMR resistance genes',
+            message: 'Failed to retrieve AMR findings',
             error: err.message,
         })
     }
 })
 
-// Get Virulence genes Endpoint
+// Get Predicted phenotypes Endpoint
 
 app.get('/get-virulenceGenes', async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM virulenceGenes')
+        const result = await prisma.predictedPhenotype.findMany({
+            include: {sample: true},
+        })
         res.json({
-            message: 'Virulence genes retrieved successfully',
-            virulenceGenes: result.rows,
+            message: 'Predicted phenotypes retrieved successfully',
+            phenotypes: result,
         })
     } catch (err) {
         console.error(err)
         res.status(500).json({
-            message: 'Failed to retrieve virulence genes',
+            message: 'Failed to retrieve predicted phenotypes',
             error: err.message,
         })
     }
