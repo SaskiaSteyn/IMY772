@@ -11,6 +11,35 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/auth-context.jsx';
 import './dashboard-navbar.scss';
 
+const AVATAR_COLORS = [
+    '#f06418',
+    '#fc8a08',
+    '#00b5ff',
+    '#1f32c4',
+    '#4f23c0',
+    '#7b2eda',
+    '#c02adf',
+    '#f01879',
+    '#e22732',
+];
+
+const getInitials = (name, surname) => {
+    const initials = [];
+    if (name) initials.push(name.charAt(0).toUpperCase());
+    if (surname) initials.push(surname.charAt(0).toUpperCase());
+    return initials.join('');
+};
+
+const getColorFromName = (name, surname) => {
+    const fullName = `${name || ''}${surname || ''}`;
+    let hash = 0;
+    for (let i = 0; i < fullName.length; i++) {
+        hash = fullName.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const colorIndex = Math.abs(hash) % AVATAR_COLORS.length;
+    return AVATAR_COLORS[colorIndex];
+};
+
 export default function DashboardNavbar() {
     const [drawerOpened, setDrawerOpened] = useState(false);
     const navigate = useNavigate();
@@ -18,15 +47,9 @@ export default function DashboardNavbar() {
     const { user, logout } = useAuth();
     const isAuthenticated = Boolean(user);
     const isAdmin = user?.role === 'admin';
-    const avatarSeed =
-        `${user?.name || ''} ${user?.surname || ''}`.trim() ||
-        user?.email ||
-        'User';
-    const avatarSrc =
-        user?.profileImage ||
-        `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(
-            avatarSeed,
-        )}`;
+    const avatarSrc = user?.profileImage || null;
+    const avatarInitials = getInitials(user?.name, user?.surname);
+    const avatarColor = getColorFromName(user?.name, user?.surname);
 
     const handleLogout = async () => {
         setDrawerOpened(false);
@@ -51,29 +74,29 @@ export default function DashboardNavbar() {
         },
         ...(isAuthenticated
             ? [
-                {
-                    label: 'Data',
-                    icon: ChartColumnIncreasing,
-                    onClick: () => navigate('/capture-data'),
-                    path: '/capture-data',
-                },
-                {
-                    label: 'Profile Settings',
-                    icon: User,
-                    onClick: () => navigate('/profile-settings'),
-                    path: '/profile-settings',
-                },
-                ...(isAdmin
-                    ? [
-                        {
-                            label: 'Admin Dashboard',
-                            icon: Shield,
-                            onClick: () => navigate('/admin/water-data'),
-                            path: '/admin',
-                        },
-                    ]
-                    : []),
-            ]
+                  {
+                      label: 'Data',
+                      icon: ChartColumnIncreasing,
+                      onClick: () => navigate('/capture-data'),
+                      path: '/capture-data',
+                  },
+                  {
+                      label: 'Profile Settings',
+                      icon: User,
+                      onClick: () => navigate('/profile-settings'),
+                      path: '/profile-settings',
+                  },
+                  ...(isAdmin
+                      ? [
+                            {
+                                label: 'Admin Dashboard',
+                                icon: Shield,
+                                onClick: () => navigate('/admin/water-data'),
+                                path: '/admin',
+                            },
+                        ]
+                      : []),
+              ]
             : []),
     ];
 
@@ -113,9 +136,19 @@ export default function DashboardNavbar() {
                                 alt='User avatar'
                                 radius='xl'
                                 size='md'
-                                style={{ cursor: 'pointer' }}
+                                style={{
+                                    cursor: 'pointer',
+                                    backgroundColor: !avatarSrc
+                                        ? avatarColor
+                                        : undefined,
+                                    color: '#fff',
+                                    fontWeight: 'bold',
+                                    fontSize: '0.875rem',
+                                }}
                                 onClick={handleProfileClick}
-                            />
+                            >
+                                {!avatarSrc ? avatarInitials : undefined}
+                            </Avatar>
                         </div>
                     ) : (
                         <Button variant='filled' onClick={handleLoginClick}>
