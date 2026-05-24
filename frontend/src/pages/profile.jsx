@@ -113,19 +113,9 @@ function buildInitialProfile(user, persistedProfile = null) {
         user?.email ||
         'taylor.brooks@microtrack.org';
 
-    const educationDefault = educationEntries.map((entry) => ({
-        institution: entry.institution,
-        qualification: entry.qualification,
-        description: entry.description,
-        ...parseRangeToDates(entry.dateRange),
-    }));
+    const educationDefault = [];
 
-    const experienceDefault = experienceEntries.map((entry) => ({
-        role: entry.role,
-        organization: entry.organization,
-        description: entry.description,
-        ...parseRangeToDates(entry.dateRange),
-    }));
+    const experienceDefault = [];
 
     const education =
         Array.isArray(persistedProfile?.education) &&
@@ -157,8 +147,6 @@ function buildInitialProfile(user, persistedProfile = null) {
             ? persistedProfile.interests
             : interests;
 
-    const defaultBio = `${safeName} ${safeSurname} works with MicroTrack to monitor environmental water samples, validate biological metadata, and help transform field data into usable research insights. Their focus sits at the intersection of microbiology, public health, and applied environmental science, with a strong interest in making complex laboratory results easier to interpret for field teams and decision makers.`;
-
     const profileImage =
         typeof persistedProfile?.profileImage === 'string' &&
         persistedProfile.profileImage.trim().length > 0
@@ -171,7 +159,7 @@ function buildInitialProfile(user, persistedProfile = null) {
         role: safeRole,
         email: safeEmail,
         interestsCsv: interestArray.join(', '),
-        bio: persistedProfile?.bio || defaultBio,
+        bio: persistedProfile?.bio || '',
         education,
         experience,
         profileImage,
@@ -423,9 +411,11 @@ export default function Profile() {
     }
 
     function updateEducation(index, field, value) {
+        console.log('updateEducation called:', { index, field, value });
         setDraftData((prev) => {
             const next = cloneData(prev);
             next.education[index][field] = value;
+            console.log('Updated education entry:', next.education[index]);
             return next;
         });
     }
@@ -453,9 +443,11 @@ export default function Profile() {
     }
 
     function updateExperience(index, field, value) {
+        console.log('updateExperience called:', { index, field, value });
         setDraftData((prev) => {
             const next = cloneData(prev);
             next.experience[index][field] = value;
+            console.log('Updated experience entry:', next.experience[index]);
             return next;
         });
     }
