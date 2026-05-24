@@ -23,23 +23,6 @@ const AVATAR_COLORS = [
     '#e22732',
 ];
 
-const getInitials = (name, surname) => {
-    const initials = [];
-    if (name) initials.push(name.charAt(0).toUpperCase());
-    if (surname) initials.push(surname.charAt(0).toUpperCase());
-    return initials.join('');
-};
-
-const getColorFromName = (name, surname) => {
-    const fullName = `${name || ''}${surname || ''}`;
-    let hash = 0;
-    for (let i = 0; i < fullName.length; i++) {
-        hash = fullName.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    const colorIndex = Math.abs(hash) % AVATAR_COLORS.length;
-    return AVATAR_COLORS[colorIndex];
-};
-
 export default function DashboardNavbar() {
     const [drawerOpened, setDrawerOpened] = useState(false);
     const navigate = useNavigate();
@@ -48,8 +31,7 @@ export default function DashboardNavbar() {
     const isAuthenticated = Boolean(user);
     const isAdmin = user?.role === 'admin';
     const avatarSrc = user?.profileImage || null;
-    const avatarInitials = getInitials(user?.name, user?.surname);
-    const avatarColor = getColorFromName(user?.name, user?.surname);
+    const avatarName = `${user?.name || ''} ${user?.surname || ''}`.trim();
 
     const handleLogout = async () => {
         setDrawerOpened(false);
@@ -132,23 +114,16 @@ export default function DashboardNavbar() {
                                 Logout
                             </Button>
                             <Avatar
-                                src={avatarSrc}
+                                src={avatarSrc || undefined}
+                                name={!avatarSrc ? avatarName : undefined}
                                 alt='User avatar'
                                 radius='xl'
                                 size='md'
-                                style={{
-                                    cursor: 'pointer',
-                                    backgroundColor: !avatarSrc
-                                        ? avatarColor
-                                        : undefined,
-                                    color: '#fff',
-                                    fontWeight: 'bold',
-                                    fontSize: '0.875rem',
-                                }}
+                                color={!avatarSrc ? 'initials' : undefined}
+                                allowedInitialsColors={AVATAR_COLORS}
+                                style={{ cursor: 'pointer' }}
                                 onClick={handleProfileClick}
-                            >
-                                {!avatarSrc ? avatarInitials : undefined}
-                            </Avatar>
+                            />
                         </div>
                     ) : (
                         <Button variant='filled' onClick={handleLoginClick}>

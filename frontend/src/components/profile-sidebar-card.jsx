@@ -13,20 +13,17 @@ import {
     Title,
 } from '@mantine/core';
 
-const getInitials = (name, surname) => {
-    const initials = [];
-    if (name) initials.push(name.charAt(0).toUpperCase());
-    if (surname) initials.push(surname.charAt(0).toUpperCase());
-    return initials.join('');
-};
-
-const getColorFromName = (name, surname) => {
-    const fullName = `${name || ''}${surname || ''}`;
-    let hash = 0;
-    for (let i = 0; i < fullName.length; i++) {
-        hash = fullName.charCodeAt(i) + ((hash << 5) - hash);
-    }
-};
+const AVATAR_COLORS = [
+    '#f06418',
+    '#fc8a08',
+    '#00b5ff',
+    '#1f32c4',
+    '#4f23c0',
+    '#7b2eda',
+    '#c02adf',
+    '#f01879',
+    '#e22732',
+];
 
 export default function ProfileSidebarCard({
     avatarSrc,
@@ -44,30 +41,23 @@ export default function ProfileSidebarCard({
     onRemoveProfileImage,
     onUpdateField,
 }) {
-    const avatarInitials = getInitials(draftData.name, draftData.surname);
-    const avatarColor = getColorFromName(draftData.name, draftData.surname);
+    const avatarName =
+        `${draftData.name || ''} ${draftData.surname || ''}`.trim();
 
     return (
         <Card radius='md' withBorder padding='md' className='profile-card'>
             <Stack gap='lg' align='stretch'>
                 <Stack align='center' gap='md' pt='xs'>
                     <Avatar
-                        src={avatarSrc}
+                        src={avatarSrc || undefined}
+                        name={!avatarSrc ? avatarName : undefined}
                         radius='999px'
                         size={164}
                         className='profile-avatar'
                         alt='User avatar'
-                        style={{
-                            backgroundColor: !avatarSrc
-                                ? avatarColor
-                                : undefined,
-                            color: '#fff',
-                            fontWeight: 'bold',
-                            fontSize: '2.5rem',
-                        }}
-                    >
-                        {!avatarSrc ? avatarInitials : undefined}
-                    </Avatar>
+                        color={!avatarSrc ? 'initials' : undefined}
+                        allowedInitialsColors={AVATAR_COLORS}
+                    />
 
                     {isEditing ? (
                         <Stack gap='sm' w='100%' mt={2}>
