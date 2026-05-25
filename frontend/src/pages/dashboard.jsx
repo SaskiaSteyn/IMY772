@@ -1,9 +1,7 @@
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { MapContainer, Marker, TileLayer } from 'react-leaflet';
-import { useNavigate } from 'react-router-dom';
 import DashboardNavbar from '../components/dashboard/dashboard-navbar.jsx';
 import SamplePanel from '../components/dashboard/sample-panel.jsx';
 import { useAuth } from '../context/auth-context.jsx';
@@ -100,7 +98,6 @@ export default function Dashboard() {
     const [selectedLocationSamples, setSelectedLocationSamples] =
         useState(null);
     const { user } = useAuth();
-    const navigate = useNavigate();
 
     // Fetch samples from the API
     useEffect(() => {
@@ -243,45 +240,6 @@ export default function Dashboard() {
                 locationData={selectedLocationSamples}
                 onClose={() => setSelectedLocationSamples(null)}
             />
-
-            {user && (
-                <button
-                    onClick={() => navigate('/capture-data')}
-                    style={{
-                        position: 'fixed',
-                        bottom: '20px',
-                        left: '20px',
-                        width: '56px',
-                        height: '56px',
-                        borderRadius: '50%',
-                        backgroundColor: '#7db344',
-                        border: 'none',
-                        color: 'white',
-                        fontSize: '28px',
-                        fontWeight: 'bold',
-                        cursor: 'pointer',
-                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'all 0.3s ease',
-                        zIndex: selectedLocationSamples ? 50 : 100,
-                    }}
-                    onMouseEnter={(e) => {
-                        e.target.style.backgroundColor = '#45a049';
-                        e.target.style.boxShadow =
-                            '0 4px 12px rgba(0, 0, 0, 0.3)';
-                    }}
-                    onMouseLeave={(e) => {
-                        e.target.style.backgroundColor = '#4CAF50';
-                        e.target.style.boxShadow =
-                            '0 2px 8px rgba(0, 0, 0, 0.2)';
-                    }}
-                    title='Add new data'
-                >
-                    <Plus size={28} color='white' strokeWidth={3} />
-                </button>
-            )}
         </div>
     );
 }

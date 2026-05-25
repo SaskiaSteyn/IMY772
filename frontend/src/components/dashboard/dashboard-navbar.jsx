@@ -1,14 +1,18 @@
-import { Avatar, Button, Drawer, NavLink } from '@mantine/core';
+import { Avatar, Button, Divider, Stack, Text } from '@mantine/core';
 import {
     ChartColumnIncreasing,
+    ChevronLeft,
+    ChevronRight,
     LayoutDashboard,
-    Menu,
+    LogIn,
+    LogOut,
     Shield,
     User,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/auth-context.jsx';
+import LogoutConfirmationModal from '../logout-confirmation-modal.jsx';
 import './dashboard-navbar.scss';
 
 const AVATAR_COLORS = [
@@ -24,19 +28,52 @@ const AVATAR_COLORS = [
 ];
 
 export default function DashboardNavbar() {
-    const [drawerOpened, setDrawerOpened] = useState(false);
+    const [sidebarOpen, setSidebarOpen] = useState(() => {
+        const saved = localStorage.getItem('sidebarOpen');
+        return saved !== null ? JSON.parse(saved) : true;
+    });
+    const [logoutModalOpened, setLogoutModalOpened] = useState(false);
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
     const { user, logout } = useAuth();
     const isAuthenticated = Boolean(user);
     const isAdmin = user?.role === 'admin';
+
+    // Debug logging
+    useEffect(() => {
+        console.log('User:', user);
+        console.log('isAuthenticated:', isAuthenticated);
+        console.log('isAdmin:', isAdmin);
+        console.log('user?.role:', user?.role);
+    }, [user, isAuthenticated, isAdmin]);
     const avatarSrc = user?.profileImage || null;
     const avatarName = `${user?.name || ''} ${user?.surname || ''}`.trim();
 
-    const handleLogout = async () => {
-        setDrawerOpened(false);
-        navigate('/dashboard', { replace: true });
-        await logout();
+    // Update CSS variable on document root when sidebar state changes
+    useEffect(() => {
+        const width = sidebarOpen ? '280px' : '80px';
+        document.documentElement.style.setProperty('--sidebar-width', width);
+    }, [sidebarOpen]);
+
+    // Save sidebar state to localStorage
+    useEffect(() => {
+        localStorage.setItem('sidebarOpen', JSON.stringify(sidebarOpen));
+    }, [sidebarOpen]);
+
+    const handleLogout = () => {
+        setLogoutModalOpened(true);
+    };
+
+    const handleConfirmLogout = async () => {
+        setIsLoggingOut(true);
+        try {
+            navigate('/dashboard', { replace: true });
+            await logout();
+        } finally {
+            setIsLoggingOut(false);
+            setLogoutModalOpened(false);
+        }
     };
 
     const handleLoginClick = () => {
@@ -83,97 +120,162 @@ export default function DashboardNavbar() {
     ];
 
     return (
-        <>
-            <nav className='navbar'>
-                <div className='left-content'>
-                    <button
-                        className='menu-button'
-                        onClick={() => setDrawerOpened(true)}
-                        aria-label='Toggle navigation'
-                    >
-                        <Menu size={24} />
-                    </button>
-                    <img
-                        src='/microtrack-logo.png'
-                        alt='App Logo'
-                        height={'28px'}
-                        className='logo'
-                        onClick={() => navigate('/dashboard')}
-                    />
-                </div>
-                <div className='right-content'>
-                    {user ? (
-                        <div
-                            style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '12px',
-                            }}
-                        >
-                            <Button variant='outline' onClick={handleLogout}>
-                                Logout
-                            </Button>
-                            <Avatar
-                                src={avatarSrc || undefined}
-                                name={!avatarSrc ? avatarName : undefined}
-                                alt='User avatar'
-                                radius='xl'
-                                size='md'
-                                color={!avatarSrc ? 'initials' : undefined}
-                                allowedInitialsColors={AVATAR_COLORS}
-                                style={{ cursor: 'pointer' }}
-                                onClick={handleProfileClick}
+        <aside className={`sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
+            {/* Header with Logo */}
+            <div className='sidebar-header'>
+                <div className='logo-section'>
+                    {sidebarOpen ? (
+                        <>
+                            <img
+                                src='/microtrack-logo.png'
+                                alt='MicroTrack'
+                                height='28px'
                             />
-                        </div>
+                        </>
                     ) : (
-                        <Button variant='filled' onClick={handleLoginClick}>
-                            Login
-                        </Button>
+                        <img src='/icon.svg' alt='MicroTrack' height='28px' />
                     )}
                 </div>
+            </div>
+
+            {/* Navigation Menu Items */}
+            <nav className='sidebar-nav'>
+                <Stack gap={0}>
+                    {menuItems.map((item) => {
+                        const Icon = item.icon;
+                        const isProfileRoute =
+                            location.pathname === '/profile' ||
+                            location.pathname === '/profile-settings';
+                        const isAdminRoute =
+                            location.pathname.startsWith('/admin');
+                        const isActive =
+                            item.path === '/profile-settings'
+                                ? isProfileRoute
+                                : item.path === '/admin'
+                                  ? isAdminRoute
+                                  : location.pathname === item.path;
+                        return (
+                            <button
+                                key={item.label}
+                                className={`nav-item ${isActive ? 'active' : ''}`}
+                                onClick={item.onClick}
+                                title={item.label}
+                            >
+                                <Icon size={20} />
+                                {sidebarOpen && (
+                                    <span className='nav-label'>
+                                        {item.label}
+                                    </span>
+                                )}
+                            </button>
+                        );
+                    })}
+                </Stack>
             </nav>
 
-            <Drawer
-                opened={drawerOpened}
-                onClose={() => setDrawerOpened(false)}
-                title={
-                    <img
-                        src='/microtrack-logo.png'
-                        alt='MicroTrack'
-                        height='28px'
-                        style={{ cursor: 'pointer' }}
-                    />
-                }
-                position='left'
-                size='xs'
-                className='navigation-drawer'
+            {/* Spacer to push profile section to bottom */}
+            <div className='sidebar-spacer' />
+
+            {/* Toggle Button */}
+            <button
+                className='nav-item toggle-button'
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                title={sidebarOpen ? 'Collapse' : 'Expand'}
             >
-                {menuItems.map((item) => {
-                    const Icon = item.icon;
-                    const isProfileRoute =
-                        location.pathname === '/profile' ||
-                        location.pathname === '/profile-settings';
-                    const isAdminRoute = location.pathname.startsWith('/admin');
-                    const isActive =
-                        item.path === '/profile-settings'
-                            ? isProfileRoute
-                            : item.path === '/admin'
-                              ? isAdminRoute
-                              : location.pathname === item.path;
-                    return (
-                        <NavLink
-                            key={item.label}
-                            label={item.label}
-                            leftSection={<Icon size={20} />}
-                            onClick={() => {
-                                item.onClick();
-                                setDrawerOpened(false);
-                            }}
-                            active={isActive}
+                {sidebarOpen ? (
+                    <ChevronLeft size={20} />
+                ) : (
+                    <ChevronRight size={20} />
+                )}
+                {sidebarOpen && (
+                    <span className='nav-label'>
+                        {sidebarOpen ? 'Collapse' : 'Expand'}
+                    </span>
+                )}
+            </button>
+
+            {/* Login Section for Unauthenticated Users */}
+            {!isAuthenticated && (
+                <div className='sidebar-footer'>
+                    <Divider mb='md' />
+                    {sidebarOpen ? (
+                        <Button
+                            variant='filled'
+                            fullWidth
+                            size='sm'
+                            onClick={handleLoginClick}
+                        >
+                            Login
+                        </Button>
+                    ) : (
+                        <button
+                            className='nav-item'
+                            onClick={handleLoginClick}
+                            title='Login'
+                        >
+                            <LogIn size={20} />
+                        </button>
+                    )}
+                </div>
+            )}
+
+            {/* User Profile Section */}
+            {isAuthenticated && (
+                <div className='sidebar-footer'>
+                    <Divider mb='md' />
+                    <button
+                        className='profile-button'
+                        onClick={handleProfileClick}
+                        title='View Profile'
+                    >
+                        <Avatar
+                            src={avatarSrc || undefined}
+                            name={!avatarSrc ? avatarName : undefined}
+                            alt='User avatar'
+                            radius='999px'
+                            size={48}
+                            color={!avatarSrc ? 'initials' : undefined}
+                            allowedInitialsColors={AVATAR_COLORS}
                         />
-                    );
-                })}
-            </Drawer>
-        </>
+                        {sidebarOpen && (
+                            <div className='profile-info'>
+                                <Text fw={600} size='sm' truncate>
+                                    {user?.name} {user?.surname}
+                                </Text>
+                                <Text size='xs' c='dimmed' truncate>
+                                    {user?.email}
+                                </Text>
+                            </div>
+                        )}
+                    </button>
+                    {sidebarOpen ? (
+                        <Button
+                            variant='outline'
+                            size='xs'
+                            fullWidth
+                            onClick={handleLogout}
+                            mt='sm'
+                        >
+                            Logout
+                        </Button>
+                    ) : (
+                        <button
+                            className='nav-item'
+                            onClick={handleLogout}
+                            title='Logout'
+                        >
+                            <LogOut size={20} />
+                        </button>
+                    )}
+                </div>
+            )}
+
+            <LogoutConfirmationModal
+                opened={logoutModalOpened}
+                onClose={() => setLogoutModalOpened(false)}
+                onConfirm={handleConfirmLogout}
+                isLoading={isLoggingOut}
+            />
+        </aside>
     );
 }
