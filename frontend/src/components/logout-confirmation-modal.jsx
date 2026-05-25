@@ -27,7 +27,7 @@ export default function LogoutConfirmationModal({
                     >
                         Cancel
                     </Button>
-                    <Button onClick={onConfirm} loading={isLoading}>
+                    <Button color='red' onClick={onConfirm} loading={isLoading}>
                         Logout
                     </Button>
                 </Group>

@@ -5,6 +5,9 @@
     width: 100%;
     background-color: #f5f5f5;
     overflow: hidden;
+    margin-left: var(--sidebar-width, 280px);
+    transition: margin-left 0.3s ease;
+    box-sizing: border-box;
 }
 
 .map-wrapper {

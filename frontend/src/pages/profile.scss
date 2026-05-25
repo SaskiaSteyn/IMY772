@@ -1,88 +1,91 @@
 @import '../styles/variables';
 
 .profile-page {
-  min-height: 100vh;
-  background: $background-color;
+    min-height: 100vh;
+    background: $background-color;
+    margin-left: var(--sidebar-width, 280px);
+    transition: margin-left 0.3s ease;
+    box-sizing: border-box;
 }
 
 .profile-page__content {
-  padding-inline: 20px;
+    padding-inline: 20px;
 }
 
 .profile-card {
-  border-color: #e4e8e0;
-  background: #fff;
+    border-color: #e4e8e0;
+    background: #fff;
 }
 
 .profile-section-title {
-  font-size: 1.25rem;
-  font-weight: 800;
+    font-size: 1.25rem;
+    font-weight: 800;
 }
 
 .profile-name {
-  font-size: 1.9rem;
-  line-height: 1.08;
-  font-weight: 800;
+    font-size: 1.9rem;
+    line-height: 1.08;
+    font-weight: 800;
 }
 
 .profile-email {
-  color: $accent-color;
+    color: $accent-color;
 }
 
 .profile-divider {
-  border-color: #e4e8e0;
+    border-color: #e4e8e0;
 }
 
 .profile-avatar {
-  border: 6px solid #f0f7e8;
+    border: 6px solid #f0f7e8;
 }
 
 .profile-interest-badge {
-  background-color: #e8f3dc;
-  color: $accent-color;
-  text-transform: none;
-  font-weight: 700;
-  border: 1px solid #e4e8e0;
+    background-color: #e8f3dc;
+    color: $accent-color;
+    text-transform: none;
+    font-weight: 700;
+    border: 1px solid #e4e8e0;
 }
 
 .profile-stat-card {
-  border-color: #e4e8e0;
-  min-height: 96px;
+    border-color: #e4e8e0;
+    min-height: 96px;
 }
 
 .profile-stat-card__value {
-  font-size: 1.45rem;
+    font-size: 1.45rem;
 }
 
 .profile-icon-pill {
-  width: 34px;
-  height: 34px;
-  border-radius: 999px;
-  background-color: #e8f3dc;
-  color: $accent-color;
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    background-color: #e8f3dc;
+    color: $accent-color;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
 }
 
 .profile-impact-value {
-  color: $accent-color;
-  min-width: 40px;
-  text-align: right;
+    color: $accent-color;
+    min-width: 40px;
+    text-align: right;
 }
 
 .profile-line-entry {
-  padding-block: 8px;
+    padding-block: 8px;
 }
 
 .profile-line-entry__range {
-  white-space: nowrap;
+    white-space: nowrap;
 }
 
 .profile-line-entry__description {
-  line-height: 1.85;
+    line-height: 1.85;
 }
 
 .profile-edit-entry {
-  padding-block: 8px;
+    padding-block: 8px;
 }
