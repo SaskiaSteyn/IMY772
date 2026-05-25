@@ -15,6 +15,18 @@ import { useAuth } from '../../context/auth-context.jsx';
 import LogoutConfirmationModal from '../logout-confirmation-modal.jsx';
 import './dashboard-navbar.scss';
 
+const AVATAR_COLORS = [
+    '#f06418',
+    '#fc8a08',
+    '#00b5ff',
+    '#1f32c4',
+    '#4f23c0',
+    '#7b2eda',
+    '#c02adf',
+    '#f01879',
+    '#e22732',
+];
+
 export default function DashboardNavbar() {
     const [sidebarOpen, setSidebarOpen] = useState(() => {
         const saved = localStorage.getItem('sidebarOpen');
@@ -35,15 +47,8 @@ export default function DashboardNavbar() {
         console.log('isAdmin:', isAdmin);
         console.log('user?.role:', user?.role);
     }, [user, isAuthenticated, isAdmin]);
-    const avatarSeed =
-        `${user?.name || ''} ${user?.surname || ''}`.trim() ||
-        user?.email ||
-        'User';
-    const avatarSrc =
-        user?.profileImage ||
-        `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(
-            avatarSeed,
-        )}`;
+    const avatarSrc = user?.profileImage || null;
+    const avatarName = `${user?.name || ''} ${user?.surname || ''}`.trim();
 
     // Update CSS variable on document root when sidebar state changes
     useEffect(() => {
@@ -224,10 +229,13 @@ export default function DashboardNavbar() {
                         title='View Profile'
                     >
                         <Avatar
-                            src={avatarSrc}
+                            src={avatarSrc || undefined}
+                            name={!avatarSrc ? avatarName : undefined}
                             alt='User avatar'
                             radius='999px'
                             size={48}
+                            color={!avatarSrc ? 'initials' : undefined}
+                            allowedInitialsColors={AVATAR_COLORS}
                         />
                         {sidebarOpen && (
                             <div className='profile-info'>
@@ -246,7 +254,6 @@ export default function DashboardNavbar() {
                             size='xs'
                             fullWidth
                             onClick={handleLogout}
-                            color='red'
                             mt='sm'
                         >
                             Logout

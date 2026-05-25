@@ -31,12 +31,19 @@ services:
             - '3000:3000'
         command: >
             sh -c "
-            yarn install &&
-            npx prisma migrate deploy || npx prisma migrate resolve --rolled-back &&
+            echo 'Installing dependencies...' &&
+            yarn install --silent &&
+            echo 'Running migrations...' &&
+            npx prisma migrate deploy &&
+            echo 'Migrations completed successfully' &&
             mkdir -p /app/state &&
             if [ ! -f /app/state/.seeded ]; then
+              echo 'Running seed script...' &&
               node prisma/seed.js &&
-              touch /app/state/.seeded;
+              touch /app/state/.seeded &&
+              echo 'Seed completed successfully';
+            else
+              echo 'Database already seeded, skipping seed script';
             fi &&
             npm run seed:admin &&
             yarn start

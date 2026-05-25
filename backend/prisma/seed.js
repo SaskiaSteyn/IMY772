@@ -340,12 +340,36 @@ async function main() {
 
         // ─── Clear existing sample-related data ─────────────────────────────────────
         console.log('🧹 Clearing existing data...')
-        await prisma.virulenceGene.deleteMany({})
-        await prisma.wgs.deleteMany({})
-        await prisma.metagenomic.deleteMany({})
-        await prisma.amrResistanceGene.deleteMany({})
-        await prisma.adminDeleteAudit.deleteMany({})
-        await prisma.sample.deleteMany({})
+        try {
+            await prisma.virulenceGene.deleteMany({})
+        } catch (e) {
+            console.log('  (virulenceGene table not yet created, skipping)')
+        }
+        try {
+            await prisma.wgs.deleteMany({})
+        } catch (e) {
+            console.log('  (wgs table not yet created, skipping)')
+        }
+        try {
+            await prisma.metagenomic.deleteMany({})
+        } catch (e) {
+            console.log('  (metagenomic table not yet created, skipping)')
+        }
+        try {
+            await prisma.amrResistanceGene.deleteMany({})
+        } catch (e) {
+            console.log('  (amrResistanceGene table not yet created, skipping)')
+        }
+        try {
+            await prisma.adminDeleteAudit.deleteMany({})
+        } catch (e) {
+            console.log('  (adminDeleteAudit table not yet created, skipping)')
+        }
+        try {
+            await prisma.sample.deleteMany({})
+        } catch (e) {
+            console.log('  (sample table not yet created, skipping)')
+        }
         console.log('✓ Cleared old samples and related data')
 
         const mockData = readMockData()
