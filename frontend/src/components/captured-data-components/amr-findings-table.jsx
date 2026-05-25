@@ -1,14 +1,14 @@
 import {DataTable} from 'mantine-datatable';
 import {ActionIcon, Group} from '@mantine/core';
-import {Pencil, Maximize2} from 'lucide-react';
+import {Maximize2, Pencil} from 'lucide-react';
 
-const SamplesTable = ({records, highlightedSampleIds, onEditClick, onExpandClick}) => {
+const AmrFindingsTable = ({records, highlightedSampleIds, onExpandClick, onEditClick}) => {
     return (
         <DataTable
             striped
             highlightOnHover
             records={records}
-            idAccessor='sample_id'
+            idAccessor='finding_id'
             rowSx={(record) => ({
                 backgroundColor: highlightedSampleIds?.has(record.sample_id)
                     ? 'rgba(59, 130, 246, 0.2)'
@@ -17,51 +17,47 @@ const SamplesTable = ({records, highlightedSampleIds, onEditClick, onExpandClick
             })}
             columns={[
                 {
+                    accessor: 'finding_id',
+                    title: 'Finding ID',
+                    width: 100,
+                    textAlignment: 'center',
+                },
+                {
                     accessor: 'sample_id',
                     title: 'Sample ID',
                     width: 120,
                     textAlignment: 'center',
                 },
                 {
-                    accessor: 'collection_date',
-                    title: 'Collection Date',
-                    width: 130,
-                    textAlignment: 'center',
-                    render: (record) => record.collection_date ? new Date(record.collection_date).toLocaleDateString() : '-',
+                    accessor: 'gene_symbol',
+                    title: 'Gene Symbol',
+                    width: 140,
                 },
                 {
-                    accessor: 'water_temp',
-                    title: 'Temp (°C)',
-                    width: 110,
-                    textAlignment: 'center',
-                },
-                {
-                    accessor: 'ph',
-                    title: 'pH',
-                    width: 80,
-                    textAlignment: 'center',
-                },
-                {
-                    accessor: 'tds',
-                    title: 'TDS',
-                    width: 90,
-                    textAlignment: 'center',
-                },
-                {
-                    accessor: 'do',
-                    title: 'DO',
-                    width: 80,
-                    textAlignment: 'center',
-                },
-                {
-                    accessor: 'isolation_source',
-                    title: 'Source',
+                    accessor: 'drug_class',
+                    title: 'Drug Class',
                     width: 150,
                 },
                 {
-                    accessor: 'location_name',
-                    title: 'Location',
-                    width: 180,
+                    accessor: 'analysis_type',
+                    title: 'Analysis Type',
+                    width: 140,
+                },
+                {
+                    accessor: 'method',
+                    title: 'Method',
+                    width: 120,
+                    textAlignment: 'center',
+                },
+                {
+                    accessor: 'percent_identity',
+                    title: 'Identity %',
+                    width: 110,
+                    textAlignment: 'center',
+                    render: (record) => {
+                        const value = parseFloat(record.percent_identity);
+                        return isNaN(value) ? '-' : `${value.toFixed(1)}%`;
+                    },
                 },
                 {
                     accessor: 'actions',
@@ -73,18 +69,18 @@ const SamplesTable = ({records, highlightedSampleIds, onEditClick, onExpandClick
                             <ActionIcon
                                 size='sm'
                                 variant='subtle'
-                                onClick={() => onExpandClick(record)}
-                                title='View full sample data'
+                                onClick={() => onEditClick(record)}
+                                title='Edit finding'
                             >
-                                <Maximize2 size={16} />
+                                <Pencil size={16} />
                             </ActionIcon>
                             <ActionIcon
                                 size='sm'
                                 variant='subtle'
-                                onClick={() => onEditClick(record)}
-                                title='Edit record'
+                                onClick={() => onExpandClick(record)}
+                                title='View sample data'
                             >
-                                <Pencil size={16} />
+                                <Maximize2 size={16} />
                             </ActionIcon>
                         </Group>
                     ),
@@ -100,4 +96,4 @@ const SamplesTable = ({records, highlightedSampleIds, onEditClick, onExpandClick
     );
 };
 
-export default SamplesTable;
+export default AmrFindingsTable;

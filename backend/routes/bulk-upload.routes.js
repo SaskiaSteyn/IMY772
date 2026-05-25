@@ -73,71 +73,70 @@ router.post('/', requireAuth, upload.single('file'), async (req, res) => {
         for (let i = 0; i < samples.length; i++) {
             try {
                 const sample = samples[i];
+                const isolates = sample.isolates || [];
+                const phenotypes = sample.phenotypes || [];
+                const amrFindings = sample.amr_findings || [];
 
-                // Create the sample
+                // Create the sample with sample_id
                 const createdSample = await prisma.sample.create({
                     data: {
+                        sample_id: sample.sample_id, // Required primary key
                         latitude: sample.latitude,
                         longitude: sample.longitude,
-                        water_temperature: sample.water_temperature,
+                        water_temp: sample.water_temperature || sample.water_temp, // Map water_temperature to water_temp
                         ph: sample.ph,
                         tds: sample.tds,
                         do: sample.do,
-                        sample_analysis_type: sample.sample_analysis_type,
                         isolation_source: sample.isolation_source,
                         collection_date: sample.collection_date
                             ? new Date(sample.collection_date)
                             : null,
                         location_name: sample.location_name,
-                        collected_by: sample.collected_by,
-                        predicted_sir_profile: sample.predicted_sir_profile,
                         uploaded_by: req.user.userID,
                     },
                 });
 
-                const sampleID = createdSample.sampleID;
-                results.sampleIDs.push(sampleID);
+                results.sampleIDs.push(createdSample.sample_id);
 
-                // Create metagenomic records if present
-                if (
-                    sample.metagenomic &&
-                    Array.isArray(sample.metagenomic) &&
-                    sample.metagenomic.length > 0
-                ) {
-                    // Collect all unique AMR genes from all metagenomic records
-                    const allAmrGenes = new Set();
-                    for (const metaRecord of sample.metagenomic) {
-                        if (
-                            metaRecord.amr_resistance_genes &&
-                            Array.isArray(metaRecord.amr_resistance_genes)
-                        ) {
-                            metaRecord.amr_resistance_genes.forEach((gene) => {
-                                if (gene && gene.trim() !== '') {
-                                    allAmrGenes.add(gene.trim());
-                                }
-                            });
-                        }
-                    }
-
-                    // Create AMR resistance genes
-                    for (const geneSymbol of allAmrGenes) {
-                        await prisma.amrResistanceGene.create({
+                // Create isolates if present
+                if (Array.isArray(isolates) && isolates.length > 0) {
+                    for (const isolate of isolates) {
+                        await prisma.isolate.create({
                             data: {
-                                sampleID,
-                                geneSymbol,
+                                sample_id: createdSample.sample_id,
+                                organism: isolate.organism,
+                                mlst_type: isolate.mlst_type,
                             },
                         });
                     }
+                }
 
-                    // Create metagenomic records
-                    for (const metaRecord of sample.metagenomic) {
-                        await prisma.metagenomic.create({
+                // Create predicted phenotypes if present
+                if (Array.isArray(phenotypes) && phenotypes.length > 0) {
+                    for (const phenotype of phenotypes) {
+                        await prisma.predictedPhenotype.create({
                             data: {
-                                sampleID,
-                                sequence_name: metaRecord.sequence_name,
-                                element_type: metaRecord.element_type,
-                                class: metaRecord.class,
-                                subclass: metaRecord.subclass,
+                                sample_id: createdSample.sample_id,
+                                organism: phenotype.organism,
+                                antibiotic: phenotype.antibiotic,
+                                resistant: phenotype.resistant,
+                            },
+                        });
+                    }
+                }
+
+                // Create AMR findings if present
+                if (Array.isArray(amrFindings) && amrFindings.length > 0) {
+                    for (const finding of amrFindings) {
+                        await prisma.amrFinding.create({
+                            data: {
+                                finding_id: finding.finding_id,
+                                sample_id: createdSample.sample_id,
+                                analysis_type: finding.analysis_type,
+                                gene_symbol: finding.gene_symbol,
+                                drug_class: finding.drug_class,
+                                method: finding.method,
+                                percent_identity: finding.percent_identity,
                             },
                         });
                     }
