@@ -38,6 +38,7 @@ services:
               node prisma/seed.js &&
               touch /app/state/.seeded;
             fi &&
+            npm run seed:admin &&
             yarn start
             "
         depends_on:

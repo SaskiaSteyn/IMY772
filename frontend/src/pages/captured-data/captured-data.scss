@@ -5,6 +5,9 @@
     background: #ffffff;
     display: flex;
     flex-direction: column;
+    margin-left: var(--sidebar-width, 280px);
+    transition: margin-left 0.3s ease;
+    box-sizing: border-box;
 }
 
 .captured-data-container {

@@ -27,6 +27,14 @@ export default function DashboardNavbar() {
     const { user, logout } = useAuth();
     const isAuthenticated = Boolean(user);
     const isAdmin = user?.role === 'admin';
+
+    // Debug logging
+    useEffect(() => {
+        console.log('User:', user);
+        console.log('isAuthenticated:', isAuthenticated);
+        console.log('isAdmin:', isAdmin);
+        console.log('user?.role:', user?.role);
+    }, [user, isAuthenticated, isAdmin]);
     const avatarSeed =
         `${user?.name || ''} ${user?.surname || ''}`.trim() ||
         user?.email ||
@@ -238,6 +246,7 @@ export default function DashboardNavbar() {
                             size='xs'
                             fullWidth
                             onClick={handleLogout}
+                            color='red'
                             mt='sm'
                         >
                             Logout
