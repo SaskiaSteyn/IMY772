@@ -1,4 +1,4 @@
-@import '../styles/variables';
+@use '../styles/variables' as *;
 
 .auth-page {
     min-height: 100vh;
@@ -16,7 +16,7 @@
     flex-direction: column;
     align-items: center;
     gap: 0.75rem;
-    border: 1px solid #B0BEC5;
+    border: 1px solid #b0bec5;
     border-radius: 10px;
     padding: 1.25rem;
     background: #fff;
