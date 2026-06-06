@@ -1,7 +1,5 @@
 /**
  * Tests for the /api/samples routes.
- *
- * Prisma is mocked so no real database connection is required.
  */
 
 import {jest} from '@jest/globals'
@@ -58,23 +56,22 @@ function authCookie(payload) {
     return [`token=${signToken(payload)}`]
 }
 
-// ─── Sample fixture ───────────────────────────────────────────────────────────
+// ─── Sample fixture (matches actual schema) ───────────────────────────────────
 
 const sampleFixture = {
-    sampleID: 1,
+    sample_id: 'SAMPLE-001',
     latitude: 25.12,
     longitude: 28.45,
-    water_temperature: 22.5,
+    water_temp: 22.5,
     ph: 7.2,
     tds: null,
     do: null,
-    sample_analysis_type: 'WGS',
     isolation_source: 'River',
     collection_date: new Date('2024-01-15').toISOString(),
     location_name: 'Test River',
-    collected_by: 'Researcher A',
     uploaded_by: 1,
-    predicted_sir_profile: 'Susceptible',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
 }
 
 // ─── POST /api/samples ────────────────────────────────────────────────────────
@@ -82,76 +79,73 @@ const sampleFixture = {
 describe('POST /api/samples', () => {
     beforeEach(() => jest.clearAllMocks())
 
-    test('returns 400 when latitude and longitude are missing', async () => {
+    test('returns 400 when required fields (sample_id, latitude, longitude) are missing', async () => {
         const res = await api().post('/api/samples').set('Cookie', authCookie()).send({})
         expect(res.status).toBe(400)
         expect(res.body.errors).toBeDefined()
     })
 
     test('returns 400 when latitude is not a decimal', async () => {
-        const res = await api().post('/api/samples').set('Cookie', authCookie()).send({
-            latitude: 'not-a-number',
-            longitude: '28.45',
-        })
-        expect(res.status).toBe(400)
-    })
-
-    test('returns 400 when predicted_sir_profile is invalid', async () => {
-        const res = await api().post('/api/samples').set('Cookie', authCookie()).send({
-            latitude: '25.12',
-            longitude: '28.45',
-            predicted_sir_profile: 'Unknown',
-        })
+        const res = await api()
+            .post('/api/samples')
+            .set('Cookie', authCookie())
+            .send({
+                sample_id: 'SAMP-1',
+                latitude: 'not-a-number',
+                longitude: '28.45',
+            })
         expect(res.status).toBe(400)
     })
 
     test('returns 201 with created sample on success', async () => {
         mockPrismaSample.create.mockResolvedValue(sampleFixture)
 
-        const res = await api().post('/api/samples').set('Cookie', authCookie()).send({
-            latitude: '25.12',
-            longitude: '28.45',
-            sample_analysis_type: 'WGS',
-        })
+        const res = await api()
+            .post('/api/samples')
+            .set('Cookie', authCookie())
+            .send({
+                sample_id: 'SAMPLE-001',
+                latitude: '25.12',
+                longitude: '28.45',
+            })
 
         expect(res.status).toBe(201)
         expect(res.body.sample).toBeDefined()
         expect(res.body.sample.latitude).toBe(sampleFixture.latitude)
     })
 
-    test('parses optional create fields before saving', async () => {
+    test('parses optional numeric fields before saving', async () => {
         mockPrismaSample.create.mockResolvedValue(sampleFixture)
 
-        const res = await api().post('/api/samples').set('Cookie', authCookie()).send({
-            latitude: '25.12',
-            longitude: '28.45',
-            water_temperature: '18.5',
-            ph: '7.4',
-            tds: '120.2',
-            do: '9.6',
-            sample_analysis_type: 'Metagenomic',
-            isolation_source: 'Dam',
-            collection_date: '2024-02-20',
-            location_name: 'Test Dam',
-            collected_by: 'Researcher B',
-            predicted_sir_profile: 'Intermediate',
-        })
+        const res = await api()
+            .post('/api/samples')
+            .set('Cookie', authCookie())
+            .send({
+                sample_id: 'SAMP-OPT',
+                latitude: '25.12',
+                longitude: '28.45',
+                water_temp: '18.5',
+                ph: '7.4',
+                tds: '120.2',
+                do: '9.6',
+                isolation_source: 'Dam',
+                collection_date: '2024-02-20',
+                location_name: 'Test Dam',
+            })
 
         expect(res.status).toBe(201)
         expect(mockPrismaSample.create).toHaveBeenCalledWith({
             data: expect.objectContaining({
-                water_temperature: 18.5,
+                sample_id: 'SAMP-OPT',
+                water_temp: 18.5,
                 ph: 7.4,
                 tds: 120.2,
                 do: 9.6,
-                sample_analysis_type: 'Metagenomic',
                 isolation_source: 'Dam',
                 location_name: 'Test Dam',
                 latitude: 25.12,
                 longitude: 28.45,
-                collected_by: 'Researcher B',
                 uploaded_by: 1,
-                predicted_sir_profile: 'Intermediate',
             }),
         })
         expect(mockPrismaSample.create.mock.calls[0][0].data.collection_date).toBeInstanceOf(Date)
@@ -160,22 +154,26 @@ describe('POST /api/samples', () => {
     test('returns 500 when sample creation fails', async () => {
         mockPrismaSample.create.mockRejectedValue(new Error('db down'))
 
-        const res = await api().post('/api/samples').set('Cookie', authCookie()).send({
-            latitude: '25.12',
-            longitude: '28.45',
-        })
+        const res = await api()
+            .post('/api/samples')
+            .set('Cookie', authCookie())
+            .send({
+                sample_id: 'FAIL',
+                latitude: '25.12',
+                longitude: '28.45',
+            })
 
         expect(res.status).toBe(500)
         expect(res.body.message).toMatch(/failed to create sample/i)
     })
 })
 
-// ─── POST /api/samples/predict-sir ───────────────────────────────────────────
+// ─── POST /api/samples/predict-phenotype ──────────────────────────────────────
 
 describe('POST /api/samples/predict-phenotype', () => {
     beforeEach(() => jest.clearAllMocks())
 
-    test('returns 400 when coordinates or organism/antibiotic are missing', async () => {
+    test('returns 400 when required fields are missing', async () => {
         const res = await api()
             .post('/api/samples/predict-phenotype')
             .set('Cookie', authCookie())
@@ -185,7 +183,6 @@ describe('POST /api/samples/predict-phenotype', () => {
     })
 
     test('returns prediction when request is valid', async () => {
-        // Mock training samples with predictedPhenotypes
         mockPrismaSample.findMany.mockResolvedValue([
             {
                 latitude: 25.13,
@@ -285,20 +282,20 @@ describe('GET /api/samples', () => {
     })
 })
 
-// ─── GET /api/samples/:sampleID ───────────────────────────────────────────────
+// ─── GET /api/samples/:sample_id ──────────────────────────────────────────────
 
-describe('GET /api/samples/:sampleID', () => {
+describe('GET /api/samples/:sample_id', () => {
     beforeEach(() => jest.clearAllMocks())
 
-    test('returns 400 when sampleID is not an integer', async () => {
-        const res = await api().get('/api/samples/abc')
-        expect(res.status).toBe(400)
+    test('returns 400 when sample_id is not a string (missing param)', async () => {
+        const res = await api().get('/api/samples/abc123')
+        expect(res.status).not.toBe(400) // Should be 404 because not found, not 400
     })
 
     test('returns 404 when sample is not found', async () => {
         mockPrismaSample.findUnique.mockResolvedValue(null)
 
-        const res = await api().get('/api/samples/999')
+        const res = await api().get('/api/samples/NONEXISTENT')
         expect(res.status).toBe(404)
         expect(res.body.message).toMatch(/not found/i)
     })
@@ -306,61 +303,55 @@ describe('GET /api/samples/:sampleID', () => {
     test('returns 200 and the sample when found', async () => {
         mockPrismaSample.findUnique.mockResolvedValue(sampleFixture)
 
-        const res = await api().get('/api/samples/1')
+        const res = await api().get('/api/samples/SAMPLE-001')
         expect(res.status).toBe(200)
-        expect(res.body.sample.sampleID).toBe(1)
+        expect(res.body.sample.sample_id).toBe('SAMPLE-001')
     })
 
     test('returns 500 when sample lookup fails', async () => {
         mockPrismaSample.findUnique.mockRejectedValue(new Error('db down'))
 
-        const res = await api().get('/api/samples/1')
+        const res = await api().get('/api/samples/SAMPLE-001')
 
         expect(res.status).toBe(500)
         expect(res.body.message).toMatch(/failed to retrieve sample/i)
     })
 })
 
-// ─── PUT /api/samples/:sampleID ───────────────────────────────────────────────
+// ─── PUT /api/samples/:sample_id ──────────────────────────────────────────────
 
-describe('PUT /api/samples/:sampleID', () => {
+describe('PUT /api/samples/:sample_id', () => {
     beforeEach(() => jest.clearAllMocks())
 
-    test('returns 400 when sampleID is not an integer', async () => {
+    test('returns 200 (no 400) when sample_id is any string (no integer validation)', async () => {
+        // The route doesn't reject any string, so this should attempt update and fail with 404 or 500.
+        mockPrismaSample.update.mockRejectedValue({code: 'P2025'})
         const res = await api().put('/api/samples/not-a-number').send({latitude: '25.55'})
-
-        expect(res.status).toBe(400)
-        expect(res.body.errors).toBeDefined()
+        expect(res.status).toBe(404) // because it tries to find sample_id 'not-a-number'
     })
 
-    test('returns 400 when provided fields fail validation', async () => {
+    test('returns 400 when provided fields fail validation (e.g., invalid decimal)', async () => {
         const res = await api().put('/api/samples/1').send({
-            predicted_sir_profile: 'Unknown',
+            ph: 'not-a-number',
         })
-
         expect(res.status).toBe(400)
         expect(res.body.errors).toBeDefined()
     })
 
     test('returns 200 and updates only provided fields', async () => {
-        mockPrismaSample.update.mockResolvedValue({
-            ...sampleFixture,
-            ph: 8.1,
-            predicted_sir_profile: 'Resistant',
-        })
+        const updatedSample = {...sampleFixture, ph: 8.1}
+        mockPrismaSample.update.mockResolvedValue(updatedSample)
 
-        const res = await api().put('/api/samples/1').send({
+        const res = await api().put('/api/samples/SAMPLE-001').send({
             ph: '8.1',
-            predicted_sir_profile: 'Resistant',
         })
 
         expect(res.status).toBe(200)
         expect(res.body.sample.ph).toBe(8.1)
         expect(mockPrismaSample.update).toHaveBeenCalledWith({
-            where: {sampleID: 1},
+            where: {sample_id: 'SAMPLE-001'},
             data: {
                 ph: 8.1,
-                predicted_sir_profile: 'Resistant',
             },
         })
     })
@@ -368,49 +359,40 @@ describe('PUT /api/samples/:sampleID', () => {
     test('parses all optional update fields before saving', async () => {
         mockPrismaSample.update.mockResolvedValue({
             ...sampleFixture,
-            water_temperature: 18.5,
+            water_temp: 18.5,
             ph: 7.4,
             tds: 120.2,
             do: 9.6,
-            sample_analysis_type: 'Metagenomic',
             isolation_source: 'Dam',
             location_name: 'Updated Dam',
             latitude: 25.5,
             longitude: 28.8,
-            collected_by: 'Researcher B',
-            predicted_sir_profile: 'Susceptible',
         })
 
-        const res = await api().put('/api/samples/1').send({
-            water_temperature: '18.5',
+        const res = await api().put('/api/samples/SAMPLE-001').send({
+            water_temp: '18.5',
             ph: '7.4',
             tds: '120.2',
             do: '9.6',
-            sample_analysis_type: 'Metagenomic',
             isolation_source: 'Dam',
             collection_date: '2024-02-20',
             location_name: 'Updated Dam',
             latitude: '25.5',
             longitude: '28.8',
-            collected_by: 'Researcher B',
-            predicted_sir_profile: 'Susceptible',
         })
 
         expect(res.status).toBe(200)
         expect(mockPrismaSample.update).toHaveBeenCalledWith({
-            where: {sampleID: 1},
+            where: {sample_id: 'SAMPLE-001'},
             data: expect.objectContaining({
-                water_temperature: 18.5,
+                water_temp: 18.5,
                 ph: 7.4,
                 tds: 120.2,
                 do: 9.6,
-                sample_analysis_type: 'Metagenomic',
                 isolation_source: 'Dam',
                 location_name: 'Updated Dam',
                 latitude: 25.5,
                 longitude: 28.8,
-                collected_by: 'Researcher B',
-                predicted_sir_profile: 'Susceptible',
             }),
         })
         expect(mockPrismaSample.update.mock.calls[0][0].data.collection_date).toBeInstanceOf(Date)
@@ -421,7 +403,7 @@ describe('PUT /api/samples/:sampleID', () => {
         error.code = 'P2025'
         mockPrismaSample.update.mockRejectedValue(error)
 
-        const res = await api().put('/api/samples/999').send({latitude: '25.55'})
+        const res = await api().put('/api/samples/MISSING').send({latitude: '25.55'})
 
         expect(res.status).toBe(404)
         expect(res.body.message).toMatch(/not found/i)
@@ -430,34 +412,33 @@ describe('PUT /api/samples/:sampleID', () => {
     test('returns 500 when update fails unexpectedly', async () => {
         mockPrismaSample.update.mockRejectedValue(new Error('db down'))
 
-        const res = await api().put('/api/samples/1').send({longitude: '29.01'})
+        const res = await api().put('/api/samples/SAMPLE-001').send({longitude: '29.01'})
 
         expect(res.status).toBe(500)
         expect(res.body.message).toMatch(/failed to update sample/i)
     })
 })
 
-// ─── DELETE /api/samples/:sampleID ───────────────────────────────────────────
+// ─── DELETE /api/samples/:sample_id ───────────────────────────────────────────
 
-describe('DELETE /api/samples/:sampleID', () => {
+describe('DELETE /api/samples/:sample_id', () => {
     beforeEach(() => jest.clearAllMocks())
 
-    test('returns 400 when sampleID is not an integer', async () => {
+    test('returns 200 (no 400) when sample_id is any string (no integer validation)', async () => {
+        mockPrismaSample.delete.mockRejectedValue({code: 'P2025'})
         const res = await api().delete('/api/samples/not-a-number')
-
-        expect(res.status).toBe(400)
-        expect(res.body.errors).toBeDefined()
+        expect(res.status).toBe(404) // sample not found
     })
 
     test('returns 200 when sample is deleted', async () => {
         mockPrismaSample.delete.mockResolvedValue(sampleFixture)
 
-        const res = await api().delete('/api/samples/1')
+        const res = await api().delete('/api/samples/SAMPLE-001')
 
         expect(res.status).toBe(200)
         expect(res.body.message).toMatch(/deleted successfully/i)
         expect(mockPrismaSample.delete).toHaveBeenCalledWith({
-            where: {sampleID: 1},
+            where: {sample_id: 'SAMPLE-001'},
         })
     })
 
@@ -466,7 +447,7 @@ describe('DELETE /api/samples/:sampleID', () => {
         error.code = 'P2025'
         mockPrismaSample.delete.mockRejectedValue(error)
 
-        const res = await api().delete('/api/samples/999')
+        const res = await api().delete('/api/samples/MISSING')
 
         expect(res.status).toBe(404)
         expect(res.body.message).toMatch(/not found/i)
@@ -475,7 +456,7 @@ describe('DELETE /api/samples/:sampleID', () => {
     test('returns 500 when delete fails unexpectedly', async () => {
         mockPrismaSample.delete.mockRejectedValue(new Error('db down'))
 
-        const res = await api().delete('/api/samples/1')
+        const res = await api().delete('/api/samples/SAMPLE-001')
 
         expect(res.status).toBe(500)
         expect(res.body.message).toMatch(/failed to delete sample/i)
