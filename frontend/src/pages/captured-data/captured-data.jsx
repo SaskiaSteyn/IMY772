@@ -1,34 +1,30 @@
 import {useState, useEffect} from 'react';
-import {Tabs, Button, Group, Title, Container, Stack, Loader, Center} from '@mantine/core';
-import {Plus, Upload, Pencil} from 'lucide-react';
+import {Tabs, Button, Group, Title, Container, Stack, Loader, Center, Select, TextInput, SegmentedControl, SimpleGrid} from '@mantine/core';
+import {Plus, Upload, Pencil, Search} from 'lucide-react';
 import DashboardNavbar from '../../components/dashboard/dashboard-navbar.jsx';
 import SamplesTable from '../../components/captured-data-components/samples-table';
-import MetagenomicTable from '../../components/captured-data-components/metagenomics-table';
-import WgsTable from '../../components/captured-data-components/wgs-table';
-import AmrGenesTable from '../../components/captured-data-components/amr-genes-table';
-import VirulenceGenesTable from '../../components/captured-data-components/virulence-genes-table';
+import IsolatesTable from '../../components/captured-data-components/isolates-table';
+import PredictedPhenotypesTable from '../../components/captured-data-components/predicted-phenotypes-table';
+import AmrFindingsTable from '../../components/captured-data-components/amr-findings-table';
 import AddDataModal from '../../components/captured-data-components/add-data-modal';
 import BulkUploadModal from '../../components/captured-data-components/bulk-upload-modal';
 import EditSampleModal from '../../components/captured-data-components/edit-sample-modal';
-import EditMetagenomicModal from '../../components/captured-data-components/edit-metagenomic-modal';
-import EditWgsModal from '../../components/captured-data-components/edit-wgs-modal';
-import EditAmrGenesModal from '../../components/captured-data-components/edit-amr-genes-modal';
-import EditVirulenceGenesModal from '../../components/captured-data-components/edit-virulence-genes-modal';
+import EditIsolateModal from '../../components/captured-data-components/edit-isolate-modal';
+import EditPhenotypeModal from '../../components/captured-data-components/edit-phenotype-modal';
+import EditAmrFindingModal from '../../components/captured-data-components/edit-amr-finding-modal';
 import ExpandedDataModal from '../../components/captured-data-components/expanded-data-modal.jsx';
 import UpdateSampleSearchModal from '../../components/captured-data-components/update-sample-search-modal';
 import UpdateDataModal from '../../components/captured-data-components/update-data-modal';
 import {
-    createFullSample,
     fetchAllSamples,
-    fetchAllMetagenomic,
-    fetchAllWgs,
-    fetchAllAmrGenes,
-    fetchAllVirulenceGenes,
+    fetchAllIsolates,
+    fetchAllPredictedPhenotypes,
+    fetchAllAmrFindings,
+    createSample,
     updateSample,
-    updateMetagenomic,
-    updateWgs,
-    updateAmrGene,
-    updateVirulenceGene,
+    updateIsolate,
+    updatePredictedPhenotype,
+    updateAmrFinding,
 } from '../../api/sample-data-management.js';
 import {useAuth} from '../../context/auth-context.jsx';
 import './captured-data.scss';
@@ -39,50 +35,99 @@ const CapturedData = () => {
     const [bulkUploadModalOpened, setBulkUploadModalOpened] = useState(false);
     const [activeTab, setActiveTab] = useState('samples');
     const [samples, setSamples] = useState([]);
-    const [metageonomicData, setMetageonomicData] = useState([]);
-    const [wgsData, setWgsData] = useState([]);
-    const [amrGenesData, setAmrGenesData] = useState([]);
-    const [virulenceGenesData, setVirulenceGenesData] = useState([]);
+    const [isolates, setIsolates] = useState([]);
+    const [phenotypes, setPhenotypes] = useState([]);
+    const [amrFindings, setAmrFindings] = useState([]);
     const [highlightedSampleIds, setHighlightedSampleIds] = useState(new Set());
     const [loading, setLoading] = useState(true);
 
     // Edit modal states
     const [editSampleModalOpened, setEditSampleModalOpened] = useState(false);
-    const [editMetagenomicModalOpened, setEditMetagenomicModalOpened] = useState(false);
-    const [editWgsModalOpened, setEditWgsModalOpened] = useState(false);
-    const [editAmrGenesModalOpened, setEditAmrGenesModalOpened] = useState(false);
-    const [editVirulenceGenesModalOpened, setEditVirulenceGenesModalOpened] = useState(false);
     const [recordToEdit, setRecordToEdit] = useState(null);
+
+    const [editIsolateModalOpened, setEditIsolateModalOpened] = useState(false);
+    const [isolateToEdit, setIsolateToEdit] = useState(null);
+
+    const [editPhenotypeModalOpened, setEditPhenotypeModalOpened] = useState(false);
+    const [phenotypeToEdit, setPhenotypeToEdit] = useState(null);
+
+    const [editAmrFindingModalOpened, setEditAmrFindingModalOpened] = useState(false);
+    const [amrFindingToEdit, setAmrFindingToEdit] = useState(null);
 
     // Expanded modal state
     const [expandedModalOpened, setExpandedModalOpened] = useState(false);
     const [expandedData, setExpandedData] = useState({
         sample: null,
-        metagenomic: [],
-        wgs: [],
-        amrGenes: [],
-        virulenceGenes: [],
+        isolates: [],
+        phenotypes: [],
+        amrFindings: [],
     });
 
     const [updateSearchOpened, setUpdateSearchOpened] = useState(false);
     const [selectedUpdateSampleId, setSelectedUpdateSampleId] = useState(null);
     const [updateDataOpened, setUpdateDataOpened] = useState(false);
 
+    // Dual view state
+    const [viewMode, setViewMode] = useState('single'); // 'single' or 'dual'
+    const [primaryTable, setPrimaryTable] = useState('samples');
+    const [secondaryTable, setSecondaryTable] = useState('isolates');
+    const [searchQueryPrimary, setSearchQueryPrimary] = useState('');
+    const [searchQuerySecondary, setSearchQuerySecondary] = useState('');
+    const [searchFieldPrimary, setSearchFieldPrimary] = useState('sample_id');
+    const [searchFieldSecondary, setSearchFieldSecondary] = useState('sample_id');
+
+    // Table field mappings for search options
+    const tableFieldsMap = {
+        samples: [
+            {value: 'sample_id', label: 'Sample ID'},
+            {value: 'collection_date', label: 'Collection Date'},
+            {value: 'location_name', label: 'Location'},
+            {value: 'isolation_source', label: 'Isolation Source'},
+        ],
+        isolates: [
+            {value: 'isolate_id', label: 'Isolate ID'},
+            {value: 'sample_id', label: 'Sample ID'},
+            {value: 'organism', label: 'Organism'},
+            {value: 'mlst_type', label: 'MLST Type'},
+        ],
+        phenotypes: [
+            {value: 'phenotype_id', label: 'Phenotype ID'},
+            {value: 'sample_id', label: 'Sample ID'},
+            {value: 'organism', label: 'Organism'},
+            {value: 'antibiotic', label: 'Antibiotic'},
+        ],
+        amr: [
+            {value: 'finding_id', label: 'Finding ID'},
+            {value: 'sample_id', label: 'Sample ID'},
+            {value: 'gene_symbol', label: 'Gene Symbol'},
+            {value: 'drug_class', label: 'Drug Class'},
+        ],
+    };
+
+    // Filter records based on field and search value
+    const filterRecords = (records, field, query) => {
+        if (!query || query.trim() === '') return records;
+        const lowerQuery = query.toLowerCase();
+        return records.filter((record) => {
+            const value = record[field];
+            if (value === null || value === undefined) return false;
+            return String(value).toLowerCase().includes(lowerQuery);
+        });
+    };
+
     // Load all data (with abort signal for cleanup)
     const loadAllData = async (signal) => {
         try {
-            const [samplesData, metaData, wgsDataResult, amrData, virulenceData] = await Promise.all([
+            const [samplesData, isolatesData, phenotypesData, amrFindingsData] = await Promise.all([
                 fetchAllSamples(signal),
-                fetchAllMetagenomic(signal),
-                fetchAllWgs(signal),
-                fetchAllAmrGenes(signal),
-                fetchAllVirulenceGenes(signal),
+                fetchAllIsolates(signal),
+                fetchAllPredictedPhenotypes(signal),
+                fetchAllAmrFindings(signal),
             ]);
             setSamples(samplesData);
-            setMetageonomicData(metaData);
-            setWgsData(wgsDataResult);
-            setAmrGenesData(amrData);
-            setVirulenceGenesData(virulenceData);
+            setIsolates(isolatesData);
+            setPhenotypes(phenotypesData);
+            setAmrFindings(amrFindingsData);
         } catch (error) {
             if (error.name !== 'AbortError') {
                 console.error('Failed to fetch data:', error);
@@ -101,10 +146,9 @@ const CapturedData = () => {
         } else if (user === null) {
             // No logged in user – clear data and stop loading
             setSamples([]);
-            setMetageonomicData([]);
-            setWgsData([]);
-            setAmrGenesData([]);
-            setVirulenceGenesData([]);
+            setIsolates([]);
+            setPhenotypes([]);
+            setAmrFindings([]);
             setLoading(false);
         }
         return () => abortController.abort();
@@ -121,26 +165,21 @@ const CapturedData = () => {
         }
     }, [highlightedSampleIds]);
 
-    // Filter data for current user (convert uploaded_by to number for comparison)
-    // const userSamples = user?.userID
-    //     ? samples
-    //     : [];
+    // Filter data for current user
     const userSamples = user?.userID
         ? samples.filter((s) => Number(s.uploaded_by) === Number(user.userID))
         : [];
 
-    const userSampleIds = new Set(userSamples.map((s) => s.sampleID));
-    const filteredMetagenomic = metageonomicData.filter((m) => userSampleIds.has(m.sampleID));
-    const filteredWgs = wgsData.filter((w) => userSampleIds.has(w.sampleID));
-    const filteredAmrGenes = amrGenesData.filter((a) => userSampleIds.has(a.sampleID));
-    const userIsolateIds = new Set(filteredWgs.map((w) => w.isolateID));
-    const filteredVirulenceGenes = virulenceGenesData.filter((v) => userIsolateIds.has(v.isolateID));
+    const userSampleIds = new Set(userSamples.map((s) => s.sample_id));
+    const filteredIsolates = isolates.filter((i) => userSampleIds.has(i.sample_id));
+    const filteredPhenotypes = phenotypes.filter((p) => userSampleIds.has(p.sample_id));
+    const filteredAmrFindings = amrFindings.filter((a) => userSampleIds.has(a.sample_id));
 
     const handleAddEntry = async (newEntry) => {
         try {
-            const createdSample = await createFullSample(newEntry);
+            const createdSample = await createSample(newEntry);
             setSamples((prev) => [createdSample, ...prev]);
-            setHighlightedSampleIds(new Set([createdSample.sampleID]));
+            setHighlightedSampleIds(new Set([createdSample.sample_id]));
             setActiveTab('samples');
             window.scrollTo({top: 0, behavior: 'smooth'});
         } catch (err) {
@@ -164,103 +203,86 @@ const CapturedData = () => {
         setEditSampleModalOpened(true);
     };
 
-    const handleEditSampleSave = async (sampleID, updateData) => {
+    const handleEditSampleSave = async (sampleId, updateData) => {
         try {
-            await updateSample(sampleID, updateData);
+            await updateSample(sampleId, updateData);
             const data = await fetchAllSamples();
             setSamples(data);
-            setHighlightedSampleIds(new Set([sampleID]));
+            setHighlightedSampleIds(new Set([sampleId]));
             setEditSampleModalOpened(false);
         } catch (error) {
             console.error('Error updating sample:', error);
         }
     };
 
-    const handleEditMetagenomicClick = (record) => {
-        setRecordToEdit(record);
-        setEditMetagenomicModalOpened(true);
+    const handleEditIsolateClick = (record) => {
+        setIsolateToEdit(record);
+        setEditIsolateModalOpened(true);
     };
 
-    const handleEditMetagenomicSave = async (sampleID, sequenceName, updateData) => {
+    const handleEditIsolateSave = async (isolateId, updateData) => {
         try {
-            await updateMetagenomic(sampleID, sequenceName, updateData);
-            const data = await fetchAllMetagenomic();
-            setMetageonomicData(data);
-            setHighlightedSampleIds(new Set([sampleID]));
-            setEditMetagenomicModalOpened(false);
+            await updateIsolate(isolateId, updateData);
+            const data = await fetchAllIsolates();
+            setIsolates(data);
+            setEditIsolateModalOpened(false);
         } catch (error) {
-            console.error('Error updating metagenomic:', error);
+            console.error('Error updating isolate:', error);
         }
     };
 
-    const handleEditWgsClick = (record) => {
-        setRecordToEdit(record);
-        setEditWgsModalOpened(true);
+    const handleEditPhenotypeClick = (record) => {
+        setPhenotypeToEdit(record);
+        setEditPhenotypeModalOpened(true);
     };
 
-    const handleEditWgsSave = async (sampleID, isolateID, updateData) => {
+    const handleEditPhenotypeSave = async (phenotypeId, updateData) => {
         try {
-            await updateWgs(sampleID, isolateID, updateData);
-            const data = await fetchAllWgs();
-            setWgsData(data);
-            setEditWgsModalOpened(false);
+            await updatePredictedPhenotype(phenotypeId, updateData);
+            const data = await fetchAllPredictedPhenotypes();
+            setPhenotypes(data);
+            setEditPhenotypeModalOpened(false);
         } catch (error) {
-            console.error('Error updating WGS:', error);
+            console.error('Error updating phenotype:', error);
         }
     };
 
-    const handleEditAmrGenesClick = (record) => {
-        setRecordToEdit(record);
-        setEditAmrGenesModalOpened(true);
+    const handleEditAmrFindingClick = (record) => {
+        setAmrFindingToEdit(record);
+        setEditAmrFindingModalOpened(true);
     };
 
-    const handleEditAmrGenesSave = async (sampleID, geneSymbol, updateData) => {
+    const handleEditAmrFindingSave = async (findingId, updateData) => {
         try {
-            await updateAmrGene(sampleID, geneSymbol, updateData);
-            const data = await fetchAllAmrGenes();
-            setAmrGenesData(data);
-            setHighlightedSampleIds(new Set([sampleID]));
-            setEditAmrGenesModalOpened(false);
+            await updateAmrFinding(findingId, updateData);
+            const data = await fetchAllAmrFindings();
+            setAmrFindings(data);
+            setEditAmrFindingModalOpened(false);
         } catch (error) {
-            console.error('Error updating AMR gene:', error);
-        }
-    };
-
-    const handleEditVirulenceGenesClick = (record) => {
-        setRecordToEdit(record);
-        setEditVirulenceGenesModalOpened(true);
-    };
-
-    const handleEditVirulenceGenesSave = async (isolateID, geneSymbol, updateData) => {
-        try {
-            await updateVirulenceGene(isolateID, geneSymbol, updateData);
-            const data = await fetchAllVirulenceGenes();
-            setVirulenceGenesData(data);
-            setEditVirulenceGenesModalOpened(false);
-        } catch (error) {
-            console.error('Error updating virulence gene:', error);
+            console.error('Error updating AMR finding:', error);
         }
     };
 
     const handleExpandClick = (record) => {
-        let sampleID = record.sampleID;
-        if (!sampleID && record.wgs) sampleID = record.wgs.sampleID;
-        if (!sampleID) return;
+        const sampleId = record.sample_id;
+        if (!sampleId) return;
 
-        const sample = samples.find(s => s.sampleID === sampleID);
-        const metagenomic = metageonomicData.filter(m => m.sampleID === sampleID);
-        const wgs = wgsData.filter(w => w.sampleID === sampleID);
-        const amrGenes = amrGenesData.filter(a => a.sampleID === sampleID);
-        const wgsForSample = wgsData.filter(w => w.sampleID === sampleID);
-        const isolateIds = new Set(wgsForSample.map(w => w.isolateID));
-        const virulenceGenes = virulenceGenesData.filter(v => isolateIds.has(v.isolateID));
+        const sample = samples.find(s => s.sample_id === sampleId);
+        const sampleIsolates = isolates.filter(i => i.sample_id === sampleId);
+        const samplePhenotypes = phenotypes.filter(p => p.sample_id === sampleId);
+        const sampleAmrFindings = amrFindings.filter(a => a.sample_id === sampleId);
 
-        setExpandedData({sample, metagenomic, wgs, amrGenes, virulenceGenes});
+        setExpandedData({
+            sample,
+            isolates: sampleIsolates,
+            phenotypes: samplePhenotypes,
+            amrFindings: sampleAmrFindings,
+        });
         setExpandedModalOpened(true);
     };
 
-    const handleSelectSampleForUpdate = (sampleID) => {
-        setSelectedUpdateSampleId(sampleID);
+    const handleSelectSampleForUpdate = (sampleId) => {
+        setSelectedUpdateSampleId(sampleId);
         setUpdateDataOpened(true);
     };
 
@@ -309,91 +331,238 @@ const CapturedData = () => {
                             <Loader size="lg" />
                         </Center>
                     ) : (
-                        <Tabs value={activeTab} onChange={setActiveTab} className='data-tabs'>
-                            <Tabs.List>
-                                <Tabs.Tab value='samples'>Samples</Tabs.Tab>
-                                <Tabs.Tab value='metagenomic'>Metagenomic</Tabs.Tab>
-                                <Tabs.Tab value='wgs'>WGS</Tabs.Tab>
-                                <Tabs.Tab value='amr'>AMR Genes</Tabs.Tab>
-                                <Tabs.Tab value='virulence'>Virulence Genes</Tabs.Tab>
-                            </Tabs.List>
+                        <Stack gap='md'>
+                            {/* View Mode Selector */}
+                            <Group justify='space-between' align='center'>
+                                <SegmentedControl
+                                    value={viewMode}
+                                    onChange={setViewMode}
+                                    data={[
+                                        {label: 'Single Table View', value: 'single'},
+                                        {label: 'Dual Table View', value: 'dual'},
+                                    ]}
+                                />
+                            </Group>
 
-                            <Tabs.Panel value='samples' pt='md'>
-                                <SamplesTable
-                                    records={userSamples}
-                                    highlightedSampleIds={highlightedSampleIds}
-                                    onEditClick={handleEditSampleClick}
-                                    onExpandClick={handleExpandClick}
-                                />
-                            </Tabs.Panel>
-                            <Tabs.Panel value='metagenomic' pt='md'>
-                                <MetagenomicTable
-                                    records={filteredMetagenomic}
-                                    highlightedSampleIds={highlightedSampleIds}
-                                    onEditClick={handleEditMetagenomicClick}
-                                    onExpandClick={handleExpandClick}
-                                />
-                            </Tabs.Panel>
-                            <Tabs.Panel value='wgs' pt='md'>
-                                <WgsTable
-                                    records={filteredWgs}
-                                    highlightedSampleIds={highlightedSampleIds}
-                                    onEditClick={handleEditWgsClick}
-                                    onExpandClick={handleExpandClick}
-                                />
-                            </Tabs.Panel>
-                            <Tabs.Panel value='amr' pt='md'>
-                                <AmrGenesTable
-                                    records={filteredAmrGenes}
-                                    highlightedSampleIds={highlightedSampleIds}
-                                    onEditClick={handleEditAmrGenesClick}
-                                    onExpandClick={handleExpandClick}
-                                />
-                            </Tabs.Panel>
-                            <Tabs.Panel value='virulence' pt='md'>
-                                <VirulenceGenesTable
-                                    records={filteredVirulenceGenes}
-                                    highlightedSampleIds={highlightedSampleIds}
-                                    onEditClick={handleEditVirulenceGenesClick}
-                                    onExpandClick={handleExpandClick}
-                                />
-                            </Tabs.Panel>
-                        </Tabs>
-                    )}
-                </Stack>
+                            {/* Single Table View */}
+                            {viewMode === 'single' ? (
+                                <Tabs value={activeTab} onChange={setActiveTab} className='data-tabs'>
+                                    <Tabs.List>
+                                        <Tabs.Tab value='samples'>Samples</Tabs.Tab>
+                                        <Tabs.Tab value='isolates'>Isolates</Tabs.Tab>
+                                        <Tabs.Tab value='phenotypes'>Predicted Phenotypes</Tabs.Tab>
+                                        <Tabs.Tab value='amr'>AMR Findings</Tabs.Tab>
+                                    </Tabs.List>
+
+                                    <Tabs.Panel value='samples' pt='md'>
+                                        <SamplesTable
+                                            records={userSamples}
+                                            highlightedSampleIds={highlightedSampleIds}
+                                            onEditClick={handleEditSampleClick}
+                                            onExpandClick={handleExpandClick}
+                                        />
+                                    </Tabs.Panel>
+                                    <Tabs.Panel value='isolates' pt='md'>
+                                        <IsolatesTable
+                                            records={filteredIsolates}
+                                            highlightedSampleIds={highlightedSampleIds}
+                                            onEditClick={handleEditIsolateClick}
+                                            onExpandClick={handleExpandClick}
+                                        />
+                                    </Tabs.Panel>
+                                    <Tabs.Panel value='phenotypes' pt='md'>
+                                        <PredictedPhenotypesTable
+                                            records={filteredPhenotypes}
+                                            highlightedSampleIds={highlightedSampleIds}
+                                            onEditClick={handleEditPhenotypeClick}
+                                            onExpandClick={handleExpandClick}
+                                        />
+                                    </Tabs.Panel>
+                                    <Tabs.Panel value='amr' pt='md'>
+                                        <AmrFindingsTable
+                                            records={filteredAmrFindings}
+                                            highlightedSampleIds={highlightedSampleIds}
+                                            onEditClick={handleEditAmrFindingClick}
+                                            onExpandClick={handleExpandClick}
+                                        />
+                                    </Tabs.Panel>
+                                </Tabs>
+                            ) : (
+                                /* Dual Table View */
+                                <Stack gap='md'>
+                                    {/* Dual Tables with Independent Controls */}
+                                    <SimpleGrid cols={{base: 1, md: 2}} spacing={0}>
+                                        {/* Primary Table Section */}
+                                        <div style={{paddingRight: '1rem', borderRight: '2px solid #dee2e6'}}>
+                                            {/* Primary Table Controls */}
+                                            <Stack gap='sm' mb='md'>
+                                                <Select
+                                                    label='Primary Table'
+                                                    placeholder='Select table'
+                                                    value={primaryTable}
+                                                    onChange={(val) => setPrimaryTable(val)}
+                                                    data={[
+                                                        {label: 'Samples', value: 'samples'},
+                                                        {label: 'Isolates', value: 'isolates'},
+                                                        {label: 'Predicted Phenotypes', value: 'phenotypes'},
+                                                        {label: 'AMR Findings', value: 'amr'},
+                                                    ]}
+                                                />
+                                                <Select
+                                                    label='Search Field'
+                                                    placeholder='Select field'
+                                                    value={searchFieldPrimary}
+                                                    onChange={(val) => setSearchFieldPrimary(val || 'sample_id')}
+                                                    data={tableFieldsMap[primaryTable]}
+                                                />
+                                                <TextInput
+                                                    label='Search Value'
+                                                    placeholder='Enter search value...'
+                                                    value={searchQueryPrimary}
+                                                    onChange={(e) => setSearchQueryPrimary(e.currentTarget.value)}
+                                                    leftSection={<Search size={16} />}
+                                                />
+                                            </Stack>
+                                            
+                                            {/* Primary Table */}
+                                            {primaryTable === 'samples' && (
+                                                <SamplesTable
+                                                    records={filterRecords(userSamples, searchFieldPrimary, searchQueryPrimary)}
+                                                    highlightedSampleIds={highlightedSampleIds}
+                                                    onEditClick={handleEditSampleClick}
+                                                    onExpandClick={handleExpandClick}
+                                                />
+                                            )}
+                                            {primaryTable === 'isolates' && (
+                                                <IsolatesTable
+                                                    records={filterRecords(filteredIsolates, searchFieldPrimary, searchQueryPrimary)}
+                                                    highlightedSampleIds={highlightedSampleIds}
+                                                    onEditClick={handleEditIsolateClick}
+                                                    onExpandClick={handleExpandClick}
+                                                />
+                                            )}
+                                            {primaryTable === 'phenotypes' && (
+                                                <PredictedPhenotypesTable
+                                                    records={filterRecords(filteredPhenotypes, searchFieldPrimary, searchQueryPrimary)}
+                                                    highlightedSampleIds={highlightedSampleIds}
+                                                    onEditClick={handleEditPhenotypeClick}
+                                                    onExpandClick={handleExpandClick}
+                                                />
+                                            )}
+                                            {primaryTable === 'amr' && (
+                                                <AmrFindingsTable
+                                                    records={filterRecords(filteredAmrFindings, searchFieldPrimary, searchQueryPrimary)}
+                                                    highlightedSampleIds={highlightedSampleIds}
+                                                    onEditClick={handleEditAmrFindingClick}
+                                                    onExpandClick={handleExpandClick}
+                                                />
+                                            )}
+                                        </div>
+
+                                        {/* Secondary Table Section */}
+                                        <div style={{paddingLeft: '1rem'}}>
+                                            {/* Secondary Table Controls */}
+                                            <Stack gap='sm' mb='md'>
+                                                <Select
+                                                    label='Secondary Table'
+                                                    placeholder='Select table'
+                                                    value={secondaryTable}
+                                                    onChange={(val) => setSecondaryTable(val)}
+                                                    data={[
+                                                        {label: 'Samples', value: 'samples'},
+                                                        {label: 'Isolates', value: 'isolates'},
+                                                        {label: 'Predicted Phenotypes', value: 'phenotypes'},
+                                                        {label: 'AMR Findings', value: 'amr'},
+                                                    ]}
+                                                />
+                                                <Select
+                                                    label='Search Field'
+                                                    placeholder='Select field'
+                                                    value={searchFieldSecondary}
+                                                    onChange={(val) => setSearchFieldSecondary(val || 'sample_id')}
+                                                    data={tableFieldsMap[secondaryTable]}
+                                                />
+                                                <TextInput
+                                                    label='Search Value'
+                                                    placeholder='Enter search value...'
+                                                    value={searchQuerySecondary}
+                                                    onChange={(e) => setSearchQuerySecondary(e.currentTarget.value)}
+                                                    leftSection={<Search size={16} />}
+                                                />
+                                            </Stack>
+                                            
+                                            {/* Secondary Table */}
+                                            {secondaryTable === 'samples' && (
+                                                <SamplesTable
+                                                    records={filterRecords(userSamples, searchFieldSecondary, searchQuerySecondary)}
+                                                    highlightedSampleIds={highlightedSampleIds}
+                                                    onEditClick={handleEditSampleClick}
+                                                    onExpandClick={handleExpandClick}
+                                                />
+                                            )}
+                                            {secondaryTable === 'isolates' && (
+                                                <IsolatesTable
+                                                    records={filterRecords(filteredIsolates, searchFieldSecondary, searchQuerySecondary)}
+                                                    highlightedSampleIds={highlightedSampleIds}
+                                                    onEditClick={handleEditIsolateClick}
+                                                    onExpandClick={handleExpandClick}
+                                                />
+                                            )}
+                                            {secondaryTable === 'phenotypes' && (
+                                                <PredictedPhenotypesTable
+                                                    records={filterRecords(filteredPhenotypes, searchFieldSecondary, searchQuerySecondary)}
+                                                    highlightedSampleIds={highlightedSampleIds}
+                                                    onEditClick={handleEditPhenotypeClick}
+                                                    onExpandClick={handleExpandClick}
+                                                />
+                                            )}
+                                            {secondaryTable === 'amr' && (
+                                                <AmrFindingsTable
+                                                    records={filterRecords(filteredAmrFindings, searchFieldSecondary, searchQuerySecondary)}
+                                                    highlightedSampleIds={highlightedSampleIds}
+                                                    onEditClick={handleEditAmrFindingClick}
+                                                    onExpandClick={handleExpandClick}
+                                                />
+                                            )}
+                                        </div>
+                                    </SimpleGrid>
+                                </Stack>
+                            )}
+                        </Stack>
+                    )}</Stack>
             </Container>
 
-            <AddDataModal opened={modalOpened} onClose={() => setModalOpened(false)} onAddEntry={handleAddEntry} />
-            <BulkUploadModal isOpen={bulkUploadModalOpened} onClose={() => setBulkUploadModalOpened(false)} onUploadSuccess={handleUploadSuccess} />
-            <EditSampleModal opened={editSampleModalOpened} onClose={() => setEditSampleModalOpened(false)} record={recordToEdit} onSave={handleEditSampleSave} />
-            <EditMetagenomicModal opened={editMetagenomicModalOpened} onClose={() => setEditMetagenomicModalOpened(false)} record={recordToEdit} onSave={handleEditMetagenomicSave} />
-            <EditWgsModal opened={editWgsModalOpened} onClose={() => setEditWgsModalOpened(false)} record={recordToEdit} onSave={handleEditWgsSave} />
-            <EditAmrGenesModal opened={editAmrGenesModalOpened} onClose={() => setEditAmrGenesModalOpened(false)} record={recordToEdit} onSave={handleEditAmrGenesSave} />
-            <EditVirulenceGenesModal opened={editVirulenceGenesModalOpened} onClose={() => setEditVirulenceGenesModalOpened(false)} record={recordToEdit} onSave={handleEditVirulenceGenesSave} />
+            <>
+                <AddDataModal opened={modalOpened} onClose={() => setModalOpened(false)} onAddEntry={handleAddEntry} samples={userSamples} />
+                <BulkUploadModal isOpen={bulkUploadModalOpened} onClose={() => setBulkUploadModalOpened(false)} onUploadSuccess={handleUploadSuccess} />
+                <EditSampleModal opened={editSampleModalOpened} onClose={() => setEditSampleModalOpened(false)} record={recordToEdit} onSave={handleEditSampleSave} />
+                <EditIsolateModal opened={editIsolateModalOpened} onClose={() => setEditIsolateModalOpened(false)} record={isolateToEdit} onSave={handleEditIsolateSave} />
+                <EditPhenotypeModal opened={editPhenotypeModalOpened} onClose={() => setEditPhenotypeModalOpened(false)} record={phenotypeToEdit} onSave={handleEditPhenotypeSave} />
+                <EditAmrFindingModal opened={editAmrFindingModalOpened} onClose={() => setEditAmrFindingModalOpened(false)} record={amrFindingToEdit} onSave={handleEditAmrFindingSave} />
 
-            <ExpandedDataModal
-                opened={expandedModalOpened}
-                onClose={() => setExpandedModalOpened(false)}
-                sample={expandedData.sample}
-                metagenomic={expandedData.metagenomic}
-                wgs={expandedData.wgs}
-                amrGenes={expandedData.amrGenes}
-                virulenceGenes={expandedData.virulenceGenes}
-            />
+                <ExpandedDataModal
+                    opened={expandedModalOpened}
+                    onClose={() => setExpandedModalOpened(false)}
+                    sample={expandedData.sample}
+                    isolates={expandedData.isolates}
+                    phenotypes={expandedData.phenotypes}
+                    amrFindings={expandedData.amrFindings}
+                />
 
-            <UpdateSampleSearchModal
-                opened={updateSearchOpened}
-                onClose={() => setUpdateSearchOpened(false)}
-                samples={userSamples}
-                onSelectSample={handleSelectSampleForUpdate}
-            />
+                <UpdateSampleSearchModal
+                    opened={updateSearchOpened}
+                    onClose={() => setUpdateSearchOpened(false)}
+                    samples={userSamples}
+                    onSelectSample={handleSelectSampleForUpdate}
+                />
 
-            <UpdateDataModal
-                opened={updateDataOpened}
-                onClose={() => setUpdateDataOpened(false)}
-                sampleID={selectedUpdateSampleId}
-                onUpdateSuccess={handleUpdateSuccess}
-            />
+                <UpdateDataModal
+                    opened={updateDataOpened}
+                    onClose={() => setUpdateDataOpened(false)}
+                    sampleID={selectedUpdateSampleId}
+                    onUpdateSuccess={handleUpdateSuccess}
+                />
+            </>
         </div>
     );
 };

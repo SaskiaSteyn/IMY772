@@ -16,7 +16,11 @@
         "prisma:migrate:deploy": "dotenv -e ../.env -- prisma migrate deploy",
         "prisma:migrate:status": "dotenv -e ../.env -- prisma migrate status",
         "prisma:migrate:baseline": "sh -c 'mkdir -p prisma/migrations/0000_baseline && dotenv -e ../.env -- prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script > prisma/migrations/0000_baseline/migration.sql'",
-        "prisma:migrate:resolve-baseline": "dotenv -e ../.env -- prisma migrate resolve --applied 0000_baseline"
+        "prisma:migrate:resolve-baseline": "dotenv -e ../.env -- prisma migrate resolve --applied 0000_baseline",
+        "prisma:migrate:fix": "sh scripts/fix-migration.sh",
+        "migrate": "npm run prisma:migrate:deploy",
+        "migrate:dev": "npm run prisma:migrate:dev",
+        "migrate:fix": "npm run prisma:migrate:fix"
     },
     "prisma": {
         "seed": "node prisma/seed.js"
@@ -35,7 +39,9 @@
         "multer": "^2.1.1",
         "openai": "^6.34.0",
         "pg": "^8.20.0",
-        "sharp": "^0.34.5"
+        "sharp": "^0.34.5",
+        "papaparse": "^5.4.1",
+        "xlsx": "^0.18.5"
     },
     "devDependencies": {
         "dotenv-cli": "^7.4.4",

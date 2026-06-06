@@ -1,9 +1,9 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 async function request(path, options = {}) {
-    const { signal, ...restOptions } = options
+    const {signal, ...restOptions} = options
     const res = await fetch(`${API_URL}${path}`, {
-        headers: { 'Content-Type': 'application/json' },
+        headers: {'Content-Type': 'application/json'},
         credentials: 'include',
         signal,
         ...restOptions,
@@ -18,284 +18,174 @@ async function request(path, options = {}) {
     return data
 }
 
-export const createFullSample = async (data) => {
-    try {
-        const { metagenomic, wgs, ...sampleFields } = data
-        const sampleResponse = await request('/api/samples', {
-            method: 'POST',
-            body: JSON.stringify(sampleFields),
-        })
-        const createdSample = sampleResponse.sample
-        const sampleID = createdSample.sampleID
-
-        if (metagenomic && Array.isArray(metagenomic)) {
-            const allAmrGenes = new Set()
-            for (const metaRecord of metagenomic) {
-                if (metaRecord.amr_resistance_genes && Array.isArray(metaRecord.amr_resistance_genes)) {
-                    metaRecord.amr_resistance_genes.forEach(gene => {
-                        if (gene && gene.trim() !== '') allAmrGenes.add(gene.trim())
-                    })
-                }
-            }
-            for (const geneSymbol of allAmrGenes) {
-                await request('/api/amr-resistance-genes', {
-                    method: 'POST',
-                    body: JSON.stringify({ sampleID, geneSymbol }),
-                })
-            }
-            for (const metaRecord of metagenomic) {
-                await request('/api/metagenomic', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        sampleID,
-                        sequence_name: metaRecord.sequence_name,
-                        element_type: metaRecord.element_type,
-                        class: metaRecord.class,
-                        subclass: metaRecord.subclass,
-                    }),
-                })
-            }
-        }
-
-        if (wgs && Array.isArray(wgs)) {
-            for (const wgsRecord of wgs) {
-                const wgsResponse = await request('/api/wgs', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        sampleID,
-                        isolateID: parseInt(wgsRecord.isolateID, 10),
-                        organism: wgsRecord.organism,
-                    }),
-                })
-                const createdWGS = wgsResponse.wgs
-                const isolateID = createdWGS.isolateID
-
-                if (wgsRecord.virulence_genes && Array.isArray(wgsRecord.virulence_genes)) {
-                    for (const geneSymbol of wgsRecord.virulence_genes) {
-                        if (geneSymbol && geneSymbol.trim() !== '') {
-                            await request('/api/virulence-genes', {
-                                method: 'POST',
-                                body: JSON.stringify({
-                                    sampleID,
-                                    isolateID,
-                                    geneSymbol: geneSymbol.trim(),
-                                }),
-                            })
-                        }
-                    }
-                }
-            }
-        }
-
-        const fullSampleResponse = await request(`/api/samples/${sampleID}`)
-        return fullSampleResponse.sample
-    } catch (error) {
-        console.error('API Error creating sample:', error)
-        throw error
-    }
-}
+// ─── SAMPLES API ──────────────────────────────────────────────────────────────
 
 export const fetchAllSamples = async (signal) => {
-    const response = await request('/api/samples', { signal })
+    const response = await request('/api/samples', {signal})
     return response.samples || []
 }
 
-export const fetchAllMetagenomic = async (signal) => {
-    const response = await request('/api/metagenomic', { signal })
-    return response.metagenomic || []
-}
-
-export const fetchAllWgs = async (signal) => {
-    const response = await request('/api/wgs', { signal })
-    return response.wgs || []
-}
-
-export const fetchAllAmrGenes = async (signal) => {
-    const response = await request('/api/amr-resistance-genes', { signal })
-    return response.amrResistanceGenes || []
-}
-
-export const fetchAllVirulenceGenes = async (signal) => {
-    const response = await request('/api/virulence-genes', { signal })
-    return response.virulenceGenes || []
-}
-
-export const fetchSampleById = async (sampleID, signal) => {
-    const response = await request(`/api/samples/${sampleID}`, { signal })
+export const fetchSampleById = async (sampleId, signal) => {
+    const response = await request(`/api/samples/${sampleId}`, {signal})
     return response.sample
 }
 
-export const predictSirProfile = async (data, signal) => {
-    const response = await request('/api/samples/predict-sir', {
+export const createSample = async (sampleData, signal) => {
+    const response = await request('/api/samples', {
         method: 'POST',
-        body: JSON.stringify(data),
+        body: JSON.stringify(sampleData),
+        signal,
+    })
+    return response.sample
+}
+
+export const updateSample = async (sampleId, updateData, signal) => {
+    const response = await request(`/api/samples/${sampleId}`, {
+        method: 'PUT',
+        body: JSON.stringify(updateData),
+        signal,
+    })
+    return response.sample
+}
+
+export const deleteSample = async (sampleId, signal) => {
+    await request(`/api/samples/${sampleId}`, {
+        method: 'DELETE',
+        signal,
+    })
+}
+
+export const predictPhenotype = async (sampleData, signal) => {
+    const response = await request('/api/samples/predict-phenotype', {
+        method: 'POST',
+        body: JSON.stringify(sampleData),
         signal,
     })
     return response.prediction
 }
 
-export const fetchMetagenomicBySample = async (sampleID, signal) => {
-    const response = await request(`/api/metagenomic/sample/${sampleID}`, { signal })
-    return response.metagenomic || []
+// ─── ISOLATES API ────────────────────────────────────────────────────────────
+
+export const fetchAllIsolates = async (signal) => {
+    const response = await request('/api/isolates', {signal})
+    return response.isolates || []
 }
 
-export const fetchWgsBySample = async (sampleID, signal) => {
-    const response = await request(`/api/wgs/sample/${sampleID}`, { signal })
-    return response.wgs || []
+export const fetchIsolateById = async (isolateId, signal) => {
+    const response = await request(`/api/isolates/${isolateId}`, {signal})
+    return response.isolate
 }
 
-export const fetchAmrBySample = async (sampleID, signal) => {
-    const response = await request(`/api/amr-resistance-genes/sample/${sampleID}`, { signal })
-    return response.amrResistanceGenes || []
+export const fetchIsolatesBySample = async (sampleId, signal) => {
+    const response = await request(`/api/isolates/sample/${sampleId}`, {signal})
+    return response.isolates || []
 }
 
-export const fetchVirulenceBySample = async (sampleID, signal) => {
-    const wgsRecords = await fetchWgsBySample(sampleID, signal)
-    const isolateIds = wgsRecords.map(w => w.isolateID)
-    if (isolateIds.length === 0) return []
-    const allVirulence = await fetchAllVirulenceGenes(signal)
-    return allVirulence.filter(v => isolateIds.includes(v.isolateID))
-}
-
-export const updateFullSample = async (sampleID, updatedData, signal) => {
-    const { metagenomic, wgs, amrGenes, virulenceGenes, ...sampleFields } = updatedData
-    await request(`/api/samples/${sampleID}`, {
-        method: 'PUT',
-        body: JSON.stringify(sampleFields),
+export const createIsolate = async (isolateData, signal) => {
+    const response = await request('/api/isolates', {
+        method: 'POST',
+        body: JSON.stringify(isolateData),
         signal,
     })
-
-    const existingMeta = await fetchMetagenomicBySample(sampleID, signal)
-    for (const meta of existingMeta) {
-        await request(`/api/metagenomic/sample/${sampleID}/sequence/${encodeURIComponent(meta.sequence_name)}`, {
-            method: 'DELETE',
-            signal,
-        })
-    }
-    if (metagenomic && metagenomic.length) {
-        for (const meta of metagenomic) {
-            await request('/api/metagenomic', {
-                method: 'POST',
-                body: JSON.stringify({
-                    sampleID,
-                    sequence_name: meta.sequence_name,
-                    element_type: meta.element_type,
-                    class: meta.class,
-                    subclass: meta.subclass,
-                }),
-                signal,
-            })
-        }
-    }
-
-    const existingAmr = await fetchAmrBySample(sampleID, signal)
-    for (const amr of existingAmr) {
-        await request(`/api/amr-resistance-genes/sample/${sampleID}/gene/${encodeURIComponent(amr.geneSymbol)}`, {
-            method: 'DELETE',
-            signal,
-        })
-    }
-    if (amrGenes && amrGenes.length) {
-        for (const geneSymbol of amrGenes) {
-            if (geneSymbol && geneSymbol.trim()) {
-                await request('/api/amr-resistance-genes', {
-                    method: 'POST',
-                    body: JSON.stringify({ sampleID, geneSymbol: geneSymbol.trim() }),
-                    signal,
-                })
-            }
-        }
-    }
-
-    const existingWgs = await fetchWgsBySample(sampleID, signal)
-    for (const w of existingWgs) {
-        const virForIsolate = await request(`/api/virulence-genes/isolate/${w.isolateID}`, { signal })
-        if (virForIsolate.virulenceGenes) {
-            for (const v of virForIsolate.virulenceGenes) {
-                await request(`/api/virulence-genes/isolate/${w.isolateID}/gene/${encodeURIComponent(v.geneSymbol)}`, {
-                    method: 'DELETE',
-                    signal,
-                })
-            }
-        }
-        await request(`/api/wgs/${w.sampleID}/${w.isolateID}`, { method: 'DELETE', signal })
-    }
-
-    if (wgs && wgs.length) {
-        for (const wgsRecord of wgs) {
-            const wgsResponse = await request('/api/wgs', {
-                method: 'POST',
-                body: JSON.stringify({
-                    sampleID,
-                    isolateID: parseInt(wgsRecord.isolateID, 10),
-                    organism: wgsRecord.organism,
-                }),
-                signal,
-            })
-            const createdWGS = wgsResponse.wgs
-            const isolateID = createdWGS.isolateID
-
-            if (virulenceGenes && virulenceGenes.length) {
-                const genesForThisIsolate = virulenceGenes.filter(vg => vg.isolateID === isolateID)
-                for (const vg of genesForThisIsolate) {
-                    if (vg.geneSymbol && vg.geneSymbol.trim()) {
-                        await request('/api/virulence-genes', {
-                            method: 'POST',
-                            body: JSON.stringify({
-                                sampleID,
-                                isolateID,
-                                geneSymbol: vg.geneSymbol.trim(),
-                            }),
-                            signal,
-                        })
-                    }
-                }
-            }
-        }
-    }
+    return response.isolate
 }
 
-export const updateSample = async (sampleID, updateData, signal) => {
-    const response = await request(`/api/samples/${sampleID}`, {
+export const updateIsolate = async (isolateId, updateData, signal) => {
+    const response = await request(`/api/isolates/${isolateId}`, {
         method: 'PUT',
         body: JSON.stringify(updateData),
         signal,
     })
-    return response.sample
+    return response.isolate
 }
 
-export const updateMetagenomic = async (sampleID, sequenceName, updateData, signal) => {
-    const response = await request(`/api/metagenomic/sample/${sampleID}/sequence/${encodeURIComponent(sequenceName)}`, {
+export const deleteIsolate = async (isolateId, signal) => {
+    await request(`/api/isolates/${isolateId}`, {
+        method: 'DELETE',
+        signal,
+    })
+}
+
+// ─── PREDICTED PHENOTYPES API ────────────────────────────────────────────────
+
+export const fetchAllPredictedPhenotypes = async (signal) => {
+    const response = await request('/api/predicted-phenotypes', {signal})
+    return response.phenotypes || []
+}
+
+export const fetchPredictedPhenotypeById = async (phenotypeId, signal) => {
+    const response = await request(`/api/predicted-phenotypes/${phenotypeId}`, {signal})
+    return response.phenotype
+}
+
+export const fetchPredictedPhenotypesBySample = async (sampleId, signal) => {
+    const response = await request(`/api/predicted-phenotypes/sample/${sampleId}`, {signal})
+    return response.phenotypes || []
+}
+
+export const createPredictedPhenotype = async (phenotypeData, signal) => {
+    const response = await request('/api/predicted-phenotypes', {
+        method: 'POST',
+        body: JSON.stringify(phenotypeData),
+        signal,
+    })
+    return response.phenotype
+}
+
+export const updatePredictedPhenotype = async (phenotypeId, updateData, signal) => {
+    const response = await request(`/api/predicted-phenotypes/${phenotypeId}`, {
         method: 'PUT',
         body: JSON.stringify(updateData),
         signal,
     })
-    return response.metagenomic
+    return response.phenotype
 }
 
-export const updateWgs = async (sampleID, isolateID, updateData, signal) => {
-    const response = await request(`/api/wgs/${sampleID}/${isolateID}`, {
+export const deletePredictedPhenotype = async (phenotypeId, signal) => {
+    await request(`/api/predicted-phenotypes/${phenotypeId}`, {
+        method: 'DELETE',
+        signal,
+    })
+}
+
+// ─── AMR FINDINGS API ────────────────────────────────────────────────────────
+
+export const fetchAllAmrFindings = async (signal) => {
+    const response = await request('/api/amr-findings', {signal})
+    return response.amrFindings || []
+}
+
+export const fetchAmrFindingById = async (amrId, signal) => {
+    const response = await request(`/api/amr-findings/${amrId}`, {signal})
+    return response.amrFinding
+}
+
+export const fetchAmrFindingsBySample = async (sampleId, signal) => {
+    const response = await request(`/api/amr-findings/sample/${sampleId}`, {signal})
+    return response.amrFindings || []
+}
+
+export const createAmrFinding = async (findingData, signal) => {
+    const response = await request('/api/amr-findings', {
+        method: 'POST',
+        body: JSON.stringify(findingData),
+        signal,
+    })
+    return response.amrFinding
+}
+
+export const updateAmrFinding = async (amrId, updateData, signal) => {
+    const response = await request(`/api/amr-findings/${amrId}`, {
         method: 'PUT',
         body: JSON.stringify(updateData),
         signal,
     })
-    return response.wgs
+    return response.amrFinding
 }
 
-export const updateAmrGene = async (sampleID, geneSymbol, updateData, signal) => {
-    const response = await request(`/api/amr-resistance-genes/sample/${sampleID}/gene/${encodeURIComponent(geneSymbol)}`, {
-        method: 'PUT',
-        body: JSON.stringify(updateData),
+export const deleteAmrFinding = async (amrId, signal) => {
+    await request(`/api/amr-findings/${amrId}`, {
+        method: 'DELETE',
         signal,
     })
-    return response.amrResistanceGene
-}
-
-export const updateVirulenceGene = async (isolateID, geneSymbol, updateData, signal) => {
-    const response = await request(`/api/virulence-genes/isolate/${isolateID}/gene/${encodeURIComponent(geneSymbol)}`, {
-        method: 'PUT',
-        body: JSON.stringify(updateData),
-        signal,
-    })
-    return response.virulenceGene
 }

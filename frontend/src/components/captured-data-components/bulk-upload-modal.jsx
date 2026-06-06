@@ -25,76 +25,147 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
     const [samplePreviews, setSamplePreviews] = useState([]);
     const [previewOpen, setPreviewOpen] = useState(false);
 
-    // Allowed fields for preview filtering (only used for display)
+    // Allowed fields for samples, isolates, phenotypes, and amr findings
     const allowedSampleFields = [
-        'water_temperature', 'ph', 'tds', 'do', 'sample_analysis_type', 'isolation_source',
-        'collection_date', 'location_name', 'latitude', 'longitude', 'collected_by',
-        'predicted_sir_profile', 'sampleID'
+        'sample_id', 'collection_date', 'location_name', 'latitude', 'longitude',
+        'isolation_source', 'water_temperature', 'ph', 'tds', 'do'
     ];
-    const allowedMetagenomicFields = [
-        'sequence_name', 'element_type', 'class', 'subclass'
+    const allowedIsolateFields = [
+        'isolate_id', 'sample_id', 'organism', 'mlst_type'
     ];
-    const allowedWgsFields = [
-        'isolateID', 'organism'
+    const allowedPhenotypeFields = [
+        'phenotype_id', 'sample_id', 'organism', 'antibiotic', 'resistant'
+    ];
+    const allowedAmrFields = [
+        'finding_id', 'sample_id', 'analysis_type', 'gene_symbol', 'drug_class', 'method', 'percent_identity'
     ];
 
     const filterFields = (obj, allowed) => {
+        if (!obj) return {};
         const filtered = {};
         for (const key of allowed) {
-            if (obj[key] !== undefined) filtered[key] = obj[key];
+            if (obj[key] !== undefined && obj[key] !== null && obj[key] !== '') {
+                filtered[key] = obj[key];
+            }
         }
         return filtered;
     };
 
-    // Build preview objects for each sample, extracting AMR/virulence genes
+    // Detect data type based on first record properties
+    const detectDataType = (data) => {
+        if (!Array.isArray(data) || data.length === 0) return null;
+
+        const first = data[0];
+
+        // Check for nested structure (all_tables_combined.json format)
+        if (first.sample || (first.isolates && !first.sample_id)) {
+            return 'nested';
+        }
+
+        // Check for individual table types
+        if (first.phenotype_id && !first.organism && first.resistant !== undefined) {
+            // This is phenotypes but might be mislabeled
+            return first.resistant !== undefined ? 'phenotypes' : 'unknown';
+        }
+        if (first.finding_id && first.gene_symbol && first.drug_class) {
+            return 'amr_findings';
+        }
+        if (first.isolate_id && first.organism && first.mlst_type) {
+            return 'isolates';
+        }
+        if (first.phenotype_id && first.organism && first.antibiotic) {
+            return 'phenotypes';
+        }
+        if (first.sample_id && (first.collection_date || first.location_name || first.latitude)) {
+            return 'samples';
+        }
+
+        return 'unknown';
+    };
+
+    // Transform flat arrays into preview structure
+    const transformFlatData = (data, dataType) => {
+        if (dataType === 'nested') {
+            // Already in nested format
+            return data.map(item => ({
+                sample: filterFields(item.sample, allowedSampleFields),
+                isolates: (item.isolates || []).map(i => filterFields(i, allowedIsolateFields)),
+                phenotypes: (item.phenotypes || []).map(p => filterFields(p, allowedPhenotypeFields)),
+                amrFindings: (item.amr_findings || []).map(a => filterFields(a, allowedAmrFields)),
+            }));
+        }
+
+        if (dataType === 'samples') {
+            // Transform samples array to match preview structure
+            return data.map(sample => ({
+                sample: filterFields(sample, allowedSampleFields),
+                isolates: [],
+                phenotypes: [],
+                amrFindings: [],
+            }));
+        }
+
+        if (dataType === 'isolates') {
+            // Group isolates by sample_id
+            const byIndex = {};
+            data.forEach((isolate, idx) => {
+                byIndex[idx] = {
+                    sample: {},
+                    isolates: [filterFields(isolate, allowedIsolateFields)],
+                    phenotypes: [],
+                    amrFindings: [],
+                };
+            });
+            return Object.values(byIndex);
+        }
+
+        if (dataType === 'phenotypes') {
+            // Group phenotypes by sample_id
+            const byIndex = {};
+            data.forEach((phenotype, idx) => {
+                byIndex[idx] = {
+                    sample: {},
+                    isolates: [],
+                    phenotypes: [filterFields(phenotype, allowedPhenotypeFields)],
+                    amrFindings: [],
+                };
+            });
+            return Object.values(byIndex);
+        }
+
+        if (dataType === 'amr_findings') {
+            // Group AMR findings by sample_id
+            const byIndex = {};
+            data.forEach((finding, idx) => {
+                byIndex[idx] = {
+                    sample: {},
+                    isolates: [],
+                    phenotypes: [],
+                    amrFindings: [filterFields(finding, allowedAmrFields)],
+                };
+            });
+            return Object.values(byIndex);
+        }
+
+        // Unknown format - try to convert as-is
+        return data.map(item => ({
+            sample: filterFields(item, allowedSampleFields),
+            isolates: [],
+            phenotypes: [],
+            amrFindings: [],
+        }));
+    };
+
+    // Build preview objects for each sample or record
     const buildSamplePreviews = (parsedArray) => {
-        return parsedArray.map(sample => {
-            const sampleFields = filterFields(sample, allowedSampleFields);
+        const dataType = detectDataType(parsedArray);
 
-            // Metagenomic records (if any)
-            const metagenomic = sample.metagenomic
-                ? sample.metagenomic.map(rec => filterFields(rec, allowedMetagenomicFields))
-                : [];
+        if (dataType === 'unknown' || !dataType) {
+            console.warn('Unknown data format, attempting to parse as samples');
+            return transformFlatData(parsedArray, 'samples');
+        }
 
-            // WGS records (if any)
-            const wgs = sample.wgs
-                ? sample.wgs.map(rec => filterFields(rec, allowedWgsFields))
-                : [];
-
-            // Extract AMR genes from metagenomic records
-            const amrGenesSet = new Set();
-            if (sample.metagenomic) {
-                sample.metagenomic.forEach(rec => {
-                    if (rec.amr_resistance_genes && Array.isArray(rec.amr_resistance_genes)) {
-                        rec.amr_resistance_genes.forEach(gene => {
-                            if (gene && gene.trim()) amrGenesSet.add(gene.trim());
-                        });
-                    }
-                });
-            }
-            const amrGenes = Array.from(amrGenesSet).map(gene => ({geneSymbol: gene}));
-
-            // Extract virulence genes from WGS records
-            const virulenceGenesSet = new Set();
-            if (sample.wgs) {
-                sample.wgs.forEach(rec => {
-                    if (rec.virulence_genes && Array.isArray(rec.virulence_genes)) {
-                        rec.virulence_genes.forEach(gene => {
-                            if (gene && gene.trim()) virulenceGenesSet.add(gene.trim());
-                        });
-                    }
-                });
-            }
-            const virulenceGenes = Array.from(virulenceGenesSet).map(gene => ({geneSymbol: gene}));
-
-            return {
-                sample: sampleFields,
-                metagenomic,
-                wgs,
-                amrGenes,
-                virulenceGenes,
-            };
-        });
+        return transformFlatData(parsedArray, dataType);
     };
 
     const handleFileChange = async (event) => {
@@ -102,7 +173,7 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
         if (!selectedFile) return;
 
         const fileName = selectedFile.name.toLowerCase();
-        const validExtensions = ['.csv', '.json']; // backend only accepts CSV/JSON
+        const validExtensions = ['.csv', '.json'];
         const hasValidExtension = validExtensions.some((ext) => fileName.endsWith(ext));
         if (!hasValidExtension) {
             setError('Invalid file type. Please upload a CSV or JSON file.');
@@ -122,12 +193,25 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
                 parsed = JSON.parse(text);
             } else if (fileName.endsWith('.csv')) {
                 const text = await selectedFile.text();
-                const rows = text.split(/\r?\n/).filter(Boolean);
-                const headers = rows[0].split(',');
+                const rows = text.split(/\r?\n/).filter(r => r.trim());
+                if (rows.length < 1) {
+                    setError('CSV file is empty');
+                    setSamplePreviews([]);
+                    return;
+                }
+
+                const headers = rows[0].split(',').map(h => h.trim());
                 parsed = rows.slice(1).map(row => {
-                    const values = row.split(',');
+                    const values = row.split(',').map(v => v.trim());
                     const obj = {};
-                    headers.forEach((h, i) => {obj[h.trim()] = values[i]?.trim();});
+                    headers.forEach((h, i) => {
+                        const value = values[i];
+                        // Try to parse as number or boolean
+                        if (value === 'true') obj[h] = true;
+                        else if (value === 'false') obj[h] = false;
+                        else if (!isNaN(value) && value !== '') obj[h] = parseFloat(value);
+                        else obj[h] = value;
+                    });
                     return obj;
                 });
             }
@@ -137,16 +221,71 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
             return;
         }
 
+        // Handle nested structure (all_tables_combined.json format)
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+            const {samples = [], isolates = [], predicted_phenotypes = [], amr_findings = []} = parsed;
+
+            // Convert nested structure to array format
+            if (samples.length > 0 || isolates.length > 0 || predicted_phenotypes.length > 0 || amr_findings.length > 0) {
+                // Build a map for quick lookup
+                const isolatesByID = {};
+                const phenotypesByID = {};
+                const amrByID = {};
+
+                isolates.forEach(iso => {
+                    if (!isolatesByID[iso.sample_id]) isolatesByID[iso.sample_id] = [];
+                    isolatesByID[iso.sample_id].push(iso);
+                });
+
+                predicted_phenotypes.forEach(phen => {
+                    if (!phenotypesByID[phen.sample_id]) phenotypesByID[phen.sample_id] = [];
+                    phenotypesByID[phen.sample_id].push(phen);
+                });
+
+                amr_findings.forEach(amr => {
+                    if (!amrByID[amr.sample_id]) amrByID[amr.sample_id] = [];
+                    amrByID[amr.sample_id].push(amr);
+                });
+
+                // Build preview array
+                const previews = samples.map(sample => ({
+                    sample: filterFields(sample, allowedSampleFields),
+                    isolates: (isolatesByID[sample.sample_id] || []).map(i => filterFields(i, allowedIsolateFields)),
+                    phenotypes: (phenotypesByID[sample.sample_id] || []).map(p => filterFields(p, allowedPhenotypeFields)),
+                    amrFindings: (amrByID[sample.sample_id] || []).map(a => filterFields(a, allowedAmrFields)),
+                }));
+
+                setSamplePreviews(previews);
+                setPreviewOpen(true);
+                return;
+            } else {
+                setError('File contains no data. Expected samples, isolates, predicted_phenotypes, or amr_findings.');
+                setSamplePreviews([]);
+                return;
+            }
+        }
+
         if (!Array.isArray(parsed)) {
-            setError('File must contain an array of sample objects.');
+            setError('File must be an array or a combined JSON object with samples, isolates, predicted_phenotypes, and amr_findings.');
+            setSamplePreviews([]);
+            return;
+        }
+
+        if (parsed.length === 0) {
+            setError('File contains no records.');
             setSamplePreviews([]);
             return;
         }
 
         // Build previews and open the modal
-        const previews = buildSamplePreviews(parsed);
-        setSamplePreviews(previews);
-        setPreviewOpen(true);
+        try {
+            const previews = buildSamplePreviews(parsed);
+            setSamplePreviews(previews);
+            setPreviewOpen(true);
+        } catch (e) {
+            setError('Error processing file data: ' + e.message);
+            setSamplePreviews([]);
+        }
     };
 
     const handleUpload = async () => {
@@ -215,8 +354,15 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
                     {!uploadResult && !file && (
                         <>
                             <Text size='sm' color='dimmed'>
-                                Upload a CSV or JSON file containing an array of sample objects.
-                                Each sample may include <strong>metagenomic</strong> or <strong>wgs</strong> arrays.
+                                Upload a CSV or JSON file with sample data. Supported formats:
+                                <ul style={{marginTop: '8px', marginBottom: '8px'}}>
+                                    <li><strong>samples.json</strong> - Array of sample records</li>
+                                    <li><strong>isolates.json</strong> - Array of isolate records</li>
+                                    <li><strong>predicted_phenotypes.json</strong> - Array of phenotype records</li>
+                                    <li><strong>amr_findings.json</strong> - Array of AMR finding records</li>
+                                    <li><strong>all_tables_combined.json</strong> - Combined object with samples, isolates, predicted_phenotypes, and amr_findings</li>
+                                    <li><strong>CSV versions</strong> - Same structure in CSV format</li>
+                                </ul>
                             </Text>
                             <div className={styles.uploadArea}>
                                 <input
