@@ -6,15 +6,18 @@ import {requireAuth} from '../middleware/auth.middleware.js'
 const router = Router()
 
 // ─── POST /api/predicted-phenotypes - Create a new predicted phenotype ───────
-
 router.post(
     '/',
     requireAuth,
     [
-        body('sample_id').trim().notEmpty().isString().withMessage('Sample ID must be a string'),
-        body('organism').optional().trim().isString().withMessage('Organism must be a string'),
-        body('antibiotic').optional().trim().isString().withMessage('Antibiotic must be a string'),
-        body('resistant').optional().isBoolean().withMessage('Resistant must be a boolean'),
+        body('sample_id')
+            .exists({checkFalsy: true})
+            .withMessage('Sample ID is required')
+            .isString()
+            .trim(),
+        body('organism').optional().trim().isString(),
+        body('antibiotic').optional().trim().isString(),
+        body('resistant').optional().isBoolean(),
     ],
     async (req, res) => {
         const errors = validationResult(req)
@@ -25,11 +28,7 @@ router.post(
         const {sample_id, organism, antibiotic, resistant} = req.body
 
         try {
-            // Verify sample exists
-            const sample = await prisma.sample.findUnique({
-                where: {sample_id},
-            })
-
+            const sample = await prisma.sample.findUnique({where: {sample_id}})
             if (!sample) {
                 return res.status(404).json({message: 'Sample not found'})
             }
@@ -42,7 +41,6 @@ router.post(
                     resistant: resistant !== undefined ? Boolean(resistant) : null,
                 },
             })
-
             return res.status(201).json({phenotype})
         } catch (err) {
             console.error('Create predicted phenotype error:', err)
@@ -52,15 +50,9 @@ router.post(
 )
 
 // ─── GET /api/predicted-phenotypes - Get all predicted phenotypes ────────────
-
 router.get('/', async (req, res) => {
     try {
-        const phenotypes = await prisma.predictedPhenotype.findMany({
-            include: {
-                sample: true,
-            },
-        })
-
+        const phenotypes = await prisma.predictedPhenotype.findMany({include: {sample: true}})
         return res.json({phenotypes})
     } catch (err) {
         console.error('Get predicted phenotypes error:', err)
@@ -69,10 +61,15 @@ router.get('/', async (req, res) => {
 })
 
 // ─── GET /api/predicted-phenotypes/sample/:sample_id - Get phenotypes by sample
-
 router.get(
     '/sample/:sample_id',
-    [param('sample_id').trim().notEmpty().isString().withMessage('Sample ID must be a string')],
+    [
+        param('sample_id')
+            .exists({checkFalsy: true})
+            .withMessage('Sample ID is required')
+            .isString()
+            .trim(),
+    ],
     async (req, res) => {
         const errors = validationResult(req)
         if (!errors.isEmpty()) {
@@ -80,15 +77,11 @@ router.get(
         }
 
         const {sample_id} = req.params
-
         try {
             const phenotypes = await prisma.predictedPhenotype.findMany({
                 where: {sample_id},
-                include: {
-                    sample: true,
-                },
+                include: {sample: true},
             })
-
             return res.json({phenotypes})
         } catch (err) {
             console.error('Get predicted phenotypes error:', err)
@@ -98,10 +91,13 @@ router.get(
 )
 
 // ─── GET /api/predicted-phenotypes/:phenotype_id - Get phenotype by ID ───────
-
 router.get(
     '/:phenotype_id',
-    [param('phenotype_id').isInt().withMessage('Phenotype ID must be an integer')],
+    [
+        param('phenotype_id')
+            .isInt()
+            .withMessage('Phenotype ID must be an integer'),
+    ],
     async (req, res) => {
         const errors = validationResult(req)
         if (!errors.isEmpty()) {
@@ -109,19 +105,14 @@ router.get(
         }
 
         const {phenotype_id} = req.params
-
         try {
             const phenotype = await prisma.predictedPhenotype.findUnique({
                 where: {phenotype_id: parseInt(phenotype_id)},
-                include: {
-                    sample: true,
-                },
+                include: {sample: true},
             })
-
             if (!phenotype) {
                 return res.status(404).json({message: 'Predicted phenotype not found'})
             }
-
             return res.json({phenotype})
         } catch (err) {
             console.error('Get predicted phenotype error:', err)
@@ -131,12 +122,13 @@ router.get(
 )
 
 // ─── PUT /api/predicted-phenotypes/:phenotype_id - Update phenotype ──────────
-
 router.put(
     '/:phenotype_id',
     requireAuth,
     [
-        param('phenotype_id').isInt().withMessage('Phenotype ID must be an integer'),
+        param('phenotype_id')
+            .isInt()
+            .withMessage('Phenotype ID must be an integer'),
         body('organism').optional().trim().isString(),
         body('antibiotic').optional().trim().isString(),
         body('resistant').optional().isBoolean(),
@@ -149,7 +141,6 @@ router.put(
 
         const {phenotype_id} = req.params
         const updateData = {}
-
         if (req.body.organism !== undefined) updateData.organism = req.body.organism
         if (req.body.antibiotic !== undefined) updateData.antibiotic = req.body.antibiotic
         if (req.body.resistant !== undefined) updateData.resistant = Boolean(req.body.resistant)
@@ -159,7 +150,6 @@ router.put(
                 where: {phenotype_id: parseInt(phenotype_id)},
                 data: updateData,
             })
-
             return res.json({phenotype})
         } catch (err) {
             if (err.code === 'P2025') {
@@ -172,11 +162,14 @@ router.put(
 )
 
 // ─── DELETE /api/predicted-phenotypes/:phenotype_id - Delete phenotype ───────
-
 router.delete(
     '/:phenotype_id',
     requireAuth,
-    [param('phenotype_id').isInt().withMessage('Phenotype ID must be an integer')],
+    [
+        param('phenotype_id')
+            .isInt()
+            .withMessage('Phenotype ID must be an integer'),
+    ],
     async (req, res) => {
         const errors = validationResult(req)
         if (!errors.isEmpty()) {
@@ -184,12 +177,8 @@ router.delete(
         }
 
         const {phenotype_id} = req.params
-
         try {
-            await prisma.predictedPhenotype.delete({
-                where: {phenotype_id: parseInt(phenotype_id)},
-            })
-
+            await prisma.predictedPhenotype.delete({where: {phenotype_id: parseInt(phenotype_id)}})
             return res.json({message: 'Predicted phenotype deleted successfully'})
         } catch (err) {
             if (err.code === 'P2025') {
