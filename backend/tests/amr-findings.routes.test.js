@@ -2,7 +2,7 @@
  * Tests for /api/amr-findings routes.
  */
 
-import {jest} from '@jest/globals'
+import { jest } from '@jest/globals'
 import jwt from 'jsonwebtoken'
 
 // ─── Mock prisma ─────────────────────────────────────────────────────────────
@@ -26,10 +26,10 @@ jest.unstable_mockModule('../lib/prisma.js', () => ({
 }))
 
 // ─── Lazy imports ───────────────────────────────────────────────────────────
-const {default: express} = await import('express')
+const { default: express } = await import('express')
 const cookieParser = (await import('cookie-parser')).default
-const {default: supertest} = await import('supertest')
-const {default: amrRouter} = await import('../routes/amr-findings.routes.js')
+const { default: supertest } = await import('supertest')
+const { default: amrRouter } = await import('../routes/amr-findings.routes.js')
 
 function buildApp() {
     const app = express()
@@ -45,13 +45,13 @@ function api() {
 
 const TEST_SECRET = process.env.JWT_SECRET || 'dev_jwt_secret_change_me'
 function signToken() {
-    return jwt.sign({userID: 1, role: 'user'}, TEST_SECRET, {expiresIn: '1h'})
+    return jwt.sign({ userID: 1, role: 'user' }, TEST_SECRET, { expiresIn: '1h' })
 }
 function authCookie() {
     return [`token=${signToken()}`]
 }
 
-const sampleFixture = {sample_id: 'sample-1'}
+const sampleFixture = { sample_id: 'sample-1' }
 const amrFixture = {
     finding_id: 1,
     sample_id: 'sample-1',
@@ -70,7 +70,7 @@ describe('POST /api/amr-findings', () => {
         const res = await api()
             .post('/api/amr-findings')
             .set('Cookie', authCookie())
-            .send({gene_symbol: 'bla'})
+            .send({ gene_symbol: 'bla' })
         expect(res.status).toBe(400)
     })
 
@@ -79,7 +79,7 @@ describe('POST /api/amr-findings', () => {
         const res = await api()
             .post('/api/amr-findings')
             .set('Cookie', authCookie())
-            .send({sample_id: 'missing'})
+            .send({ sample_id: 'missing' })
         expect(res.status).toBe(404)
     })
 
@@ -101,7 +101,7 @@ describe('POST /api/amr-findings', () => {
         const res = await api()
             .post('/api/amr-findings')
             .set('Cookie', authCookie())
-            .send({sample_id: 'sample-1'})
+            .send({ sample_id: 'sample-1' })
         expect(res.status).toBe(500)
     })
 })
@@ -129,9 +129,20 @@ describe('GET /api/amr-findings/sample/:sample_id', () => {
         const res = await api().get('/api/amr-findings/sample/sample-1')
         expect(res.status).toBe(200)
         expect(mockPrismaAmrFinding.findMany).toHaveBeenCalledWith({
-            where: {sample_id: 'sample-1'},
-            include: {sample: true},
+            where: { sample_id: 'sample-1' },
+            include: { sample: true },
         })
+    })
+
+    test('returns 400 if sample_id is missing', async () => {
+        const res = await api().get('/api/amr-findings/sample/')
+        expect(res.status).toBe(400)
+    })
+
+    test('returns 500 on db error', async () => {
+        mockPrismaAmrFinding.findMany.mockRejectedValue(new Error('db down'))
+        const res = await api().get('/api/amr-findings/sample/sample-1')
+        expect(res.status).toBe(500)
     })
 })
 
@@ -154,6 +165,12 @@ describe('GET /api/amr-findings/:amr_id', () => {
         expect(res.status).toBe(200)
         expect(res.body.amrFinding).toEqual(amrFixture)
     })
+
+    test('returns 500 on db error', async () => {
+        mockPrismaAmrFinding.findUnique.mockRejectedValue(new Error('db down'))
+        const res = await api().get('/api/amr-findings/1')
+        expect(res.status).toBe(500)
+    })
 })
 
 // ─── PUT /api/amr-findings/:amr_id ──────────────────────────────────────────
@@ -161,24 +178,88 @@ describe('PUT /api/amr-findings/:amr_id', () => {
     beforeEach(() => jest.clearAllMocks())
 
     test('returns 401 without auth', async () => {
-        const res = await api().put('/api/amr-findings/1').send({percent_identity: 99.0})
+        const res = await api().put('/api/amr-findings/1').send({ percent_identity: 99.0 })
         expect(res.status).toBe(401)
     })
 
-    test('updates percent_identity (last field)', async () => {
-        const updated = {...amrFixture, percent_identity: 99.0}
+    test('updates analysis_type', async () => {
+        const updated = { ...amrFixture, analysis_type: 'MLST' }
         mockPrismaAmrFinding.update.mockResolvedValue(updated)
 
         const res = await api()
             .put('/api/amr-findings/1')
             .set('Cookie', authCookie())
-            .send({percent_identity: 99.0})
+            .send({ analysis_type: 'MLST' })
+
+        expect(res.status).toBe(200)
+        expect(mockPrismaAmrFinding.update).toHaveBeenCalledWith({
+            where: { amr_id: 1 },
+            data: { analysis_type: 'MLST' },
+        })
+    })
+
+    test('updates gene_symbol', async () => {
+        const updated = { ...amrFixture, gene_symbol: 'blaOXA' }
+        mockPrismaAmrFinding.update.mockResolvedValue(updated)
+
+        const res = await api()
+            .put('/api/amr-findings/1')
+            .set('Cookie', authCookie())
+            .send({ gene_symbol: 'blaOXA' })
+
+        expect(res.status).toBe(200)
+        expect(mockPrismaAmrFinding.update).toHaveBeenCalledWith({
+            where: { amr_id: 1 },
+            data: { gene_symbol: 'blaOXA' },
+        })
+    })
+
+    test('updates drug_class', async () => {
+        const updated = { ...amrFixture, drug_class: 'Fluoroquinolone' }
+        mockPrismaAmrFinding.update.mockResolvedValue(updated)
+
+        const res = await api()
+            .put('/api/amr-findings/1')
+            .set('Cookie', authCookie())
+            .send({ drug_class: 'Fluoroquinolone' })
+
+        expect(res.status).toBe(200)
+        expect(mockPrismaAmrFinding.update).toHaveBeenCalledWith({
+            where: { amr_id: 1 },
+            data: { drug_class: 'Fluoroquinolone' },
+        })
+    })
+
+    test('updates method', async () => {
+        const updated = { ...amrFixture, method: 'BLAST' }
+        mockPrismaAmrFinding.update.mockResolvedValue(updated)
+
+        const res = await api()
+            .put('/api/amr-findings/1')
+            .set('Cookie', authCookie())
+            .send({ method: 'BLAST' })
+
+        expect(res.status).toBe(200)
+        expect(mockPrismaAmrFinding.update).toHaveBeenCalledWith({
+            where: { amr_id: 1 },
+            data: { method: 'BLAST' },
+        })
+    })
+
+    test('updates percent_identity (last field)', async () => {
+        const updated = { ...amrFixture, percent_identity: 99.0 }
+        mockPrismaAmrFinding.update.mockResolvedValue(updated)
+
+        const res = await api()
+            .put('/api/amr-findings/1')
+            .set('Cookie', authCookie())
+            .send({ percent_identity: 99.0 })
 
         expect(res.status).toBe(200)
         expect(res.body.amrFinding.percent_identity).toBe(99.0)
         expect(mockPrismaAmrFinding.update).toHaveBeenCalledWith({
-            where: {amr_id: 1},
-            data: {percent_identity: 99.0},
+            where: { amr_id: 1 },
+            data: { percent_identity: 99.0 },
         })
     })
 
@@ -190,7 +271,7 @@ describe('PUT /api/amr-findings/:amr_id', () => {
         const res = await api()
             .put('/api/amr-findings/999')
             .set('Cookie', authCookie())
-            .send({gene_symbol: 'new'})
+            .send({ gene_symbol: 'new' })
         expect(res.status).toBe(404)
     })
 
@@ -199,7 +280,7 @@ describe('PUT /api/amr-findings/:amr_id', () => {
         const res = await api()
             .put('/api/amr-findings/1')
             .set('Cookie', authCookie())
-            .send({method: 'test'})
+            .send({ method: 'test' })
         expect(res.status).toBe(500)
     })
 })
@@ -228,5 +309,13 @@ describe('DELETE /api/amr-findings/:amr_id', () => {
             .delete('/api/amr-findings/999')
             .set('Cookie', authCookie())
         expect(res.status).toBe(404)
+    })
+
+    test('returns 500 on db error', async () => {
+        mockPrismaAmrFinding.delete.mockRejectedValue(new Error('db down'))
+        const res = await api()
+            .delete('/api/amr-findings/1')
+            .set('Cookie', authCookie())
+        expect(res.status).toBe(500)
     })
 })
