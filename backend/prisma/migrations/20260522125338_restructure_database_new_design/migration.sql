@@ -27,17 +27,23 @@ ALTER TABLE "virulenceGenes" DROP CONSTRAINT "virulenceGenes_sampleID_isolateID_
 -- DropForeignKey
 ALTER TABLE "wgs" DROP CONSTRAINT "wgs_sampleID_fkey";
 
--- AlterTable
-ALTER TABLE "samples" DROP CONSTRAINT "samples_pkey",
-DROP COLUMN "collected_by",
-DROP COLUMN "predicted_sir_profile",
-DROP COLUMN "sampleID",
-DROP COLUMN "sample_analysis_type",
-DROP COLUMN "uploaded_by",
-DROP COLUMN "water_temperature",
-ADD COLUMN     "sample_id" VARCHAR(255) NOT NULL,
-ADD COLUMN     "water_temp" DECIMAL(5,2),
-ADD CONSTRAINT "samples_pkey" PRIMARY KEY ("sample_id");
+-- AlterTable - Add sample_id as nullable first
+ALTER TABLE "samples" ADD COLUMN "sample_id" VARCHAR(255);
+
+-- Update sample_id from sampleID
+UPDATE "samples" SET "sample_id" = CAST("sampleID" AS VARCHAR(255)) WHERE "sample_id" IS NULL;
+
+-- AlterTable - Continue alterations
+ALTER TABLE "samples" 
+  DROP CONSTRAINT "samples_pkey",
+  DROP COLUMN "collected_by",
+  DROP COLUMN "predicted_sir_profile",
+  DROP COLUMN "sampleID",
+  DROP COLUMN "sample_analysis_type",
+  DROP COLUMN "water_temperature",
+  ADD COLUMN "water_temp" DECIMAL(5,2),
+  ALTER COLUMN "sample_id" SET NOT NULL,
+  ADD CONSTRAINT "samples_pkey" PRIMARY KEY ("sample_id");
 
 -- DropTable
 DROP TABLE "amrResistanceGenes";
