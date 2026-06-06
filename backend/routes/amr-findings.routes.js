@@ -11,7 +11,7 @@ router.post(
     '/',
     requireAuth,
     [
-        body('sample_id').trim().isString().withMessage('Sample ID must be a string'),
+        body('sample_id').trim().notEmpty().isString().withMessage('Sample ID must be a string'),
         body('analysis_type').optional().trim().isString().withMessage('Analysis type must be a string'),
         body('gene_symbol').optional().trim().isString().withMessage('Gene symbol must be a string'),
         body('drug_class').optional().trim().isString().withMessage('Drug class must be a string'),
@@ -76,7 +76,7 @@ router.get('/', async (req, res) => {
 
 router.get(
     '/sample/:sample_id',
-    [param('sample_id').trim().isString().withMessage('Sample ID must be a string')],
+    [param('sample_id').trim().notEmpty().isString().withMessage('Sample ID must be a string')],
     async (req, res) => {
         const errors = validationResult(req)
         if (!errors.isEmpty()) {
