@@ -4,7 +4,7 @@
  * Prisma is mocked so no real database connection is required.
  */
 
-import { jest } from '@jest/globals'
+import {jest} from '@jest/globals'
 import jwt from 'jsonwebtoken'
 
 // ─── Mock prisma BEFORE importing the router ─────────────────────────────────
@@ -20,7 +20,7 @@ const mockPrismaSample = {
 const mockPredictSirProfileWithAI = jest.fn()
 
 jest.unstable_mockModule('../lib/prisma.js', () => ({
-    default: { sample: mockPrismaSample },
+    default: {sample: mockPrismaSample},
 }))
 
 jest.unstable_mockModule('../lib/sir-prediction.js', () => ({
@@ -29,10 +29,10 @@ jest.unstable_mockModule('../lib/sir-prediction.js', () => ({
 
 // ─── Lazy imports ─────────────────────────────────────────────────────────────
 
-const { default: express } = await import('express')
+const {default: express} = await import('express')
 const cookieParser = (await import('cookie-parser')).default
-const { default: supertest } = await import('supertest')
-const { default: samplesRouter } = await import('../routes/samples.routes.js')
+const {default: supertest} = await import('supertest')
+const {default: samplesRouter} = await import('../routes/samples.routes.js')
 
 // ─── Build minimal test app ───────────────────────────────────────────────────
 
@@ -50,8 +50,8 @@ function api() {
 
 const TEST_SECRET = process.env.JWT_SECRET || 'dev_jwt_secret_change_me'
 
-function signToken(payload = { userID: 1, role: 'user', email: 'user@example.com' }) {
-    return jwt.sign(payload, TEST_SECRET, { expiresIn: '1h' })
+function signToken(payload = {userID: 1, role: 'user', email: 'user@example.com'}) {
+    return jwt.sign(payload, TEST_SECRET, {expiresIn: '1h'})
 }
 
 function authCookie(payload) {
@@ -172,39 +172,55 @@ describe('POST /api/samples', () => {
 
 // ─── POST /api/samples/predict-sir ───────────────────────────────────────────
 
-describe('POST /api/samples/predict-sir', () => {
+describe('POST /api/samples/predict-phenotype', () => {
     beforeEach(() => jest.clearAllMocks())
 
-    test('returns 400 when coordinates are missing', async () => {
-        const res = await api().post('/api/samples/predict-sir').set('Cookie', authCookie()).send({})
-
+    test('returns 400 when coordinates or organism/antibiotic are missing', async () => {
+        const res = await api()
+            .post('/api/samples/predict-phenotype')
+            .set('Cookie', authCookie())
+            .send({latitude: '25.12'}) // missing longitude, organism, antibiotic
         expect(res.status).toBe(400)
         expect(res.body.errors).toBeDefined()
     })
 
     test('returns prediction when request is valid', async () => {
+        // Mock training samples with predictedPhenotypes
         mockPrismaSample.findMany.mockResolvedValue([
             {
                 latitude: 25.13,
                 longitude: 28.42,
-                predicted_sir_profile: 'Resistant',
+                water_temp: 22.3,
+                ph: 7.1,
+                tds: 110,
+                do: 8.2,
+                isolation_source: 'River',
+                predictedPhenotypes: [
+                    {organism: 'E. coli', antibiotic: 'Ciprofloxacin', resistant: true},
+                    {organism: 'E. coli', antibiotic: 'Ampicillin', resistant: false},
+                ],
             },
         ])
         mockPredictSirProfileWithAI.mockResolvedValue({
-            predicted_sir_profile: 'resistant',
+            resistant: true,
             confidence: 0.81,
             usedOpenAI: true,
         })
 
-        const res = await api().post('/api/samples/predict-sir').set('Cookie', authCookie()).send({
-            latitude: '25.12',
-            longitude: '28.45',
-            ph: '7.1',
-        })
+        const res = await api()
+            .post('/api/samples/predict-phenotype')
+            .set('Cookie', authCookie())
+            .send({
+                latitude: '25.12',
+                longitude: '28.45',
+                organism: 'E. coli',
+                antibiotic: 'Ciprofloxacin',
+                ph: '7.1',
+            })
 
         expect(res.status).toBe(200)
         expect(res.body.prediction).toBeDefined()
-        expect(res.body.prediction.predicted_sir_profile).toBe('resistant')
+        expect(res.body.prediction.resistant).toBe(true)
         expect(mockPrismaSample.findMany).toHaveBeenCalled()
         expect(mockPredictSirProfileWithAI).toHaveBeenCalledWith({
             inputSample: expect.objectContaining({
@@ -212,19 +228,26 @@ describe('POST /api/samples/predict-sir', () => {
                 longitude: '28.45',
             }),
             trainingSamples: expect.any(Array),
+            organism: 'E. coli',
+            antibiotic: 'Ciprofloxacin',
         })
     })
 
     test('returns 500 when prediction fails unexpectedly', async () => {
         mockPrismaSample.findMany.mockRejectedValue(new Error('db down'))
 
-        const res = await api().post('/api/samples/predict-sir').set('Cookie', authCookie()).send({
-            latitude: '25.12',
-            longitude: '28.45',
-        })
+        const res = await api()
+            .post('/api/samples/predict-phenotype')
+            .set('Cookie', authCookie())
+            .send({
+                latitude: '25.12',
+                longitude: '28.45',
+                organism: 'E. coli',
+                antibiotic: 'Ciprofloxacin',
+            })
 
         expect(res.status).toBe(500)
-        expect(res.body.message).toMatch(/failed to predict sir profile/i)
+        expect(res.body.message).toMatch(/failed to predict phenotype/i)
     })
 })
 
@@ -304,7 +327,7 @@ describe('PUT /api/samples/:sampleID', () => {
     beforeEach(() => jest.clearAllMocks())
 
     test('returns 400 when sampleID is not an integer', async () => {
-        const res = await api().put('/api/samples/not-a-number').send({ latitude: '25.55' })
+        const res = await api().put('/api/samples/not-a-number').send({latitude: '25.55'})
 
         expect(res.status).toBe(400)
         expect(res.body.errors).toBeDefined()
@@ -334,7 +357,7 @@ describe('PUT /api/samples/:sampleID', () => {
         expect(res.status).toBe(200)
         expect(res.body.sample.ph).toBe(8.1)
         expect(mockPrismaSample.update).toHaveBeenCalledWith({
-            where: { sampleID: 1 },
+            where: {sampleID: 1},
             data: {
                 ph: 8.1,
                 predicted_sir_profile: 'Resistant',
@@ -375,7 +398,7 @@ describe('PUT /api/samples/:sampleID', () => {
 
         expect(res.status).toBe(200)
         expect(mockPrismaSample.update).toHaveBeenCalledWith({
-            where: { sampleID: 1 },
+            where: {sampleID: 1},
             data: expect.objectContaining({
                 water_temperature: 18.5,
                 ph: 7.4,
@@ -398,7 +421,7 @@ describe('PUT /api/samples/:sampleID', () => {
         error.code = 'P2025'
         mockPrismaSample.update.mockRejectedValue(error)
 
-        const res = await api().put('/api/samples/999').send({ latitude: '25.55' })
+        const res = await api().put('/api/samples/999').send({latitude: '25.55'})
 
         expect(res.status).toBe(404)
         expect(res.body.message).toMatch(/not found/i)
@@ -407,7 +430,7 @@ describe('PUT /api/samples/:sampleID', () => {
     test('returns 500 when update fails unexpectedly', async () => {
         mockPrismaSample.update.mockRejectedValue(new Error('db down'))
 
-        const res = await api().put('/api/samples/1').send({ longitude: '29.01' })
+        const res = await api().put('/api/samples/1').send({longitude: '29.01'})
 
         expect(res.status).toBe(500)
         expect(res.body.message).toMatch(/failed to update sample/i)
@@ -434,7 +457,7 @@ describe('DELETE /api/samples/:sampleID', () => {
         expect(res.status).toBe(200)
         expect(res.body.message).toMatch(/deleted successfully/i)
         expect(mockPrismaSample.delete).toHaveBeenCalledWith({
-            where: { sampleID: 1 },
+            where: {sampleID: 1},
         })
     })
 

@@ -134,6 +134,7 @@ router.get(
 
 router.put(
     '/:phenotype_id',
+    requireAuth,
     [
         param('phenotype_id').isInt().withMessage('Phenotype ID must be an integer'),
         body('organism').optional().trim().isString(),
@@ -174,6 +175,7 @@ router.put(
 
 router.delete(
     '/:phenotype_id',
+    requireAuth,
     [param('phenotype_id').isInt().withMessage('Phenotype ID must be an integer')],
     async (req, res) => {
         const errors = validationResult(req)

@@ -132,6 +132,7 @@ router.get(
 
 router.put(
     '/:isolate_id',
+    requireAuth,
     [
         param('isolate_id').isInt().withMessage('Isolate ID must be an integer'),
         body('organism').optional().trim().isString(),
@@ -170,6 +171,7 @@ router.put(
 
 router.delete(
     '/:isolate_id',
+    requireAuth,
     [param('isolate_id').isInt().withMessage('Isolate ID must be an integer')],
     async (req, res) => {
         const errors = validationResult(req)

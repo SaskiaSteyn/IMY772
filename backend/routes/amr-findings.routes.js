@@ -138,6 +138,7 @@ router.get(
 
 router.put(
     '/:amr_id',
+    requireAuth,
     [
         param('amr_id').isInt().withMessage('AMR ID must be an integer'),
         body('analysis_type').optional().trim().isString(),
@@ -182,6 +183,7 @@ router.put(
 
 router.delete(
     '/:amr_id',
+    requireAuth,
     [param('amr_id').isInt().withMessage('AMR ID must be an integer')],
     async (req, res) => {
         const errors = validationResult(req)
