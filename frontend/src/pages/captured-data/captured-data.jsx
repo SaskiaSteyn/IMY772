@@ -1,6 +1,6 @@
 import {useState, useEffect} from 'react';
 import {Tabs, Button, Group, Title, Container, Stack, Loader, Center} from '@mantine/core';
-import {Plus, Upload, Pencil} from 'lucide-react';
+import {Plus, Upload, Pencil, ScanLine} from 'lucide-react';
 import DashboardNavbar from '../../components/dashboard/dashboard-navbar.jsx';
 import SamplesTable from '../../components/captured-data-components/samples-table';
 import MetagenomicTable from '../../components/captured-data-components/metagenomics-table';
@@ -36,6 +36,7 @@ import './captured-data.scss';
 const CapturedData = () => {
     const {user} = useAuth();
     const [modalOpened, setModalOpened] = useState(false);
+    const [addMode, setAddMode] = useState('manual');
     const [bulkUploadModalOpened, setBulkUploadModalOpened] = useState(false);
     const [activeTab, setActiveTab] = useState('samples');
     const [samples, setSamples] = useState([]);
@@ -296,8 +297,21 @@ const CapturedData = () => {
                                 Update Existing Sample
                             </Button>
                             <Button
+                                leftSection={<ScanLine size={18} />}
+                                variant='outline'
+                                onClick={() => {
+                                    setAddMode('image');
+                                    setModalOpened(true);
+                                }}
+                            >
+                                Capture from Image
+                            </Button>
+                            <Button
                                 leftSection={<Plus size={18} />}
-                                onClick={() => setModalOpened(true)}
+                                onClick={() => {
+                                    setAddMode('manual');
+                                    setModalOpened(true);
+                                }}
                             >
                                 Add New Entry
                             </Button>
@@ -363,7 +377,7 @@ const CapturedData = () => {
                 </Stack>
             </Container>
 
-            <AddDataModal opened={modalOpened} onClose={() => setModalOpened(false)} onAddEntry={handleAddEntry} />
+            <AddDataModal opened={modalOpened} onClose={() => setModalOpened(false)} onAddEntry={handleAddEntry} initialMode={addMode} />
             <BulkUploadModal isOpen={bulkUploadModalOpened} onClose={() => setBulkUploadModalOpened(false)} onUploadSuccess={handleUploadSuccess} />
             <EditSampleModal opened={editSampleModalOpened} onClose={() => setEditSampleModalOpened(false)} record={recordToEdit} onSave={handleEditSampleSave} />
             <EditMetagenomicModal opened={editMetagenomicModalOpened} onClose={() => setEditMetagenomicModalOpened(false)} record={recordToEdit} onSave={handleEditMetagenomicSave} />

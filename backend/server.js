@@ -7,6 +7,7 @@ import amrResistanceGenesRouter from './routes/amrresistancegenes.routes.js'
 import adminRouter from './routes/admin.routes.js'
 import authRouter from './routes/auth.routes.js'
 import bulkUploadRouter from './routes/bulk-upload.routes.js'
+import imageExtractRouter from './routes/image-extract.routes.js'
 import metagenomicRouter from './routes/metagenomic.routes.js'
 import mockDataRouter from './routes/mockdata.routes.js'
 import samplesRouter from './routes/samples.routes.js'
@@ -32,6 +33,7 @@ app.use(cookieParser())
 // API routes
 app.use('/api/auth', authRouter)
 app.use('/api/admin', adminRouter)
+app.use('/api/samples/extract-image', imageExtractRouter)
 app.use('/api/samples', samplesRouter)
 app.use('/api/bulk-upload', bulkUploadRouter)
 app.use('/api/metagenomic', metagenomicRouter)

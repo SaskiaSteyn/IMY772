@@ -1,4 +1,5 @@
 import {
+    Alert,
     Button,
     Center,
     Group,
@@ -7,24 +8,27 @@ import {
     Stepper,
     Text,
 } from '@mantine/core';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Info } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useAuth } from '../../context/auth-context';
 
 import ExpandedDataModal from './expanded-data-modal';
 import AmrGenesStep from './steps/amr-genes-step';
+import ImageUploadStep from './steps/image-upload-step';
 import JsonUploadStep from './steps/json-upload-step';
 import MetagenomicStep from './steps/metagenomic-step';
 import MethodSelectionStep from './steps/method-selection-step';
 import SampleInfoStep from './steps/sample-info-step';
 import VirulenceGenesStep from './steps/virulence-genes-step';
 import WgsStep from './steps/wgs-step';
+import { mapExtractionToFormData } from '../../lib/extraction-mapping';
 
-const AddDataModal = ({ opened, onClose, onAddEntry }) => {
+const AddDataModal = ({ opened, onClose, onAddEntry, initialMode = null }) => {
     const { user } = useAuth();
     const [topStep, setTopStep] = useState(1);
     const [stepperIndex, setStepperIndex] = useState(0);
     const [analysisType, setAnalysisType] = useState('');
+    const [extractionInfo, setExtractionInfo] = useState(null);
 
     const [formData, setFormData] = useState({
         water_temperature: 25.0,
@@ -50,12 +54,26 @@ const AddDataModal = ({ opened, onClose, onAddEntry }) => {
 
     const isMetagenomic = analysisType === 'Metagenomic';
 
+    // When the modal transitions to open, jump straight to the image step if
+    // launched in image mode, otherwise show the manual stepper. Adjusting state
+    // during render (guarded) is React's recommended alternative to an effect.
+    const [prevOpened, setPrevOpened] = useState(false);
+    if (opened !== prevOpened) {
+        setPrevOpened(opened);
+        if (opened) {
+            setTopStep(initialMode === 'image' ? 3 : 1);
+            setStepperIndex(0);
+        }
+    }
+
     const handleModeSelect = (selectedMode) => {
         if (selectedMode === 'manual') {
             setTopStep(1);
             setStepperIndex(0);
         } else if (selectedMode === 'json') {
             setTopStep(2);
+        } else if (selectedMode === 'image') {
+            setTopStep(3);
         }
     };
 
@@ -63,6 +81,7 @@ const AddDataModal = ({ opened, onClose, onAddEntry }) => {
         setTopStep(1);
         setStepperIndex(0);
         setAnalysisType('');
+        setExtractionInfo(null);
         setFormData({
             water_temperature: 25.0,
             ph: 7.0,
@@ -227,6 +246,20 @@ const AddDataModal = ({ opened, onClose, onAddEntry }) => {
         resetModal();
     };
 
+    // Map OCR-extracted data into the manual form (Sample Info + Analysis Details
+    // + Genes), then drop the user into the existing stepper to confirm/edit
+    // before submitting.
+    const applyExtractedFields = (result) => {
+        const { updates, analysisType: detectedType, info } =
+            mapExtractionToFormData(result);
+
+        if (detectedType) setAnalysisType(detectedType);
+        setFormData((prev) => ({ ...prev, ...updates }));
+        setExtractionInfo(info);
+        setTopStep(1);
+        setStepperIndex(0);
+    };
+
     // Preview data for expanded modal (unchanged)
     const previewSample = { ...formData, sampleID: 'Preview' };
     const previewMetagenomic = isMetagenomic
@@ -255,6 +288,34 @@ const AddDataModal = ({ opened, onClose, onAddEntry }) => {
 
     const renderManualForm = () => (
         <Stack gap='lg'>
+            {extractionInfo && (
+                <Alert
+                    color={
+                        extractionInfo.lowConfidence.length ? 'yellow' : 'green'
+                    }
+                    icon={<Info size={18} />}
+                    variant='light'
+                    title='Review auto-filled data'
+                >
+                    <Text size='sm'>
+                        Filled {extractionInfo.filled.length} field
+                        {extractionInfo.filled.length === 1 ? '' : 's'} from your
+                        image. Please check each value before saving.
+                    </Text>
+                    {extractionInfo.extras?.length > 0 && (
+                        <Text size='sm' mt={4}>
+                            Also detected: {extractionInfo.extras.join(', ')}.
+                            Review the Analysis Details and Genes steps.
+                        </Text>
+                    )}
+                    {extractionInfo.lowConfidence.length > 0 && (
+                        <Text size='sm' mt={4}>
+                            Low confidence (double-check):{' '}
+                            {extractionInfo.lowConfidence.join(', ')}.
+                        </Text>
+                    )}
+                </Alert>
+            )}
             <Stepper active={stepperIndex} onStepClick={setStepperIndex}>
                 <Stepper.Step
                     label='Sample Info'
@@ -462,6 +523,12 @@ const AddDataModal = ({ opened, onClose, onAddEntry }) => {
                     <JsonUploadStep
                         onSubmit={handleJsonSubmit}
                         onBack={handleJsonBack}
+                    />
+                )}
+                {topStep === 3 && (
+                    <ImageUploadStep
+                        onExtracted={applyExtractedFields}
+                        onBack={closeModal}
                     />
                 )}
             </Modal>

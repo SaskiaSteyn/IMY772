@@ -5,3 +5,8 @@ node_modules/
 .DS_Store/
 
 .env
+
+# Local OCR test images (kept on disk, not committed)
+/water-sample-*.png
+/single-*.png
+/multi-*.png
