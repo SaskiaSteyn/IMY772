@@ -1,4 +1,4 @@
-import { Router } from 'express'
+import {Router} from 'express'
 import fs from 'fs'
 import path from 'path'
 import prisma from '../lib/prisma.js'
@@ -9,112 +9,115 @@ const router = Router()
 
 router.post('/load-mock-data', async (req, res) => {
     try {
-        // Read the mock data file
         const mockDataPath = path.join(process.cwd(), 'mock-data.json')
         const rawData = fs.readFileSync(mockDataPath, 'utf-8')
         const mockData = JSON.parse(rawData)
 
-        console.log('📦 Loading mock data from JSON file...')
+        console.log('📦 Loading mock data into new schema...')
 
         let sampleCount = 0
-        let metagenomicCount = 0
-        let wgsCount = 0
-        let virulenceCount = 0
+        let isolateCount = 0
+        let amrFindingCount = 0
+        let predictedPhenotypeCount = 0
 
-        // Load samples and their related data
-        for (const sample of mockData.samples) {
-            // Convert date string to ISO datetime (add T00:00:00 if it's just a date)
-            const dateString = sample.collection_date.includes('T')
-                ? sample.collection_date
-                : `${sample.collection_date}T00:00:00Z`
+        for (let idx = 0; idx < mockData.samples.length; idx++) {
+            const oldSample = mockData.samples[idx]
 
-            // Create/update the sample
-            const createdSample = await prisma.sample.create({
-                data: {
-                    water_temperature: sample.water_temperature,
-                    ph: sample.ph,
-                    tds: sample.tds,
-                    do: sample.do,
-                    sample_analysis_type: sample.sample_analysis_type,
-                    isolation_source: sample.isolation_source,
-                    collection_date: new Date(dateString),
-                    location_name: sample.location_name,
-                    latitude: sample.latitude,
-                    longitude: sample.longitude,
-                    collected_by: sample.collected_by,
-                    predicted_sir_profile: sample.predicted_sir_profile,
-                },
-            })
+            // Generate a unique sample_id (old schema used auto‑increment int)
+            const sample_id = `MOCK-${Date.now()}-${idx}`
+
+            // Map old field names to new schema
+            const sampleData = {
+                sample_id,
+                water_temp: oldSample.water_temperature ?? null,
+                ph: oldSample.ph ?? null,
+                tds: oldSample.tds ?? null,
+                do: oldSample.do ?? null,
+                isolation_source: oldSample.isolation_source ?? null,
+                collection_date: oldSample.collection_date
+                    ? new Date(oldSample.collection_date.includes('T')
+                        ? oldSample.collection_date
+                        : `${oldSample.collection_date}T00:00:00Z`)
+                    : null,
+                location_name: oldSample.location_name ?? null,
+                latitude: oldSample.latitude,
+                longitude: oldSample.longitude,
+                uploaded_by: 1, // default admin user ID; you may change this
+            }
+
+            // Validate required fields
+            if (!sampleData.latitude || !sampleData.longitude) {
+                console.warn(`Skipping sample without lat/lon: ${oldSample.location_name}`)
+                continue
+            }
+
+            // Create the sample
+            const createdSample = await prisma.sample.create({data: sampleData})
             sampleCount++
 
-            // Handle metagenomic data if present
-            if (sample.metagenomic && Array.isArray(sample.metagenomic)) {
-                for (const meta of sample.metagenomic) {
-                    await prisma.metagenomic.create({
+            // ─── Create Isolates from old wgs data ──────────────────────────
+            if (oldSample.wgs && Array.isArray(oldSample.wgs)) {
+                for (const wgsItem of oldSample.wgs) {
+                    await prisma.isolate.create({
                         data: {
-                            sampleID: createdSample.sampleID,
-                            sequence_name: meta.sequence_name,
-                            element_type: meta.element_type,
-                            class: meta.class,
-                            subclass: meta.subclass,
+                            sample_id: createdSample.sample_id,
+                            organism: wgsItem.organism ?? null,
+                            mlst_type: null, // old schema had no mlst_type; you could map if available
                         },
                     })
-                    metagenomicCount++
+                    isolateCount++
+                }
+            }
 
-                    // Handle AMR resistance genes if present
+            // ─── Create AmrFindings from amr_resistance_genes inside metagenomic ──
+            if (oldSample.metagenomic && Array.isArray(oldSample.metagenomic)) {
+                for (const meta of oldSample.metagenomic) {
                     if (meta.amr_resistance_genes && Array.isArray(meta.amr_resistance_genes)) {
                         for (const gene of meta.amr_resistance_genes) {
-                            await prisma.aMRResistanceGene.create({
+                            await prisma.amrFinding.create({
                                 data: {
-                                    sampleID: createdSample.sampleID,
-                                    geneSymbol: gene,
+                                    sample_id: createdSample.sample_id,
+                                    analysis_type: 'metagenomic',
+                                    gene_symbol: gene,
+                                    drug_class: null,
+                                    method: null,
+                                    percent_identity: null,
                                 },
                             })
+                            amrFindingCount++
                         }
                     }
                 }
             }
 
-            // Handle WGS data if present
-            if (sample.wgs && Array.isArray(sample.wgs)) {
-                for (const wgsData of sample.wgs) {
-                    const createdWGS = await prisma.wGS.create({
-                        data: {
-                            sampleID: createdSample.sampleID,
-                            isolateID: wgsData.isolateID,
-                            organism: wgsData.organism,
-                        },
-                    })
-                    wgsCount++
-
-                    // Handle virulence genes if present
-                    if (wgsData.virulence_genes && Array.isArray(wgsData.virulence_genes)) {
-                        for (const vgene of wgsData.virulence_genes) {
-                            await prisma.virulenceGene.create({
-                                data: {
-                                    isolateID: createdWGS.id,
-                                    geneSymbol: vgene,
-                                },
-                            })
-                            virulenceCount++
-                        }
-                    }
-                }
+            // ─── Create PredictedPhenotype from old predicted_sir_profile ──────
+            if (oldSample.predicted_sir_profile) {
+                // The old mock data has only a string like "Resistant" without organism/antibiotic.
+                // We'll create a generic phenotype with placeholder values.
+                await prisma.predictedPhenotype.create({
+                    data: {
+                        sample_id: createdSample.sample_id,
+                        organism: 'unknown',      // not stored in old mock data
+                        antibiotic: 'unknown',    // not stored
+                        resistant: oldSample.predicted_sir_profile.toLowerCase() === 'resistant',
+                    },
+                })
+                predictedPhenotypeCount++
             }
         }
 
         console.log(`✓ Loaded ${sampleCount} samples`)
-        console.log(`✓ Loaded ${metagenomicCount} metagenomic records`)
-        console.log(`✓ Loaded ${wgsCount} WGS records`)
-        console.log(`✓ Loaded ${virulenceCount} virulence genes`)
+        console.log(`✓ Loaded ${isolateCount} isolates`)
+        console.log(`✓ Loaded ${amrFindingCount} AMR findings`)
+        console.log(`✓ Loaded ${predictedPhenotypeCount} predicted phenotypes`)
 
         return res.json({
-            message: 'Mock data loaded successfully!',
+            message: 'Mock data loaded successfully into the new schema!',
             summary: {
                 samples: sampleCount,
-                metagenomic: metagenomicCount,
-                wgs: wgsCount,
-                virulenceGenes: virulenceCount,
+                isolates: isolateCount,
+                amrFindings: amrFindingCount,
+                predictedPhenotypes: predictedPhenotypeCount,
             },
         })
     } catch (err) {
@@ -127,4 +130,3 @@ router.post('/load-mock-data', async (req, res) => {
 })
 
 export default router
-

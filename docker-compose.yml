@@ -33,6 +33,8 @@ services:
             sh -c "
             echo 'Installing dependencies...' &&
             yarn install --silent &&
+            echo 'Generating Prisma client...' &&
+            npx prisma generate &&
             echo 'Running migrations...' &&
             npx prisma migrate deploy &&
             echo 'Migrations completed successfully' &&
