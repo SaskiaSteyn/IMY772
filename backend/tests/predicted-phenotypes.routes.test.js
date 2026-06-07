@@ -145,6 +145,11 @@ describe('PUT /api/predicted-phenotypes/:phenotype_id', () => {
     })
 
     test('updates resistant (last field) successfully', async () => {
+        mockPrismaPhenotype.findUnique.mockResolvedValue({
+            ...phenotypeFixture,
+            ai_resistant: true,
+            is_manual_override: false,
+        })
         const updated = {...phenotypeFixture, resistant: false}
         mockPrismaPhenotype.update.mockResolvedValue(updated)
 
@@ -157,11 +162,45 @@ describe('PUT /api/predicted-phenotypes/:phenotype_id', () => {
         expect(res.body.phenotype.resistant).toBe(false)
         expect(mockPrismaPhenotype.update).toHaveBeenCalledWith({
             where: {phenotype_id: 1},
-            data: {resistant: false},
+            data: {
+                resistant: false,
+                is_manual_override: true,
+            },
+        })
+    })
+
+    test('clears manual override and backfills null ai_resistant', async () => {
+        mockPrismaPhenotype.findUnique.mockResolvedValue({
+            ...phenotypeFixture,
+            resistant: true,
+            ai_resistant: null,
+            is_manual_override: true,
+        })
+        mockPrismaPhenotype.update.mockResolvedValue({
+            ...phenotypeFixture,
+            resistant: true,
+            ai_resistant: true,
+            is_manual_override: false,
+        })
+
+        const res = await api()
+            .put('/api/predicted-phenotypes/1')
+            .set('Cookie', authCookie())
+            .send({clear_manual_override: true})
+
+        expect(res.status).toBe(200)
+        expect(mockPrismaPhenotype.update).toHaveBeenCalledWith({
+            where: {phenotype_id: 1},
+            data: {
+                ai_resistant: true,
+                resistant: true,
+                is_manual_override: false,
+            },
         })
     })
 
     test('returns 404 if not found', async () => {
+        mockPrismaPhenotype.findUnique.mockResolvedValue(phenotypeFixture)
         const error = new Error('not found')
         error.code = 'P2025'
         mockPrismaPhenotype.update.mockRejectedValue(error)
