@@ -296,7 +296,7 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
     // Shared insert path: send a file to /api/bulk-upload (CSV/JSON parsed and
     // inserted server-side). Image samples are packaged as a JSON file so they
     // reuse the exact same validation + insert + result reporting.
-    const uploadFile = async (fileToUpload) => {
+    const uploadFile = async (fileToUpload, specificEndpoint = null) => {
         setLoading(true);
         setError(null);
 
@@ -304,7 +304,8 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
             const formData = new FormData();
             formData.append('file', fileToUpload);
 
-            const response = await fetch(`${API_URL}/api/bulk-upload`, {
+            const endpoint = specificEndpoint ? `${API_URL}${specificEndpoint}` : `${API_URL}/api/bulk-upload`;
+            const response = await fetch(endpoint, {
                 method: 'POST',
                 body: formData,
                 credentials: 'include',
@@ -358,7 +359,13 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
                 );
                 setImageSamples(null);
             } else {
-                setImageSamples(samples);
+                // Ensure empty fields for sample_id so user can fill them in
+                // (bulk-upload requires sample_id)
+                const withIds = samples.map((s) => ({
+                    sample_id: s.sample_id || '',
+                    ...s,
+                }));
+                setImageSamples(withIds);
             }
         } catch (err) {
             setError(err.message || 'Failed to read image');
@@ -380,19 +387,38 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
 
     const handleImageUpload = () => {
         const isFilled = (v) => v !== '' && v !== null && v !== undefined;
+        // Require sample_id as well now
         const valid = (imageSamples || []).filter(
-            (s) => isFilled(s.latitude) && isFilled(s.longitude),
+            (s) => isFilled(s.latitude) && isFilled(s.longitude) && isFilled(s.sample_id),
         );
         if (valid.length === 0) {
-            setError('Each sample needs a Latitude and Longitude before uploading.');
+            setError('Each sample needs a Sample ID, Latitude, and Longitude before uploading.');
             return;
         }
-        const jsonFile = new File(
-            [JSON.stringify(valid)],
-            'image-samples.json',
-            {type: 'application/json'},
+
+        // Convert the simple format { sample_id, ... } into the format expected by the CSV parser 
+        // (which is just an array of flat objects, that's what PapaParse output would look like)
+        // AND the backend only reads CSV or Excel for `/samples` now. Wait!
+        
+        // Let's generate CSV string
+        const header = Object.keys(valid[0]).join(',');
+        const rows = valid.map(obj => 
+            Object.values(obj).map(val => {
+                if (val === null || val === undefined) return '';
+                // Quote strings if they contain commas
+                const str = String(val);
+                return str.includes(',') ? `"${str}"` : str;
+            }).join(',')
+        ).join('\n');
+        
+        const csvContent = `${header}\n${rows}`;
+        
+        const csvFile = new File(
+            [csvContent],
+            'image-samples.csv',
+            {type: 'text/csv'},
         );
-        uploadFile(jsonFile);
+        uploadFile(csvFile, '/api/bulk-upload/samples');
     };
 
     const handleReset = () => {
