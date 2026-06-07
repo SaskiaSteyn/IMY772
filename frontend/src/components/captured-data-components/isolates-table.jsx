@@ -9,7 +9,7 @@ const IsolatesTable = ({records, highlightedSampleIds, onExpandClick, onEditClic
             highlightOnHover
             records={records}
             idAccessor='isolate_id'
-            rowSx={(record) => ({
+            rowStyle={(record) => ({
                 backgroundColor: highlightedSampleIds?.has(record.sample_id)
                     ? 'rgba(59, 130, 246, 0.2)'
                     : undefined,

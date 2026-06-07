@@ -9,7 +9,7 @@ const VirulenceGenesTable = ({records, highlightedSampleIds, onEditClick, onExpa
             highlightOnHover
             records={records}
             idAccessor='geneID'
-            rowSx={(record) => ({
+            rowStyle={(record) => ({
                 backgroundColor: highlightedSampleIds?.has(record.wgs?.sampleID)
                     ? 'rgba(59, 130, 246, 0.2)'
                     : undefined,

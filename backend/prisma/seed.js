@@ -116,6 +116,14 @@ async function seedSamples(mockData, adminUserID) {
     return idMap
 }
 
+const MLST_BY_ORGANISM = {
+    'Escherichia coli': 'ST58',
+    'Salmonella enterica': 'ST19',
+    'Klebsiella pneumoniae': 'ST258',
+    'Staphylococcus aureus': 'ST8',
+    'Enterococcus faecium': 'ST17',
+}
+
 async function seedIsolates(mockData, idMap) {
     const wgs = Array.isArray(mockData.wgs) ? mockData.wgs : []
     let count = 0
@@ -128,7 +136,7 @@ async function seedIsolates(mockData, idMap) {
             data: {
                 sample_id,
                 organism: row.organism || null,
-                mlst_type: null,
+                mlst_type: MLST_BY_ORGANISM[row.organism] || null,
             },
         })
         count++
@@ -141,29 +149,33 @@ async function seedAmrFindings(mockData, idMap) {
     const genes = Array.isArray(mockData.amrResistanceGenes) ? mockData.amrResistanceGenes : []
     let count = 0
 
-    for (let i = 0; i < genes.length; i++) {
-        const row = genes[i]
+    for (const row of genes) {
         const sample_id = idMap.get(Number(row.sampleID))
         if (!sample_id) continue
 
-        // Derive drug class from gene symbol where obvious, otherwise leave null
         const drug_class = deriveDrugClass(row.geneSymbol)
 
         await prisma.amrFinding.create({
             data: {
-                finding_id: i + 1,
                 sample_id,
                 gene_symbol: row.geneSymbol || null,
                 drug_class,
                 analysis_type: 'metagenomic',
-                method: null,
-                percent_identity: null,
+                method: 'ResFinder',
+                percent_identity: derivePercentIdentity(row.geneSymbol),
             },
         })
         count++
     }
 
     return count
+}
+
+function derivePercentIdentity(geneSymbol) {
+    if (!geneSymbol) return null
+    // Exact matches get 100%, partial/variant names get slightly lower
+    if (geneSymbol.includes('-') || /\d/.test(geneSymbol)) return 99.5
+    return 100.0
 }
 
 function deriveDrugClass(geneSymbol) {

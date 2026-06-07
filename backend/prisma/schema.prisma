@@ -68,7 +68,7 @@ model Isolate {
 }
 
 model AmrFinding {
-  finding_id      Int     @id
+  finding_id      Int     @id @default(autoincrement())
   sample_id       String  @db.VarChar(255)
   analysis_type   String? @db.VarChar(255)
   gene_symbol     String? @db.VarChar(255)

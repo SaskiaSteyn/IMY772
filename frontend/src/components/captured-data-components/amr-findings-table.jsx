@@ -9,7 +9,7 @@ const AmrFindingsTable = ({records, highlightedSampleIds, onExpandClick, onEditC
             highlightOnHover
             records={records}
             idAccessor='finding_id'
-            rowSx={(record) => ({
+            rowStyle={(record) => ({
                 backgroundColor: highlightedSampleIds?.has(record.sample_id)
                     ? 'rgba(59, 130, 246, 0.2)'
                     : undefined,
