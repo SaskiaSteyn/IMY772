@@ -1,6 +1,8 @@
 import {useState} from 'react';
 import * as XLSX from 'xlsx';
 import BulkPreviewModal from './bulk-preview-modal';
+import ImageSamplesEditor from './image-samples-editor';
+import {extractSamplesFromImage} from '../../api/sample-data-management';
 import {
     Button,
     Group,
@@ -11,11 +13,36 @@ import {
     Alert,
     Loader,
     ActionIcon,
+    Divider,
 } from '@mantine/core';
-import {AlertCircle, CheckCircle, FileUp, X} from 'lucide-react';
+import {AlertCircle, CheckCircle, FileUp, Image as ImageIcon, X} from 'lucide-react';
 import styles from './bulk-upload-modal.module.scss';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
+// Normalise the backend's upload response into the summary shape the results
+// panel renders. The /api/bulk-upload/samples endpoint returns `results` as a
+// per-row array ({ success, sample_id, error }); older endpoints returned a
+// ready-made summary object, which is passed through unchanged.
+function normaliseUploadResult(results) {
+    if (!Array.isArray(results)) {
+        return results || {successCount: 0, failureCount: 0, totalSamples: 0, sampleIDs: [], errors: []};
+    }
+
+    const succeeded = results.filter((r) => r.success);
+    const failed = results.filter((r) => !r.success);
+
+    return {
+        totalSamples: results.length,
+        successCount: succeeded.length,
+        failureCount: failed.length,
+        sampleIDs: succeeded.map((r) => r.sample_id),
+        errors: failed.map((r, idx) => ({
+            sampleIndex: r.sample_id || idx + 1,
+            error: r.error || 'Unknown error',
+        })),
+    };
+}
 
 export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
     const [file, setFile] = useState(null);
@@ -24,6 +51,8 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
     const [error, setError] = useState(null);
     const [samplePreviews, setSamplePreviews] = useState([]);
     const [previewOpen, setPreviewOpen] = useState(false);
+    // Image (multi-sample) flow: null = inactive, array = editable extracted rows
+    const [imageSamples, setImageSamples] = useState(null);
 
     // Allowed fields for samples, isolates, phenotypes, and amr findings
     const allowedSampleFields = [
@@ -288,20 +317,19 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
         }
     };
 
-    const handleUpload = async () => {
-        if (!file) {
-            setError('Please select a file first');
-            return;
-        }
-
+    // Shared insert path: send a file to /api/bulk-upload (CSV/JSON parsed and
+    // inserted server-side). Image samples are packaged as a JSON file so they
+    // reuse the exact same validation + insert + result reporting.
+    const uploadFile = async (fileToUpload, specificEndpoint = null) => {
         setLoading(true);
         setError(null);
 
         try {
             const formData = new FormData();
-            formData.append('file', file);
+            formData.append('file', fileToUpload);
 
-            const response = await fetch(`${API_URL}/api/bulk-upload`, {
+            const endpoint = specificEndpoint ? `${API_URL}${specificEndpoint}` : `${API_URL}/api/bulk-upload`;
+            const response = await fetch(endpoint, {
                 method: 'POST',
                 body: formData,
                 credentials: 'include',
@@ -313,12 +341,16 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
                 setError(data.details || data.error || 'Upload failed');
                 setUploadResult(null);
             } else {
-                setUploadResult(data.results);
+                // The /samples endpoint returns `results` as a per-row array
+                // ({ success, sample_id, error }); older endpoints returned a
+                // summary object. Normalise to the summary shape the UI renders.
+                const summary = normaliseUploadResult(data.results);
+                setUploadResult(summary);
                 setFile(null);
                 setSamplePreviews([]);
-                console.log('Upload successful, sample IDs:', data.results.sampleIDs);
+                setImageSamples(null);
                 if (onUploadSuccess) {
-                    onUploadSuccess(data.results.sampleIDs);
+                    onUploadSuccess(summary.sampleIDs);
                 }
             }
         } catch (err) {
@@ -328,11 +360,101 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
         }
     };
 
+    const handleUpload = () => {
+        if (!file) {
+            setError('Please select a file first');
+            return;
+        }
+        uploadFile(file);
+    };
+
+    // ── Image (multi-sample) flow ───────────────────────────────────────────
+    const handleImageChange = async (event) => {
+        const selected = event.target.files?.[0];
+        event.target.value = ''; // allow re-selecting the same file later
+        if (!selected) return;
+
+        setError(null);
+        setUploadResult(null);
+        setFile(null);
+        setSamplePreviews([]);
+        setLoading(true);
+        try {
+            const {samples} = await extractSamplesFromImage(selected);
+            if (!samples || samples.length === 0) {
+                setError(
+                    'No sample rows were found. Use a photo of a table with one sample per row, including Latitude and Longitude columns.',
+                );
+                setImageSamples(null);
+            } else {
+                // Ensure empty fields for sample_id so user can fill them in
+                // (bulk-upload requires sample_id)
+                const withIds = samples.map((s) => ({
+                    sample_id: s.sample_id || '',
+                    ...s,
+                }));
+                setImageSamples(withIds);
+            }
+        } catch (err) {
+            setError(err.message || 'Failed to read image');
+            setImageSamples(null);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const updateImageSample = (idx, field, value) => {
+        setImageSamples((prev) =>
+            prev.map((s, i) => (i === idx ? {...s, [field]: value} : s)),
+        );
+    };
+
+    const removeImageSample = (idx) => {
+        setImageSamples((prev) => prev.filter((_, i) => i !== idx));
+    };
+
+    const handleImageUpload = () => {
+        const isFilled = (v) => v !== '' && v !== null && v !== undefined;
+        // Require sample_id as well now
+        const valid = (imageSamples || []).filter(
+            (s) => isFilled(s.latitude) && isFilled(s.longitude) && isFilled(s.sample_id),
+        );
+        if (valid.length === 0) {
+            setError('Each sample needs a Sample ID, Latitude, and Longitude before uploading.');
+            return;
+        }
+
+        // Convert the simple format { sample_id, ... } into the format expected by the CSV parser 
+        // (which is just an array of flat objects, that's what PapaParse output would look like)
+        // AND the backend only reads CSV or Excel for `/samples` now. Wait!
+        
+        // Let's generate CSV string
+        const header = Object.keys(valid[0]).join(',');
+        const rows = valid.map(obj => 
+            Object.values(obj).map(val => {
+                if (val === null || val === undefined) return '';
+                // Quote strings if they contain commas
+                const str = String(val);
+                return str.includes(',') ? `"${str}"` : str;
+            }).join(',')
+        ).join('\n');
+        
+        const csvContent = `${header}\n${rows}`;
+        
+        const csvFile = new File(
+            [csvContent],
+            'image-samples.csv',
+            {type: 'text/csv'},
+        );
+        uploadFile(csvFile, '/api/bulk-upload/samples');
+    };
+
     const handleReset = () => {
         setFile(null);
         setError(null);
         setUploadResult(null);
         setSamplePreviews([]);
+        setImageSamples(null);
     };
 
     const handleClose = () => {
@@ -351,7 +473,7 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
             >
                 <Stack spacing='md'>
                     {/* File Input Section */}
-                    {!uploadResult && !file && (
+                    {!uploadResult && !file && !imageSamples && (
                         <>
                             <Text size='sm' color='dimmed'>
                                 Upload a CSV or JSON file with sample data. Supported formats:
@@ -382,7 +504,37 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
                                     </Text>
                                 </label>
                             </div>
+
+                            <Divider label='or' labelPosition='center' />
+
+                            <div className={styles.uploadArea}>
+                                <input
+                                    type='file'
+                                    id='image-input'
+                                    onChange={handleImageChange}
+                                    accept='image/*'
+                                    style={{display: 'none'}}
+                                />
+                                <label htmlFor='image-input' className={styles.uploadLabel}>
+                                    <ImageIcon size={32} />
+                                    <Text weight={500}>
+                                        Upload a photo of a table
+                                    </Text>
+                                    <Text size='xs' color='dimmed'>
+                                        One sample per row (must include Latitude & Longitude)
+                                    </Text>
+                                </label>
+                            </div>
                         </>
+                    )}
+
+                    {/* Editable preview for samples extracted from an image */}
+                    {!uploadResult && imageSamples && !loading && (
+                        <ImageSamplesEditor
+                            samples={imageSamples}
+                            onUpdate={updateImageSample}
+                            onRemove={removeImageSample}
+                        />
                     )}
 
                     {/* Selected File Display & Preview Button */}
@@ -458,8 +610,19 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
                                 <Button variant='default' onClick={handleClose} disabled={loading}>
                                     Cancel
                                 </Button>
-                                <Button onClick={handleUpload} loading={loading} disabled={!file || loading}>
-                                    Upload
+                                <Button
+                                    onClick={imageSamples ? handleImageUpload : handleUpload}
+                                    loading={loading}
+                                    disabled={
+                                        loading ||
+                                        (imageSamples
+                                            ? imageSamples.length === 0
+                                            : !file)
+                                    }
+                                >
+                                    {imageSamples
+                                        ? `Upload ${imageSamples.length} sample${imageSamples.length === 1 ? '' : 's'}`
+                                        : 'Upload'}
                                 </Button>
                             </>
                         ) : (
