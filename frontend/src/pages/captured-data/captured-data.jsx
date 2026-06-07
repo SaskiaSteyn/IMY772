@@ -1,6 +1,6 @@
 import {useState, useEffect} from 'react';
 import {Tabs, Button, Group, Title, Container, Stack, Loader, Center, Select, TextInput, SegmentedControl, SimpleGrid} from '@mantine/core';
-import {Plus, Upload, Pencil, Search, ScanLine} from 'lucide-react';
+import {Plus, Upload, Pencil, Search} from 'lucide-react';
 import DashboardNavbar from '../../components/dashboard/dashboard-navbar.jsx';
 import SamplesTable from '../../components/captured-data-components/samples-table';
 import IsolatesTable from '../../components/captured-data-components/isolates-table';
@@ -32,7 +32,6 @@ import './captured-data.scss';
 const CapturedData = () => {
     const {user} = useAuth();
     const [modalOpened, setModalOpened] = useState(false);
-    const [addMode, setAddMode] = useState('manual');
     const [bulkUploadModalOpened, setBulkUploadModalOpened] = useState(false);
     const [activeTab, setActiveTab] = useState('samples');
     const [samples, setSamples] = useState([]);
@@ -319,21 +318,8 @@ const CapturedData = () => {
                                 Update Existing Sample
                             </Button>
                             <Button
-                                leftSection={<ScanLine size={18} />}
-                                variant='outline'
-                                onClick={() => {
-                                    setAddMode('image');
-                                    setModalOpened(true);
-                                }}
-                            >
-                                Capture from Image
-                            </Button>
-                            <Button
                                 leftSection={<Plus size={18} />}
-                                onClick={() => {
-                                    setAddMode('manual');
-                                    setModalOpened(true);
-                                }}
+                                onClick={() => setModalOpened(true)}
                             >
                                 Add New Entry
                             </Button>
@@ -547,7 +533,7 @@ const CapturedData = () => {
             </Container>
 
             <>
-                <AddDataModal opened={modalOpened} onClose={() => setModalOpened(false)} onAddEntry={handleAddEntry} samples={userSamples} initialMode={addMode} />
+                <AddDataModal opened={modalOpened} onClose={() => setModalOpened(false)} onAddEntry={handleAddEntry} samples={userSamples} />
                 <BulkUploadModal isOpen={bulkUploadModalOpened} onClose={() => setBulkUploadModalOpened(false)} onUploadSuccess={handleUploadSuccess} />
                 <EditSampleModal opened={editSampleModalOpened} onClose={() => setEditSampleModalOpened(false)} record={recordToEdit} onSave={handleEditSampleSave} />
                 <EditIsolateModal opened={editIsolateModalOpened} onClose={() => setEditIsolateModalOpened(false)} record={isolateToEdit} onSave={handleEditIsolateSave} />

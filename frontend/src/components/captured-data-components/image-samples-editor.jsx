@@ -10,6 +10,7 @@ import {
 import { Trash2 } from 'lucide-react';
 
 const COLUMNS = [
+    { key: 'sample_id', label: 'Sample ID *', type: 'text' },
     { key: 'location_name', label: 'Location', type: 'text' },
     { key: 'latitude', label: 'Latitude *', type: 'number' },
     { key: 'longitude', label: 'Longitude *', type: 'number' },
@@ -18,9 +19,7 @@ const COLUMNS = [
     { key: 'tds', label: 'TDS', type: 'number' },
     { key: 'do', label: 'DO', type: 'number' },
     { key: 'collection_date', label: 'Date', type: 'text' },
-    { key: 'collected_by', label: 'Collected By', type: 'text' },
     { key: 'isolation_source', label: 'Source', type: 'text' },
-    { key: 'sample_analysis_type', label: 'Analysis', type: 'text' },
 ];
 
 // Editable table for samples extracted from a photo (one row per sample).
@@ -30,8 +29,8 @@ export default function ImageSamplesEditor({ samples, onUpdate, onRemove }) {
         <Stack gap='xs'>
             <Text size='sm' c='dimmed'>
                 Review and edit the {samples.length} extracted sample
-                {samples.length === 1 ? '' : 's'} below. Latitude and Longitude
-                are required for each row.
+                {samples.length === 1 ? '' : 's'} below. Sample ID, Latitude and
+                Longitude are required for each row.
             </Text>
             <ScrollArea type='auto' offsetScrollbars>
                 <Table striped withTableBorder withColumnBorders miw={1250}>

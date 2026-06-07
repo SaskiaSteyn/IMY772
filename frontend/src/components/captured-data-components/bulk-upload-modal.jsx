@@ -20,6 +20,30 @@ import styles from './bulk-upload-modal.module.scss';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
+// Normalise the backend's upload response into the summary shape the results
+// panel renders. The /api/bulk-upload/samples endpoint returns `results` as a
+// per-row array ({ success, sample_id, error }); older endpoints returned a
+// ready-made summary object, which is passed through unchanged.
+function normaliseUploadResult(results) {
+    if (!Array.isArray(results)) {
+        return results || {successCount: 0, failureCount: 0, totalSamples: 0, sampleIDs: [], errors: []};
+    }
+
+    const succeeded = results.filter((r) => r.success);
+    const failed = results.filter((r) => !r.success);
+
+    return {
+        totalSamples: results.length,
+        successCount: succeeded.length,
+        failureCount: failed.length,
+        sampleIDs: succeeded.map((r) => r.sample_id),
+        errors: failed.map((r, idx) => ({
+            sampleIndex: r.sample_id || idx + 1,
+            error: r.error || 'Unknown error',
+        })),
+    };
+}
+
 export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
     const [file, setFile] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -317,12 +341,16 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
                 setError(data.details || data.error || 'Upload failed');
                 setUploadResult(null);
             } else {
-                setUploadResult(data.results);
+                // The /samples endpoint returns `results` as a per-row array
+                // ({ success, sample_id, error }); older endpoints returned a
+                // summary object. Normalise to the summary shape the UI renders.
+                const summary = normaliseUploadResult(data.results);
+                setUploadResult(summary);
                 setFile(null);
                 setSamplePreviews([]);
                 setImageSamples(null);
                 if (onUploadSuccess) {
-                    onUploadSuccess(data.results.sampleIDs);
+                    onUploadSuccess(summary.sampleIDs);
                 }
             }
         } catch (err) {

@@ -54,6 +54,9 @@ export function mapExtractionToFormData(result) {
             const date = new Date(value);
             if (Number.isNaN(date.getTime())) applied = false;
             else updates.collection_date = date;
+        } else if (key === 'water_temperature') {
+            // The Sample form binds this parameter as `water_temp`.
+            updates.water_temp = value;
         } else {
             updates[key] = value;
         }
