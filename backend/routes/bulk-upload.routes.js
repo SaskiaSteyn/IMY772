@@ -83,7 +83,7 @@ router.post(
                                     drug_class: amr.drug_class || null,
                                     method: amr.method || null,
                                     percent_identity: amr.percent_identity !== undefined ? parseFloat(amr.percent_identity) : null,
-                                    finding_id: amr.finding_id || undefined, // auto if omitted
+                                    // finding_id is autoincrement — never set manually
                                 },
                             })
                         }
@@ -115,7 +115,13 @@ router.post(
 
             return res.status(207).json({
                 message: `Bulk upload completed: ${successCount} succeeded, ${failCount} failed`,
-                results,
+                results: {
+                    successCount,
+                    failureCount: failCount,
+                    totalSamples: results.length,
+                    sampleIDs: results.filter(r => r.success).map(r => r.sample_id),
+                    errors: results.filter(r => !r.success).map((r, i) => ({sampleIndex: i, sample_id: r.sample_id, error: r.error})),
+                },
             })
         } catch (err) {
             console.error('Bulk upload error:', err)

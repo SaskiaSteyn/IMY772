@@ -67,10 +67,30 @@ router.post(
 
 // ─── GET /api/samples - Get all samples ───────────────────────────────────────
 
+// Derive a flat SIR profile string ('resistant' | 'intermediate' | 'susceptible' | 'unknown')
+// from a sample's related predictedPhenotypes (which only carry a boolean `resistant` flag).
+function derivePredictedSirProfile(predictedPhenotypes) {
+    if (!predictedPhenotypes || predictedPhenotypes.length === 0) return 'unknown'
+
+    const hasResistant = predictedPhenotypes.some((p) => p.resistant === true)
+    if (hasResistant) return 'resistant'
+
+    const hasUnknown = predictedPhenotypes.some((p) => p.resistant === null || p.resistant === undefined)
+    if (hasUnknown) return 'intermediate'
+
+    return 'susceptible'
+}
+
 router.get('/', async (req, res) => {
     try {
-        const samples = await prisma.sample.findMany()
-        return res.json({samples})
+        const samples = await prisma.sample.findMany({
+            include: {predictedPhenotypes: true},
+        })
+        const samplesWithSirProfile = samples.map((sample) => ({
+            ...sample,
+            predicted_sir_profile: derivePredictedSirProfile(sample.predictedPhenotypes),
+        }))
+        return res.json({samples: samplesWithSirProfile})
     } catch (err) {
         console.error('Get samples error:', err)
         return res.status(500).json({message: 'Failed to retrieve samples'})

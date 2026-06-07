@@ -43,7 +43,7 @@ model Sample {
   ph              Decimal?   @db.Decimal(4, 2)
   tds             Decimal?   @db.Decimal(8, 2)
   do              Decimal?   @db.Decimal(8, 2)
-  uploaded_by     Int        @db.Integer
+  uploaded_by     Int?       @db.Integer
   created_at      DateTime   @default(now())
   updated_at      DateTime   @updatedAt
 
@@ -68,7 +68,7 @@ model Isolate {
 }
 
 model AmrFinding {
-  finding_id      Int     @id
+  finding_id      Int     @id @default(autoincrement())
   sample_id       String  @db.VarChar(255)
   analysis_type   String? @db.VarChar(255)
   gene_symbol     String? @db.VarChar(255)

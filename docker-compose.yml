@@ -35,18 +35,13 @@ services:
             yarn install --silent &&
             echo 'Generating Prisma client...' &&
             npx prisma generate &&
+            echo 'Fixing any stuck migrations...' &&
+            node scripts/fix-migration.js &&
             echo 'Running migrations...' &&
             npx prisma migrate deploy &&
             echo 'Migrations completed successfully' &&
-            mkdir -p /app/state &&
-            if [ ! -f /app/state/.seeded ]; then
-              echo 'Running seed script...' &&
-              node prisma/seed.js &&
-              touch /app/state/.seeded &&
-              echo 'Seed completed successfully';
-            else
-              echo 'Database already seeded, skipping seed script';
-            fi &&
+            echo 'Running seed script (skips if data already exists)...' &&
+            node prisma/seed.js &&
             npm run seed:admin &&
             yarn start
             "

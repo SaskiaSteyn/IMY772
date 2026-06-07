@@ -66,7 +66,7 @@ export default function WaterTemperatureChart({ samples }) {
                         }}
                     />
                     <Bar
-                        dataKey='water_temperature'
+                        dataKey='water_temp'
                         fill='#364fc7'
                         name='Temperature (°C)'
                     />

@@ -57,7 +57,7 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
     // Allowed fields for samples, isolates, phenotypes, and amr findings
     const allowedSampleFields = [
         'sample_id', 'collection_date', 'location_name', 'latitude', 'longitude',
-        'isolation_source', 'water_temperature', 'ph', 'tds', 'do'
+        'isolation_source', 'water_temp', 'ph', 'tds', 'do'
     ];
     const allowedIsolateFields = [
         'isolate_id', 'sample_id', 'organism', 'mlst_type'
@@ -328,7 +328,7 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
             const formData = new FormData();
             formData.append('file', fileToUpload);
 
-            const endpoint = specificEndpoint ? `${API_URL}${specificEndpoint}` : `${API_URL}/api/bulk-upload`;
+            const endpoint = specificEndpoint ? `${API_URL}${specificEndpoint}` : `${API_URL}/api/bulk-upload/samples`;
             const response = await fetch(endpoint, {
                 method: 'POST',
                 body: formData,

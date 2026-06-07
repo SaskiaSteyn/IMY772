@@ -2,6 +2,9 @@ import cookieParser from 'cookie-parser'
 import cors from 'cors'
 import dotenv from 'dotenv'
 import express from 'express'
+import {exec} from 'child_process'
+import {dirname} from 'path'
+import {fileURLToPath} from 'url'
 import {Pool} from 'pg'
 import prisma from './lib/prisma.js'
 import adminRouter from './routes/admin.routes.js'
@@ -167,6 +170,37 @@ app.get('/get-virulenceGenes', async (req, res) => {
         })
     }
 })
+
+async function autoSeedIfEmpty() {
+    try {
+        const sampleCount = await prisma.sample.count()
+        const phenotypeCount = await prisma.predictedPhenotype.count()
+
+        // Nothing in DB — run the seed
+        // Also re-seed if samples exist but phenotypes are missing (old broken seed)
+        if (sampleCount === 0 || phenotypeCount === 0) {
+            console.log(
+                sampleCount === 0
+                    ? 'Empty database detected — running seed...'
+                    : 'Missing phenotype data detected — re-seeding...'
+            )
+            const __dirname = dirname(fileURLToPath(import.meta.url))
+            await new Promise((resolve, reject) => {
+                exec('node prisma/seed.js', {cwd: __dirname}, (err, stdout, stderr) => {
+                    if (stdout) console.log(stdout.trim())
+                    if (stderr) console.error(stderr.trim())
+                    if (err) reject(err)
+                    else resolve()
+                })
+            })
+        }
+    } catch (err) {
+        // Non-fatal — server still starts even if seed fails
+        console.error('Auto-seed check failed:', err.message)
+    }
+}
+
+await autoSeedIfEmpty()
 
 app.listen(port, () => {
     console.log(`Backend running on http://localhost:${port}`)

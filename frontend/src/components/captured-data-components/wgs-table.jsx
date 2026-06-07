@@ -9,7 +9,7 @@ const WGSTable = ({records, highlightedSampleIds, onEditClick, onExpandClick}) =
             highlightOnHover
             records={records}
             idAccessor='sampleID'
-            rowSx={(record) => ({
+            rowStyle={(record) => ({
                 backgroundColor: highlightedSampleIds?.has(record.sampleID)
                     ? 'rgba(59, 130, 246, 0.2)'
                     : undefined,

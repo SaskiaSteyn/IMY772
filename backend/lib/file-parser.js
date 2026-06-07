@@ -31,7 +31,45 @@ import Papa from 'papaparse'
 export async function parseBulkUploadFile(fileBuffer, mimeType) {
     let rows = []
 
-    if (mimeType === 'text/csv' || mimeType === 'application/vnd.ms-excel') {
+    if (mimeType === 'application/json' || mimeType === 'text/plain') {
+        // Parse JSON — supports both an array of samples and the combined object format
+        const json = JSON.parse(fileBuffer.toString('utf-8'))
+
+        if (Array.isArray(json)) {
+            // Plain array of sample rows
+            rows = json
+        } else if (json && typeof json === 'object') {
+            // Combined object: { samples, isolates, predicted_phenotypes, amr_findings }
+            // Merge everything back into flat sample rows with nested JSON columns
+            const { samples = [], isolates = [], predicted_phenotypes = [], amr_findings = [] } = json
+
+            const isolatesBySample = {}
+            const phenotypesBySample = {}
+            const amrBySample = {}
+
+            isolates.forEach(i => {
+                if (!isolatesBySample[i.sample_id]) isolatesBySample[i.sample_id] = []
+                isolatesBySample[i.sample_id].push(i)
+            })
+            predicted_phenotypes.forEach(p => {
+                if (!phenotypesBySample[p.sample_id]) phenotypesBySample[p.sample_id] = []
+                phenotypesBySample[p.sample_id].push(p)
+            })
+            amr_findings.forEach(a => {
+                if (!amrBySample[a.sample_id]) amrBySample[a.sample_id] = []
+                amrBySample[a.sample_id].push(a)
+            })
+
+            rows = samples.map(s => ({
+                ...s,
+                isolates_json: JSON.stringify(isolatesBySample[s.sample_id] || []),
+                predicted_phenotypes_json: JSON.stringify(phenotypesBySample[s.sample_id] || []),
+                amr_findings_json: JSON.stringify(amrBySample[s.sample_id] || []),
+            }))
+        } else {
+            throw new Error('JSON must be an array of samples or a combined object with samples/isolates/predicted_phenotypes/amr_findings')
+        }
+    } else if (mimeType === 'text/csv' || mimeType === 'application/vnd.ms-excel') {
         // Parse CSV
         const csvString = fileBuffer.toString('utf-8')
         const result = Papa.parse(csvString, {header: true, skipEmptyLines: true})
@@ -46,7 +84,7 @@ export async function parseBulkUploadFile(fileBuffer, mimeType) {
         const sheet = workbook.Sheets[sheetName]
         rows = xlsx.utils.sheet_to_json(sheet)
     } else {
-        throw new Error('Unsupported file type. Please upload CSV or Excel (.xlsx)')
+        throw new Error('Unsupported file type. Please upload CSV, JSON, or Excel (.xlsx)')
     }
 
     const samples = []
