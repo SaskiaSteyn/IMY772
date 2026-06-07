@@ -280,6 +280,50 @@ describe('GET /api/samples', () => {
         expect(res.status).toBe(500)
         expect(res.body.message).toMatch(/failed to retrieve samples/i)
     })
+
+    test('derives predicted_sir_profile as "resistant" when any phenotype has resistant=true', async () => {
+        mockPrismaSample.findMany.mockResolvedValue([
+            { ...sampleFixture, predictedPhenotypes: [{ resistant: true }] },
+        ])
+
+        const res = await api().get('/api/samples')
+
+        expect(res.status).toBe(200)
+        expect(res.body.samples[0].predicted_sir_profile).toBe('resistant')
+    })
+
+    test('derives predicted_sir_profile as "intermediate" when a phenotype has resistant=null', async () => {
+        mockPrismaSample.findMany.mockResolvedValue([
+            { ...sampleFixture, predictedPhenotypes: [{ resistant: null }] },
+        ])
+
+        const res = await api().get('/api/samples')
+
+        expect(res.status).toBe(200)
+        expect(res.body.samples[0].predicted_sir_profile).toBe('intermediate')
+    })
+
+    test('derives predicted_sir_profile as "susceptible" when all phenotypes have resistant=false', async () => {
+        mockPrismaSample.findMany.mockResolvedValue([
+            { ...sampleFixture, predictedPhenotypes: [{ resistant: false }] },
+        ])
+
+        const res = await api().get('/api/samples')
+
+        expect(res.status).toBe(200)
+        expect(res.body.samples[0].predicted_sir_profile).toBe('susceptible')
+    })
+
+    test('derives predicted_sir_profile as "unknown" when predictedPhenotypes is empty', async () => {
+        mockPrismaSample.findMany.mockResolvedValue([
+            { ...sampleFixture, predictedPhenotypes: [] },
+        ])
+
+        const res = await api().get('/api/samples')
+
+        expect(res.status).toBe(200)
+        expect(res.body.samples[0].predicted_sir_profile).toBe('unknown')
+    })
 })
 
 // ─── GET /api/samples/:sample_id ──────────────────────────────────────────────
