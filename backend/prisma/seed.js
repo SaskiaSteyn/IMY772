@@ -31,6 +31,20 @@ function sirProfileToResistant(profile) {
     return null // intermediate or unknown
 }
 
+async function isAlreadySeeded() {
+    const count = await prisma.sample.count()
+    const phenotypeCount = await prisma.predictedPhenotype.count()
+    // Re-seed if samples exist but phenotypes are missing (old broken seed)
+    if (count > 0 && phenotypeCount > 0) {
+        console.log(`Database already seeded (${count} samples, ${phenotypeCount} phenotypes). Skipping.`)
+        return true
+    }
+    if (count > 0 && phenotypeCount === 0) {
+        console.log('Samples found but no phenotypes — old seed detected. Re-seeding...')
+    }
+    return false
+}
+
 async function clearData() {
     console.log('Clearing existing data...')
     await prisma.predictedPhenotype.deleteMany({})
@@ -212,6 +226,8 @@ async function seedAuditLog(admin) {
 
 async function main() {
     console.log('Starting database seed...')
+
+    if (await isAlreadySeeded()) return
 
     await clearData()
 
