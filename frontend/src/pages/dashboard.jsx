@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { MapContainer, Marker, TileLayer } from 'react-leaflet';
 import DashboardNavbar from '../components/dashboard/dashboard-navbar.jsx';
 import SamplePanel from '../components/dashboard/sample-panel.jsx';
+import { AskAiBar } from '../components/dashboard/ask-ai-bar.jsx';
+import { useAiFilter } from '../hooks/useAiFilter.js';
 import { useAuth } from '../context/auth-context.jsx';
 import './dashboard.scss';
 
@@ -95,9 +97,13 @@ export default function Dashboard() {
     const [samples, setSamples] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [selectedLocationSamples, setSelectedLocationSamples] =
-        useState(null);
+    const [selectedLocationSamples, setSelectedLocationSamples] = useState(null);
     const { user } = useAuth();
+
+    const aiFilter = useAiFilter();
+    const displayedSamples = aiFilter.filters.length > 0
+        ? aiFilter.applyFiltersToSamples(samples, aiFilter.filters)
+        : samples;
 
     // Fetch samples from the API
     useEffect(() => {
@@ -142,7 +148,7 @@ export default function Dashboard() {
     const centerCoord = [-30.5, 22.5];
 
     // Get unique locations (one per location_name + coordinates)
-    const uniqueLocations = samples.reduce((acc, sample) => {
+    const uniqueLocations = displayedSamples.reduce((acc, sample) => {
         const exists = acc.some(
             (loc) =>
                 loc.location_name === sample.location_name &&
@@ -180,6 +186,7 @@ export default function Dashboard() {
     return (
         <div className='dashboard-container'>
             <DashboardNavbar />
+
             <div className='map-wrapper'>
                 <MapContainer
                     center={centerCoord}
@@ -195,7 +202,7 @@ export default function Dashboard() {
                         const isSelected =
                             selectedLocationSamples?.location_name ===
                             location.location_name;
-                        const locationSamples = samples.filter(
+                        const locationSamples = displayedSamples.filter(
                             (s) => s.location_name === location.location_name,
                         );
                         const predominantProfile =
@@ -234,6 +241,21 @@ export default function Dashboard() {
                         );
                     })}
                 </MapContainer>
+
+            </div>
+
+            <div className='ai-float'>
+                <AskAiBar
+                    query={aiFilter.query}
+                    setQuery={aiFilter.setQuery}
+                    filters={aiFilter.filters}
+                    loading={aiFilter.loading}
+                    error={aiFilter.error}
+                    onApply={aiFilter.applyFilter}
+                    onClear={aiFilter.clearFilter}
+                    totalCount={samples.length}
+                    filteredCount={displayedSamples.length}
+                />
             </div>
 
             <SamplePanel

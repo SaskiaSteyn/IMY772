@@ -16,6 +16,7 @@ import samplesRouter from './routes/samples.routes.js'
 import isolatesRouter from './routes/isolates.routes.js'
 import amrFindingsRouter from './routes/amr-findings.routes.js'
 import predictedPhenotypesRouter from './routes/predicted-phenotypes.routes.js'
+import aiRouter from './routes/ai.routes.js'
 
 dotenv.config()
 dotenv.config({path: '../.env'})
@@ -42,6 +43,7 @@ app.use('/api/isolates', isolatesRouter)
 app.use('/api/amr-findings', amrFindingsRouter)
 app.use('/api/predicted-phenotypes', predictedPhenotypesRouter)
 app.use('/api/bulk-upload', bulkUploadRouter)
+app.use('/api/ai', aiRouter)
 app.use('/api', mockDataRouter)
 
 app.get('/health', (_req, res) => {
