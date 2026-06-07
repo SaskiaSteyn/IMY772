@@ -20,6 +20,51 @@ async function request(path, options = {}) {
 
 // ─── SAMPLES API ──────────────────────────────────────────────────────────────
 
+// Send a photo of a water-sample table to the backend for OCR extraction.
+// Uses FormData (not the JSON `request` helper) so the browser sets the
+// multipart boundary. Returns { fields, confidence, rawText }; the image is
+// processed in memory on the server and never stored.
+export const extractSampleFromImage = async (file) => {
+    const formData = new FormData()
+    formData.append('image', file)
+
+    const res = await fetch(`${API_URL}/api/samples/extract-image`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+    })
+
+    const data = await res.json().catch(() => ({}))
+
+    if (!res.ok) {
+        throw new Error(data.error || data.message || 'Failed to extract data from image')
+    }
+
+    return data
+}
+
+// Send a photo of a table where each ROW is a sample; returns { samples: [...] }
+// of core sample objects for the user to review/edit before bulk submission.
+export const extractSamplesFromImage = async (file) => {
+    const formData = new FormData()
+    formData.append('image', file)
+    formData.append('mode', 'multi')
+
+    const res = await fetch(`${API_URL}/api/samples/extract-image`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+    })
+
+    const data = await res.json().catch(() => ({}))
+
+    if (!res.ok) {
+        throw new Error(data.error || data.message || 'Failed to extract data from image')
+    }
+
+    return data
+}
+
 export const fetchAllSamples = async (signal) => {
     const response = await request('/api/samples', {signal})
     return response.samples || []

@@ -24,6 +24,7 @@ import IsolateFormStep from './steps/isolate-form-step';
 import PhenotypeFormStep from './steps/phenotype-form-step';
 import AmrFindingFormStep from './steps/amr-finding-form-step';
 import JsonUploadStep from './steps/json-upload-step';
+import ImageUploadStep from './steps/image-upload-step';
 
 // API
 import {
@@ -32,11 +33,12 @@ import {
     createPredictedPhenotype,
     createAmrFinding,
 } from '../../api/sample-data-management';
+import {mapExtractionToFormData} from '../../lib/extraction-mapping';
 
 const AddDataModal = ({opened, onClose, onAddEntry, samples = []}) => {
     const {user} = useAuth();
     const [stepIndex, setStepIndex] = useState(0);
-    const [method, setMethod] = useState(''); // 'manual' or 'json'
+    const [method, setMethod] = useState(''); // 'manual', 'json', or 'image'
     const [entryType, setEntryType] = useState(''); // 'new-sample' or 'add-to-existing'
     const [dataType, setDataType] = useState(''); // 'isolates', 'phenotypes', or 'amr_findings'
     const [isValid, setIsValid] = useState(false);
@@ -89,6 +91,7 @@ const AddDataModal = ({opened, onClose, onAddEntry, samples = []}) => {
     // Get current step label
     const getCurrentStepLabel = () => {
         if (!method) return 'Method';
+        if (method === 'image' && stepIndex === 1) return 'Capture from Image';
         if (method === 'json') {
             if (stepIndex === 0) return 'Method';
             if (stepIndex === 1) return 'Upload File';
@@ -143,6 +146,18 @@ const AddDataModal = ({opened, onClose, onAddEntry, samples = []}) => {
 
     const handleValidationChange = (valid) => {
         setIsValid(valid);
+    };
+
+    // Image capture: OCR result -> pre-fill the sample form, then drop the user
+    // into the standard manual "new sample" flow (step 2) to review/complete it.
+    // Sample ID is never read from the image, so the user always supplies it.
+    const handleImageExtracted = (result) => {
+        const {updates} = mapExtractionToFormData(result);
+        setFormData((prev) => ({...prev, ...updates, sample_id: ''}));
+        setMethod('manual');
+        setEntryType('new-sample');
+        setIsValid(false);
+        setStepIndex(2);
     };
 
     const handleAddIsolate = (isolateData) => {
@@ -293,6 +308,20 @@ const AddDataModal = ({opened, onClose, onAddEntry, samples = []}) => {
             if (stepIndex === 2) {
                 return <Center py="xl"><Text>Preview: Data loaded</Text></Center>;
             }
+        }
+
+        // Image capture flow - Step 1: upload + OCR, then hand off to the
+        // manual new-sample flow (handleImageExtracted switches method/step).
+        if (method === 'image' && stepIndex === 1) {
+            return (
+                <ImageUploadStep
+                    onExtracted={handleImageExtracted}
+                    onBack={() => {
+                        setMethod('');
+                        setStepIndex(0);
+                    }}
+                />
+            );
         }
 
         // Manual method flow - Step 1: Entry Type Selection
@@ -509,26 +538,29 @@ const AddDataModal = ({opened, onClose, onAddEntry, samples = []}) => {
                     </>
                 )}
 
-                {/* Navigation buttons */}
-                <Group justify="space-between">
-                    <Button
-                        variant="default"
-                        onClick={handlePrevious}
-                        disabled={stepIndex === 0}
-                        leftSection={<ArrowLeft size={18} />}
-                    >
-                        Previous
-                    </Button>
+                {/* Navigation buttons (hidden during image capture — that step
+                    has its own Cancel/Extract controls) */}
+                {!(method === 'image' && stepIndex === 1) && (
+                    <Group justify="space-between">
+                        <Button
+                            variant="default"
+                            onClick={handlePrevious}
+                            disabled={stepIndex === 0}
+                            leftSection={<ArrowLeft size={18} />}
+                        >
+                            Previous
+                        </Button>
 
-                    <Button
-                        onClick={handleNext}
-                        disabled={!canProceedToNext()}
-                        loading={loading}
-                        rightSection={isLastStep ? <Check size={18} /> : <ArrowRight size={18} />}
-                    >
-                        {isLastStep ? 'Complete' : 'Next'}
-                    </Button>
-                </Group>
+                        <Button
+                            onClick={handleNext}
+                            disabled={!canProceedToNext()}
+                            loading={loading}
+                            rightSection={isLastStep ? <Check size={18} /> : <ArrowRight size={18} />}
+                        >
+                            {isLastStep ? 'Complete' : 'Next'}
+                        </Button>
+                    </Group>
+                )}
             </Stack>
         </Modal>
     );
