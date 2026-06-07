@@ -88,6 +88,8 @@ model PredictedPhenotype {
   organism     String? @db.VarChar(255)
   antibiotic   String? @db.VarChar(255)
   resistant    Boolean?
+  ai_resistant Boolean?
+  is_manual_override Boolean @default(false)
 
   sample Sample @relation(fields: [sample_id], references: [sample_id])
 

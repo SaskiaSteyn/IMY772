@@ -50,6 +50,17 @@ const PredictedPhenotypesTable = ({records, highlightedSampleIds, onExpandClick,
                     ),
                 },
                 {
+                    accessor: 'is_manual_override',
+                    title: 'Source',
+                    width: 120,
+                    textAlignment: 'center',
+                    render: (record) => (
+                        <Badge color={record.is_manual_override ? 'orange' : 'gray'} variant='outline'>
+                            {record.is_manual_override ? 'Manual' : 'AI'}
+                        </Badge>
+                    ),
+                },
+                {
                     accessor: 'actions',
                     title: '',
                     width: 80,

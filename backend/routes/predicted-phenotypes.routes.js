@@ -18,6 +18,8 @@ router.post(
         body('organism').optional().trim().isString(),
         body('antibiotic').optional().trim().isString(),
         body('resistant').optional().isBoolean(),
+        body('ai_resistant').optional({nullable: true}).isBoolean(),
+        body('is_manual_override').optional().isBoolean(),
     ],
     async (req, res) => {
         const errors = validationResult(req)
@@ -25,7 +27,7 @@ router.post(
             return res.status(400).json({errors: errors.array()})
         }
 
-        const {sample_id, organism, antibiotic, resistant} = req.body
+        const {sample_id, organism, antibiotic, resistant, ai_resistant, is_manual_override} = req.body
 
         try {
             const sample = await prisma.sample.findUnique({where: {sample_id}})
@@ -39,6 +41,13 @@ router.post(
                     organism,
                     antibiotic,
                     resistant: resistant !== undefined ? Boolean(resistant) : null,
+                    ai_resistant:
+                        ai_resistant !== undefined && ai_resistant !== null
+                            ? Boolean(ai_resistant)
+                            : resistant !== undefined
+                              ? Boolean(resistant)
+                              : null,
+                    is_manual_override: is_manual_override !== undefined ? Boolean(is_manual_override) : false,
                 },
             })
             return res.status(201).json({phenotype})
@@ -132,6 +141,7 @@ router.put(
         body('organism').optional().trim().isString(),
         body('antibiotic').optional().trim().isString(),
         body('resistant').optional().isBoolean(),
+        body('clear_manual_override').optional().isBoolean(),
     ],
     async (req, res) => {
         const errors = validationResult(req)
@@ -140,14 +150,46 @@ router.put(
         }
 
         const {phenotype_id} = req.params
+        const phenotypeId = parseInt(phenotype_id)
+        const existing = await prisma.predictedPhenotype.findUnique({
+            where: {phenotype_id: phenotypeId},
+        })
+
+        if (!existing) {
+            return res.status(404).json({message: 'Predicted phenotype not found'})
+        }
+
         const updateData = {}
         if (req.body.organism !== undefined) updateData.organism = req.body.organism
         if (req.body.antibiotic !== undefined) updateData.antibiotic = req.body.antibiotic
-        if (req.body.resistant !== undefined) updateData.resistant = Boolean(req.body.resistant)
+        if (req.body.resistant !== undefined) {
+            const nextResistant = Boolean(req.body.resistant)
+            const aiResistant =
+                existing.ai_resistant === null || existing.ai_resistant === undefined
+                    ? existing.resistant
+                    : existing.ai_resistant
+
+            updateData.resistant = nextResistant
+            if (existing.ai_resistant === null || existing.ai_resistant === undefined) {
+                updateData.ai_resistant = existing.resistant
+            }
+            updateData.is_manual_override =
+                aiResistant === null || aiResistant === undefined ? true : nextResistant !== aiResistant
+        }
+
+        if (req.body.clear_manual_override === true) {
+            if (existing.ai_resistant === null || existing.ai_resistant === undefined) {
+                updateData.ai_resistant = existing.resistant
+                updateData.resistant = existing.resistant
+            } else {
+                updateData.resistant = existing.ai_resistant
+            }
+            updateData.is_manual_override = false
+        }
 
         try {
             const phenotype = await prisma.predictedPhenotype.update({
-                where: {phenotype_id: parseInt(phenotype_id)},
+                where: {phenotype_id: phenotypeId},
                 data: updateData,
             })
             return res.json({phenotype})

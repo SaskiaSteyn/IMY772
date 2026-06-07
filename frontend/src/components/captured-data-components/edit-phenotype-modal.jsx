@@ -15,6 +15,7 @@ const EditPhenotypeModal = ({opened, onClose, record, onSave}) => {
         organism: '',
         antibiotic: '',
         resistant: false,
+        manualOverride: false,
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -51,6 +52,7 @@ const EditPhenotypeModal = ({opened, onClose, record, onSave}) => {
                 organism: record.organism ?? '',
                 antibiotic: record.antibiotic ?? '',
                 resistant: record.resistant ?? false,
+                manualOverride: Boolean(record.is_manual_override),
             });
             setError('');
         }
@@ -71,8 +73,13 @@ const EditPhenotypeModal = ({opened, onClose, record, onSave}) => {
             const updateData = {
                 organism: formData.organism,
                 antibiotic: formData.antibiotic,
-                resistant: formData.resistant,
             };
+
+            if (formData.manualOverride) {
+                updateData.resistant = formData.resistant;
+            } else if (record?.is_manual_override) {
+                updateData.clear_manual_override = true;
+            }
 
             await onSave(record.phenotype_id, updateData);
             onClose();
@@ -127,9 +134,24 @@ const EditPhenotypeModal = ({opened, onClose, record, onSave}) => {
                 />
 
                 <Checkbox
-                    label="Resistant"
-                    checked={formData.resistant}
-                    onChange={(e) => setFormData({...formData, resistant: e.currentTarget.checked})}
+                    label="Use manual override"
+                    checked={formData.manualOverride}
+                    onChange={(e) => setFormData({...formData, manualOverride: e.currentTarget.checked})}
+                />
+
+                <Text size="sm" c="dimmed">
+                    AI prediction: {record?.ai_resistant === true ? 'Resistant' : record?.ai_resistant === false ? 'Susceptible' : 'Unknown'}
+                </Text>
+
+                <Select
+                    label="Resistance Status"
+                    data={[
+                        {value: 'susceptible', label: 'Susceptible'},
+                        {value: 'resistant', label: 'Resistant'},
+                    ]}
+                    value={formData.resistant ? 'resistant' : 'susceptible'}
+                    onChange={(value) => setFormData({...formData, resistant: value === 'resistant'})}
+                    disabled={!formData.manualOverride}
                 />
 
                 <Group justify="space-between" mt="lg">
