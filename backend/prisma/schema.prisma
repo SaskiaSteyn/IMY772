@@ -43,7 +43,7 @@ model Sample {
   ph              Decimal?   @db.Decimal(4, 2)
   tds             Decimal?   @db.Decimal(8, 2)
   do              Decimal?   @db.Decimal(8, 2)
-  uploaded_by     Int        @db.Integer
+  uploaded_by     Int?       @db.Integer
   created_at      DateTime   @default(now())
   updated_at      DateTime   @updatedAt
 

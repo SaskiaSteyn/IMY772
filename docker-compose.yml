@@ -35,6 +35,8 @@ services:
             yarn install --silent &&
             echo 'Generating Prisma client...' &&
             npx prisma generate &&
+            echo 'Fixing any stuck migrations...' &&
+            node scripts/fix-migration.js &&
             echo 'Running migrations...' &&
             npx prisma migrate deploy &&
             echo 'Migrations completed successfully' &&

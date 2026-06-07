@@ -144,10 +144,10 @@ function ExportModal({ opened, onClose, locationData }) {
             locationData.latitude,
             locationData.longitude,
             sample.collection_date || '',
-            sample.water_temperature || '',
-            sample.ph_level || '',
+            sample.water_temp || '',
+            sample.ph || '',
             sample.tds || '',
-            sample.dissolved_oxygen || '',
+            sample.do || '',
         ]);
 
         const csvContent = [
