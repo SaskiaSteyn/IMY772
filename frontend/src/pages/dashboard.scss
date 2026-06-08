@@ -25,6 +25,14 @@
     }
 }
 
+.comparison-wrapper {
+    flex: 1;
+    overflow: hidden;
+    width: 100%;
+    box-sizing: border-box;
+    position: relative;
+}
+
 .ai-float {
     position: fixed;
     bottom: 24px;

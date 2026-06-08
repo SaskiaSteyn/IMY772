@@ -17,7 +17,7 @@ import WaterTemperatureChart from '../charts/water-temperature-chart';
 import SampleAccordion from './sample-accordion';
 import './sample-panel.scss';
 
-export default function SamplePanel({ locationData, onClose }) {
+export default function SamplePanel({ locationData, onClose, style }) {
     const [exportModalOpen, setExportModalOpen] = useState(false);
 
     if (!locationData) return null;
@@ -28,7 +28,7 @@ export default function SamplePanel({ locationData, onClose }) {
     );
 
     return (
-        <div className='side-panel'>
+        <div className='side-panel' style={style}>
             <PanelHeader
                 location_name={location_name}
                 latitude={latitude}
