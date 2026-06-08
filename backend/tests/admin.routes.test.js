@@ -7,7 +7,7 @@ import {jest} from '@jest/globals'
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
 
-// ─── Mock Prisma and bcrypt ─────────────────────────────────────────────────
+// ─── Mock Prisma with all methods used by admin routes ──────────────────────
 const mockPrisma = {
     user: {
         findMany: jest.fn(),
@@ -16,6 +16,9 @@ const mockPrisma = {
         update: jest.fn(),
         delete: jest.fn(),
         count: jest.fn(),
+        updateMany: jest.fn(),
+        deleteMany: jest.fn(),
+        findFirst: jest.fn(),
     },
     sample: {
         findMany: jest.fn(),
@@ -24,24 +27,33 @@ const mockPrisma = {
         update: jest.fn(),
         delete: jest.fn(),
         count: jest.fn(),
+        updateMany: jest.fn(),
+        deleteMany: jest.fn(),
+        findFirst: jest.fn(),
     },
     isolate: {
         findMany: jest.fn(),
         create: jest.fn(),
         deleteMany: jest.fn(),
         count: jest.fn(),
+        updateMany: jest.fn(),
+        findFirst: jest.fn(),
     },
     amrFinding: {
         findMany: jest.fn(),
         create: jest.fn(),
         deleteMany: jest.fn(),
         count: jest.fn(),
+        updateMany: jest.fn(),
+        findFirst: jest.fn(),
     },
     predictedPhenotype: {
         findMany: jest.fn(),
         create: jest.fn(),
         deleteMany: jest.fn(),
         count: jest.fn(),
+        updateMany: jest.fn(),
+        findFirst: jest.fn(),
     },
     adminDeleteAudit: {
         create: jest.fn(),
@@ -54,7 +66,6 @@ jest.unstable_mockModule('../lib/prisma.js', () => ({
     default: mockPrisma,
 }))
 
-// bcrypt is used for password hashing; we can mock hash/compare if needed
 jest.unstable_mockModule('bcryptjs', () => ({
     default: {
         hash: jest.fn((pass, rounds) => Promise.resolve(`hashed-${pass}`)),
@@ -144,8 +155,9 @@ describe('Admin routes – authentication & authorization', () => {
 // ─── User CRUD ──────────────────────────────────────────────────────────────
 describe('Admin – User CRUD', () => {
     beforeEach(() => {
+        // Default mocks – findUnique returns null (user not found) unless overridden
         mockPrisma.user.findMany.mockResolvedValue([userFixture])
-        mockPrisma.user.findUnique.mockResolvedValue(userFixture)
+        mockPrisma.user.findUnique.mockResolvedValue(null)
         mockPrisma.user.create.mockResolvedValue(userFixture)
         mockPrisma.user.update.mockResolvedValue(userFixture)
         mockPrisma.user.delete.mockResolvedValue(userFixture)
@@ -164,6 +176,7 @@ describe('Admin – User CRUD', () => {
     })
 
     test('GET /users/:id – returns single user', async () => {
+        mockPrisma.user.findUnique.mockResolvedValue(userFixture)
         const res = await api()
             .get('/api/admin/users/1')
             .set('Cookie', authCookie())
@@ -187,6 +200,8 @@ describe('Admin – User CRUD', () => {
     })
 
     test('POST /users – creates user with valid data', async () => {
+        // No existing user with this email
+        mockPrisma.user.findUnique.mockResolvedValue(null)
         const newUser = {name: 'New', surname: 'User', email: 'new@example.com', password: 'password123'}
         const res = await api()
             .post('/api/admin/users')
@@ -222,6 +237,7 @@ describe('Admin – User CRUD', () => {
     })
 
     test('PUT /users/:id – updates user', async () => {
+        mockPrisma.user.findUnique.mockResolvedValue({userID: 1, email: 'admin@example.com'})
         const res = await api()
             .put('/api/admin/users/1')
             .set('Cookie', authCookie())
@@ -239,9 +255,7 @@ describe('Admin – User CRUD', () => {
     })
 
     test('PUT /users/:id – 404 not found', async () => {
-        const error = new Error('Not found')
-        error.code = 'P2025'
-        mockPrisma.user.update.mockRejectedValue(error)
+        mockPrisma.user.findUnique.mockResolvedValue(null)
         const res = await api()
             .put('/api/admin/users/999')
             .set('Cookie', authCookie())
@@ -406,12 +420,12 @@ describe('Admin – Generic entity CRUD', () => {
 
     test.each(entities)('POST /data/%s – creates record', async (entity) => {
         const payload = entity === 'samples'
-            ? {sample_id: 'NEW', latitude: 10, longitude: 20}
+            ? {sample_id: 'NEW', latitude: 10, longitude: 20, uploaded_by: 1}
             : entity === 'isolates'
                 ? {sample_id: 'SAMPLE-001', organism: 'Test'}
                 : entity === 'amr_findings'
                     ? {sample_id: 'SAMPLE-001', gene_symbol: 'bla'}
-                    : {sample_id: 'SAMPLE-001', organism: 'E. coli', antibiotic: 'AMP', resistant: true}
+                    : {sample_id: 'SAMPLE-001', organism: 'E. coli', antibiotic: 'AMP', resistant: true};
 
         const res = await api()
             .post(`/api/admin/data/${entity}`)
@@ -421,7 +435,6 @@ describe('Admin – Generic entity CRUD', () => {
     })
 
     test('PUT /data/samples/:rowId – updates using encoded rowId', async () => {
-        // Encode { sample_id: 'SAMPLE-001' } as base64url
         const rowId = Buffer.from(JSON.stringify({sample_id: 'SAMPLE-001'}), 'utf8').toString('base64url')
         const res = await api()
             .put(`/api/admin/data/samples/${rowId}`)
