@@ -25,35 +25,35 @@ const defaultInterests = [
 const PROFILE_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
 const PROFILE_IMAGE_ALLOWED_TYPES = ['image/jpeg', 'image/png'];
 
-const educationEntries = [
-    {
-        institution: 'University of Pretoria',
-        qualification: 'BSc Microbiology',
-        description: 'Focused on microbial ecology, environmental sampling, and laboratory methods for studying waterborne organisms.',
-        dateRange: '2019 - 2022',
-    },
-    {
-        institution: 'University of Pretoria',
-        qualification: 'Honours in Bioinformatics',
-        description: 'Worked with sequence analysis pipelines, data curation, and applied genomic interpretation for environmental samples.',
-        dateRange: '2023 - 2024',
-    },
-];
+// const educationEntries = [
+//     {
+//         institution: 'University of Pretoria',
+//         qualification: 'BSc Microbiology',
+//         description: 'Focused on microbial ecology, environmental sampling, and laboratory methods for studying waterborne organisms.',
+//         dateRange: '2019 - 2022',
+//     },
+//     {
+//         institution: 'University of Pretoria',
+//         qualification: 'Honours in Bioinformatics',
+//         description: 'Worked with sequence analysis pipelines, data curation, and applied genomic interpretation for environmental samples.',
+//         dateRange: '2023 - 2024',
+//     },
+// ];
 
-const experienceEntries = [
-    {
-        role: 'Research Assistant',
-        organization: 'MicroTrack Lab',
-        description: 'Assisted with sample intake, quality control, metadata validation, and preparation of monitoring reports for field teams.',
-        dateRange: '2024 - Present',
-    },
-    {
-        role: 'Field Sampling Intern',
-        organization: 'Environmental Monitoring Unit',
-        description: 'Collected water samples, documented location data, and supported the recording of water quality measurements on site.',
-        dateRange: '2022 - 2023',
-    },
-];
+// const experienceEntries = [
+//     {
+//         role: 'Research Assistant',
+//         organization: 'MicroTrack Lab',
+//         description: 'Assisted with sample intake, quality control, metadata validation, and preparation of monitoring reports for field teams.',
+//         dateRange: '2024 - Present',
+//     },
+//     {
+//         role: 'Field Sampling Intern',
+//         organization: 'Environmental Monitoring Unit',
+//         description: 'Collected water samples, documented location data, and supported the recording of water quality measurements on site.',
+//         dateRange: '2022 - 2023',
+//     },
+// ];
 
 function toDateRange(startDate, endDate) {
     if (!startDate && !endDate) return '';
@@ -63,14 +63,14 @@ function toDateRange(startDate, endDate) {
     return `${startYear} - ${endYear}`;
 }
 
-function parseRangeToDates(rangeText) {
-    const [startRaw, endRaw] = String(rangeText || '')
-        .split('-')
-        .map((v) => v?.trim());
-    const startDate = startRaw && /^\d{4}$/.test(startRaw) ? `${startRaw}-01-01` : '';
-    const endDate = endRaw && /^\d{4}$/.test(endRaw) ? `${endRaw}-12-31` : '';
-    return {startDate, endDate};
-}
+// function parseRangeToDates(rangeText) {
+//     const [startRaw, endRaw] = String(rangeText || '')
+//         .split('-')
+//         .map((v) => v?.trim());
+//     const startDate = startRaw && /^\d{4}$/.test(startRaw) ? `${startRaw}-01-01` : '';
+//     const endDate = endRaw && /^\d{4}$/.test(endRaw) ? `${endRaw}-12-31` : '';
+//     return {startDate, endDate};
+// }
 
 function buildInitialProfile(user, persistedProfile = null) {
     const safeName = persistedProfile?.name || user?.name || 'Taylor';
