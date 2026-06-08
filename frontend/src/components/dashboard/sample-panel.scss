@@ -30,6 +30,16 @@
     }
 }
 
+.side-panel-compare-hint {
+    padding: 6px 16px;
+    background: #f0f7e8;
+    border-bottom: 1px solid #d9edd0;
+    font-size: 12px;
+    color: #4a7a22;
+    text-align: center;
+    flex-shrink: 0;
+}
+
 .side-panel-header {
     display: flex;
     align-items: flex-start;

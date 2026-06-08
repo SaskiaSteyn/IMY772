@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { MapContainer, Marker, TileLayer } from 'react-leaflet';
 import DashboardNavbar from '../components/dashboard/dashboard-navbar.jsx';
 import SamplePanel from '../components/dashboard/sample-panel.jsx';
-import LocationList from '../components/dashboard/location-list.jsx';
 import ComparisonOverlay from '../components/dashboard/comparison-overlay.jsx';
 import { AskAiBar } from '../components/dashboard/ask-ai-bar.jsx';
 import { useAiFilter } from '../hooks/useAiFilter.js';
@@ -251,40 +250,28 @@ export default function Dashboard() {
                 </MapContainer>
             </div>
 
-            <div className='ai-float'>
+            <div className={`ai-float${comparison.comparisonMode ? ' ai-float--side' : ''}`}>
                 <AskAiBar
                     query={aiFilter.query}
                     setQuery={aiFilter.setQuery}
                     filters={aiFilter.filters}
                     loading={aiFilter.loading}
                     error={aiFilter.error}
-                    onApply={aiFilter.applyFilter}
+                    onApply={() => { comparison.closeAll(); aiFilter.applyFilter(); }}
                     onClear={aiFilter.clearFilter}
                     totalCount={samples.length}
                     filteredCount={displayedSamples.length}
+                    appliedQuery={aiFilter.appliedQuery}
+                    side={comparison.comparisonMode}
                 />
             </div>
-
-            {/* Open Locations panel — visible when 2+ locations open and not in comparison mode */}
-            {comparison.openLocations.length >= 2 && !comparison.comparisonMode && (
-                <LocationList
-                    locations={comparison.openLocations}
-                    selectedLocationIds={comparison.selectedLocationIds}
-                    activeLocationId={comparison.activeLocationId}
-                    onToggleSelect={comparison.toggleLocationSelection}
-                    onRemove={handleLocationCardClose}
-                    onCompare={comparison.startComparison}
-                    canCompare={comparison.canCompare}
-                    onSelectLocation={comparison.setActiveLocation}
-                    selectionLimitReached={comparison.selectionLimitReached}
-                />
-            )}
 
             {/* Single location panel */}
             {!comparison.comparisonMode && comparison.getActiveLocation() && (
                 <SamplePanel
                     locationData={comparison.getActiveLocation()}
                     onClose={() => handleLocationCardClose(comparison.activeLocationId)}
+                    showCompareHint
                 />
             )}
 
@@ -293,7 +280,6 @@ export default function Dashboard() {
                 <ComparisonOverlay
                     locations={comparison.getSelectedLocations()}
                     onClosePanel={handleLocationCardClose}
-                    onExit={comparison.exitComparison}
                 />
             )}
         </div>

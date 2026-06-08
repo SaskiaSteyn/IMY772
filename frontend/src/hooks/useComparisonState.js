@@ -10,11 +10,32 @@ export const useComparisonState = () => {
 
     const addOpenLocation = (location) => {
         const id = `${location.location_name}-${location.latitude}-${location.longitude}`;
-        setOpenLocations((prev) => {
-            if (prev.some((l) => l.id === id)) return prev;
-            return [...prev, { ...location, id }];
-        });
-        setActiveLocationId(id);
+        const newLoc = { ...location, id };
+
+        // Already open — just switch focus
+        if (openLocations.some((l) => l.id === id)) {
+            setActiveLocationId(id);
+            return;
+        }
+
+        if (openLocations.length === 0) {
+            // First location: open single panel
+            setOpenLocations([newLoc]);
+            setActiveLocationId(id);
+        } else if (openLocations.length === 1) {
+            // Second location: auto-enter comparison immediately
+            const first = openLocations[0];
+            setOpenLocations([first, newLoc]);
+            setSelectedLocationIds([first.id, id]);
+            setPreComparisonActiveId(first.id);
+            setActiveLocationId(id);
+            setComparisonMode(true);
+        } else {
+            // Third+ location: replace the second panel
+            setOpenLocations((prev) => [prev[0], newLoc]);
+            setSelectedLocationIds((prev) => [prev[0], id]);
+            setActiveLocationId(id);
+        }
     };
 
     const removeOpenLocation = (id) => {
@@ -47,7 +68,6 @@ export const useComparisonState = () => {
                 return prev.filter((locId) => locId !== id);
             }
             if (prev.length >= 2) {
-                // Hard limit — do not replace, just signal the user
                 setSelectionLimitReached(true);
                 setTimeout(() => setSelectionLimitReached(false), 3000);
                 return prev;
@@ -66,7 +86,6 @@ export const useComparisonState = () => {
     const exitComparison = () => {
         setComparisonMode(false);
         setSelectedLocationIds([]);
-        // Restore the location that was active before comparison started
         if (preComparisonActiveId) {
             const stillOpen = openLocations.some((l) => l.id === preComparisonActiveId);
             setActiveLocationId(
@@ -82,6 +101,14 @@ export const useComparisonState = () => {
 
     const getSelectedLocations = () => {
         return openLocations.filter((loc) => selectedLocationIds.includes(loc.id));
+    };
+
+    const closeAll = () => {
+        setOpenLocations([]);
+        setActiveLocationId(null);
+        setSelectedLocationIds([]);
+        setComparisonMode(false);
+        setPreComparisonActiveId(null);
     };
 
     const canCompare = selectedLocationIds.length === 2;
@@ -100,6 +127,7 @@ export const useComparisonState = () => {
         startComparison,
         exitComparison,
         getSelectedLocations,
+        closeAll,
         canCompare,
     };
 };

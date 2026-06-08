@@ -1,9 +1,6 @@
-import { Button } from '@mantine/core';
-import { ArrowLeft } from 'lucide-react';
+import { useRef, useCallback } from 'react';
 import SamplePanel from './sample-panel';
 
-// When inside the comparison container, the panel fills its flex wrapper
-// rather than using its own fixed positioning.
 const panelStyle = {
     position: 'relative',
     right: 'auto',
@@ -16,8 +13,20 @@ const panelStyle = {
     zIndex: 'auto',
 };
 
-export default function ComparisonOverlay({ locations, onClosePanel, onExit }) {
+export default function ComparisonOverlay({ locations, onClosePanel }) {
     if (locations.length !== 2) return null;
+
+    const leftRef = useRef(null);
+    const rightRef = useRef(null);
+    const isSyncing = useRef(false);
+
+    const syncScroll = useCallback((source, target) => {
+        if (isSyncing.current) return;
+        if (!source.current || !target.current) return;
+        isSyncing.current = true;
+        target.current.scrollTop = source.current.scrollTop;
+        isSyncing.current = false;
+    }, []);
 
     return (
         <div
@@ -29,22 +38,10 @@ export default function ComparisonOverlay({ locations, onClosePanel, onExit }) {
                 width: 'calc(30rem + 2rem + 30rem)',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '0.75rem',
                 zIndex: 100,
                 pointerEvents: 'none',
             }}
         >
-            {/* Toolbar — button left-aligned with the left panel */}
-            <div style={{ flexShrink: 0, pointerEvents: 'all' }}>
-                <Button
-                    leftSection={<ArrowLeft size={16} />}
-                    onClick={onExit}
-                >
-                    Back to Dashboard
-                </Button>
-            </div>
-
-            {/* Panel row */}
             <div
                 style={{
                     display: 'flex',
@@ -56,16 +53,20 @@ export default function ComparisonOverlay({ locations, onClosePanel, onExit }) {
             >
                 <div style={{ flex: '0 0 30rem', height: '100%', pointerEvents: 'all' }}>
                     <SamplePanel
-                        locationData={locations[0]}
-                        onClose={() => onClosePanel(locations[0].id)}
+                        locationData={locations[1]}
+                        onClose={() => onClosePanel(locations[1].id)}
                         style={panelStyle}
+                        scrollRef={leftRef}
+                        onScroll={() => syncScroll(leftRef, rightRef)}
                     />
                 </div>
                 <div style={{ flex: '0 0 30rem', height: '100%', pointerEvents: 'all' }}>
                     <SamplePanel
-                        locationData={locations[1]}
-                        onClose={() => onClosePanel(locations[1].id)}
+                        locationData={locations[0]}
+                        onClose={() => onClosePanel(locations[0].id)}
                         style={panelStyle}
+                        scrollRef={rightRef}
+                        onScroll={() => syncScroll(rightRef, leftRef)}
                     />
                 </div>
             </div>

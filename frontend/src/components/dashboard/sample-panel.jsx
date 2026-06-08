@@ -17,7 +17,14 @@ import WaterTemperatureChart from '../charts/water-temperature-chart';
 import SampleAccordion from './sample-accordion';
 import './sample-panel.scss';
 
-export default function SamplePanel({ locationData, onClose, style }) {
+export default function SamplePanel({
+    locationData,
+    onClose,
+    style,
+    scrollRef,
+    onScroll,
+    showCompareHint = false,
+}) {
     const [exportModalOpen, setExportModalOpen] = useState(false);
 
     if (!locationData) return null;
@@ -36,7 +43,16 @@ export default function SamplePanel({ locationData, onClose, style }) {
                 onClose={onClose}
             />
 
-            <div className='side-panel-content'>
+            {showCompareHint && (
+                <div className='side-panel-compare-hint'>
+                    Click on another location on the map to compare
+                </div>
+            )}
+            <div
+                className='side-panel-content'
+                ref={scrollRef}
+                onScroll={onScroll}
+            >
                 <Stack gap='lg'>
                     <Charts samples={sortedSamples} />
                     <SampleAccordion samples={sortedSamples} />
