@@ -25,6 +25,14 @@
     }
 }
 
+.comparison-wrapper {
+    flex: 1;
+    overflow: hidden;
+    width: 100%;
+    box-sizing: border-box;
+    position: relative;
+}
+
 .ai-float {
     position: fixed;
     bottom: 24px;
@@ -32,6 +40,12 @@
     transform: translateX(-50%);
     z-index: 9999;
     pointer-events: all;
+    transition: left 0.3s ease, transform 0.3s ease;
+
+    &--side {
+        left: calc(var(--sidebar-width, 280px) + 1rem);
+        transform: none;
+    }
 }
 
 .popup-content {

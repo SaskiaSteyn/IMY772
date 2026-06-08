@@ -20,13 +20,14 @@ export function AskAiBar({
     onClear,
     totalCount,
     filteredCount,
+    appliedQuery = '',
+    side = false,
 }) {
     const [open, setOpen] = useState(false);
     const textareaRef = useRef(null);
 
     const isFiltered = filters && filters.length > 0;
 
-    // Auto-grow textarea
     useEffect(() => {
         const el = textareaRef.current;
         if (!el) return;
@@ -53,12 +54,10 @@ export function AskAiBar({
     }
 
     return (
-        <div className={`ask-ai-bar ${open ? 'ask-ai-bar--open' : ''}`}>
-            {open && (
+        <div className={`ask-ai-bar ${open ? 'ask-ai-bar--open' : ''} ${side ? 'ask-ai-bar--side' : ''}`}>
+            {open && !appliedQuery && (
                 <div className='ask-ai-bar__suggestions'>
-                    <p className='ask-ai-bar__suggestions-heading'>
-                        Try asking…
-                    </p>
+                    <p className='ask-ai-bar__suggestions-heading'>Try asking…</p>
                     {SUGGESTIONS.map((s) => (
                         <button
                             key={s}
@@ -68,6 +67,28 @@ export function AskAiBar({
                             {s}
                         </button>
                     ))}
+                </div>
+            )}
+
+            {open && appliedQuery && (
+                <div className='ask-ai-bar__chat'>
+                    {appliedQuery && (
+                        <div className='ask-ai-bar__bubble-row'>
+                            <div className='ask-ai-bar__bubble'>{appliedQuery}</div>
+                        </div>
+                    )}
+
+                    {isFiltered && (
+                        <div className='ask-ai-bar__status'>
+                            Showing {filteredCount} of {totalCount} samples
+                        </div>
+                    )}
+
+                    {error && (
+                        <div className='ask-ai-bar__reply'>
+                            The current data doesn't seem to contain what you're looking for. Try asking about pH, water temperature, dissolved oxygen, TDS, or resistance profiles.
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -98,14 +119,6 @@ export function AskAiBar({
                     </button>
                 </div>
             )}
-
-            {open && isFiltered && (
-                <div className='ask-ai-bar__status'>
-                    Showing {filteredCount} of {totalCount} samples
-                </div>
-            )}
-
-            {open && error && <div className='ask-ai-bar__error'>{error}</div>}
 
             <button
                 className='ask-ai-bar__toggle'

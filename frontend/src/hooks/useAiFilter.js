@@ -34,12 +34,14 @@ function applyFiltersToSamples(samples, filters) {
 
 export function useAiFilter() {
     const [query, setQuery] = useState('')
+    const [appliedQuery, setAppliedQuery] = useState('')
     const [filters, setFilters] = useState([])
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState(null)
 
     async function applyFilter() {
         if (!query.trim()) return
+        const submitted = query.trim()
         setLoading(true)
         setError(null)
         try {
@@ -47,7 +49,7 @@ export function useAiFilter() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
-                body: JSON.stringify({ query }),
+                body: JSON.stringify({ query: submitted }),
             })
             const data = await res.json()
             if (!res.ok) throw new Error(data.error || 'Request failed')
@@ -56,6 +58,8 @@ export function useAiFilter() {
                 setFilters([])
             } else {
                 setFilters(data.filters || [])
+                setAppliedQuery(submitted)
+                setQuery('')
             }
         } catch (err) {
             setError(err.message)
@@ -67,9 +71,10 @@ export function useAiFilter() {
 
     function clearFilter() {
         setQuery('')
+        setAppliedQuery('')
         setFilters([])
         setError(null)
     }
 
-    return { query, setQuery, filters, loading, error, applyFilter, clearFilter, applyFiltersToSamples }
+    return { query, setQuery, appliedQuery, filters, loading, error, applyFilter, clearFilter, applyFiltersToSamples }
 }

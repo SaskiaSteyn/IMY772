@@ -4,31 +4,22 @@ import { useEffect, useState } from 'react';
 import { MapContainer, Marker, TileLayer } from 'react-leaflet';
 import DashboardNavbar from '../components/dashboard/dashboard-navbar.jsx';
 import SamplePanel from '../components/dashboard/sample-panel.jsx';
+import ComparisonOverlay from '../components/dashboard/comparison-overlay.jsx';
 import { AskAiBar } from '../components/dashboard/ask-ai-bar.jsx';
 import { useAiFilter } from '../hooks/useAiFilter.js';
 import { useAuth } from '../context/auth-context.jsx';
+import { useComparisonState } from '../hooks/useComparisonState.js';
 import './dashboard.scss';
-
-// Fix for default markers not showing in React Leaflet
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-    iconRetinaUrl:
-        'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-    iconUrl:
-        'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-    shadowUrl:
-        'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
 
 // Map SIR profile to color
 const getSIRProfileColor = (sirProfile) => {
     const profile = (sirProfile || '').toLowerCase();
     const colorMap = {
-        resistant: '#7db344', // Green for resistant
-        intermediate: '#f08c00', // Orange for intermediate
-        susceptible: '#e03131', // Red for susceptible
+        resistant: '#7db344',
+        intermediate: '#f08c00',
+        susceptible: '#e03131',
     };
-    return colorMap[profile] || '#999999'; // Gray as fallback
+    return colorMap[profile] || '#999999';
 };
 
 // Get the predominant SIR profile for a location
@@ -40,9 +31,7 @@ const getPredominantSIRProfile = (locationSamples) => {
     const profileCounts = {};
 
     locationSamples.forEach((sample) => {
-        const profile = (
-            sample.predicted_sir_profile || 'unknown'
-        ).toLowerCase();
+        const profile = (sample.predicted_sir_profile || 'unknown').toLowerCase();
         profileCounts[profile] = (profileCounts[profile] || 0) + 1;
     });
 
@@ -51,7 +40,6 @@ const getPredominantSIRProfile = (locationSamples) => {
         return 'unknown';
     }
 
-    // Return the most common profile
     return keys.reduce((a, b) => (profileCounts[a] > profileCounts[b] ? a : b));
 };
 
@@ -60,7 +48,6 @@ const createCustomIcon = (color = '#52C41A', isSelected = false) => {
     const size = isSelected ? 26 : 18;
     const anchor = isSelected ? 18 : 12;
 
-    // Convert hex color to rgba for shadow
     const hexToRgba = (hex, alpha) => {
         const r = parseInt(hex.slice(1, 3), 16);
         const g = parseInt(hex.slice(3, 5), 16);
@@ -76,7 +63,7 @@ const createCustomIcon = (color = '#52C41A', isSelected = false) => {
                 background-color: ${color};
                 border-radius: 50%;
                 ${isSelected ? `border: 3px solid #1890ff;` : ''}
-                box-shadow: 
+                box-shadow:
                     0 0 0 3px ${hexToRgba(color, 0.4)},
                     ${isSelected ? '0 0 0 8px rgba(24, 144, 255, 0.2),' : ''}
                     0 2px 8px rgba(0, 0, 0, 0.2);
@@ -93,17 +80,30 @@ const createCustomIcon = (color = '#52C41A', isSelected = false) => {
     });
 };
 
+// Fix for default markers not showing in React Leaflet
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+    iconRetinaUrl:
+        'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+    iconUrl:
+        'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+    shadowUrl:
+        'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
+
 export default function Dashboard() {
     const [samples, setSamples] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [selectedLocationSamples, setSelectedLocationSamples] = useState(null);
     const { user } = useAuth();
 
     const aiFilter = useAiFilter();
     const displayedSamples = aiFilter.filters.length > 0
         ? aiFilter.applyFiltersToSamples(samples, aiFilter.filters)
         : samples;
+
+    // Comparison state management
+    const comparison = useComparisonState();
 
     // Fetch samples from the API
     useEffect(() => {
@@ -165,6 +165,16 @@ export default function Dashboard() {
         return acc;
     }, []);
 
+    const handleMarkerClick = (locationData) => {
+        // addOpenLocation also sets this as the active location
+        comparison.addOpenLocation(locationData);
+    };
+
+    const handleLocationCardClose = (id) => {
+        // removeOpenLocation cleans all state for this location and auto-promotes remaining
+        comparison.removeOpenLocation(id);
+    };
+
     if (loading) {
         return (
             <div className='dashboard-container'>
@@ -199,9 +209,6 @@ export default function Dashboard() {
                         url='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
                     />
                     {uniqueLocations.map((location) => {
-                        const isSelected =
-                            selectedLocationSamples?.location_name ===
-                            location.location_name;
                         const locationSamples = displayedSamples.filter(
                             (s) => s.location_name === location.location_name,
                         );
@@ -217,7 +224,7 @@ export default function Dashboard() {
                                     parseFloat(location.latitude),
                                     parseFloat(location.longitude),
                                 ]}
-                                icon={createCustomIcon(markerColor, isSelected)}
+                                icon={createCustomIcon(markerColor, false)}
                                 eventHandlers={{
                                     click: () => {
                                         const sortedSamples =
@@ -228,7 +235,7 @@ export default function Dashboard() {
                                                     ) -
                                                     new Date(a.collection_date),
                                             );
-                                        setSelectedLocationSamples({
+                                        handleMarkerClick({
                                             location_name:
                                                 location.location_name,
                                             latitude: location.latitude,
@@ -241,27 +248,40 @@ export default function Dashboard() {
                         );
                     })}
                 </MapContainer>
-
             </div>
 
-            <div className='ai-float'>
+            <div className={`ai-float${comparison.comparisonMode ? ' ai-float--side' : ''}`}>
                 <AskAiBar
                     query={aiFilter.query}
                     setQuery={aiFilter.setQuery}
                     filters={aiFilter.filters}
                     loading={aiFilter.loading}
                     error={aiFilter.error}
-                    onApply={aiFilter.applyFilter}
+                    onApply={() => { comparison.closeAll(); aiFilter.applyFilter(); }}
                     onClear={aiFilter.clearFilter}
                     totalCount={samples.length}
                     filteredCount={displayedSamples.length}
+                    appliedQuery={aiFilter.appliedQuery}
+                    side={comparison.comparisonMode}
                 />
             </div>
 
-            <SamplePanel
-                locationData={selectedLocationSamples}
-                onClose={() => setSelectedLocationSamples(null)}
-            />
+            {/* Single location panel */}
+            {!comparison.comparisonMode && comparison.getActiveLocation() && (
+                <SamplePanel
+                    locationData={comparison.getActiveLocation()}
+                    onClose={() => handleLocationCardClose(comparison.activeLocationId)}
+                    showCompareHint
+                />
+            )}
+
+            {/* Comparison mode: two panels side-by-side */}
+            {comparison.comparisonMode && (
+                <ComparisonOverlay
+                    locations={comparison.getSelectedLocations()}
+                    onClosePanel={handleLocationCardClose}
+                />
+            )}
         </div>
     );
 }

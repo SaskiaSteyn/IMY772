@@ -4,6 +4,10 @@
     align-items: flex-end;
     gap: 8px;
 
+    &--side {
+        align-items: flex-start;
+    }
+
     &__toggle {
         display: flex;
         align-items: center;
@@ -64,6 +68,30 @@
             background: #f0f7e8;
             color: #4a7a22;
         }
+    }
+
+    &__chat {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
+        width: 340px;
+    }
+
+    &__bubble-row {
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    &__bubble {
+        background: #7db344;
+        color: #fff;
+        border-radius: 18px 18px 4px 18px;
+        padding: 10px 14px;
+        font-size: 13px;
+        line-height: 1.4;
+        max-width: 85%;
+        box-shadow: 0 2px 8px rgba(125, 179, 68, 0.3);
     }
 
     &__input-row {
@@ -143,12 +171,15 @@
         font-weight: 500;
     }
 
-    &__error {
-        background: #fff5f5;
-        color: #c0392b;
-        border-radius: 12px;
-        padding: 6px 12px;
-        font-size: 12px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    &__reply {
+        background: #fff;
+        color: #444;
+        border-radius: 18px 18px 18px 4px;
+        padding: 10px 14px;
+        font-size: 13px;
+        line-height: 1.4;
+        max-width: 85%;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        align-self: flex-start;
     }
 }
