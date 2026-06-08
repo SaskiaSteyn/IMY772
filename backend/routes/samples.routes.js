@@ -218,7 +218,6 @@ router.put(
         body('longitude').optional().isDecimal(),
     ],
     async (req, res) => {
-        // ... (unchanged)
         const errors = validationResult(req)
         if (!errors.isEmpty()) return res.status(400).json({errors: errors.array()})
 
