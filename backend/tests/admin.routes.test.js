@@ -66,7 +66,7 @@ jest.unstable_mockModule('bcryptjs', () => ({
 const {default: express} = await import('express')
 const cookieParser = (await import('cookie-parser')).default
 const {default: supertest} = await import('supertest')
-const {default: adminRouter} = await import('../../routes/admin.routes.js')
+const {default: adminRouter} = await import('../routes/admin.routes.js')
 
 const TEST_SECRET = process.env.JWT_SECRET || 'dev_jwt_secret_change_me'
 
