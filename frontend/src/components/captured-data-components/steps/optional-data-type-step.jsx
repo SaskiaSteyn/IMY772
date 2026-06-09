@@ -55,16 +55,12 @@ const OptionalDataTypeStep = forwardRef(({formData, setFormData, onValidationCha
                         }}
                         onClick={() => toggleDataType(id)}
                     >
-                        <Group justify="space-between" align="flex-start">
-                            <div>
-                                <Group gap="xs" mb="xs">
-                                    <Icon size={24} color="#7db344" />
-                                    <Text fw={600} size="sm">{label}</Text>
-                                </Group>
-                                <Text size="xs" c="dimmed">{description}</Text>
-                            </div>
+                        <Group gap="xs" mb="xs" justify="space-between" wrap="nowrap">
+                            <Icon size={24} color="#7db344" />
+                            <Text fw={600} size="sm" style={{flex: 1}}>{label}</Text>
                             <Checkbox checked={selectedTypes.includes(id)} onChange={() => {}} readOnly />
                         </Group>
+                        <Text size="xs" c="dimmed">{description}</Text>
                     </Card>
                 ))}
             </SimpleGrid>

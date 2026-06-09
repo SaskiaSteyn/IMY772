@@ -38,7 +38,10 @@ router.post(
             return res.status(201).json({isolate})
         } catch (err) {
             console.error('Create isolate error:', err)
-            return res.status(500).json({message: 'Failed to create isolate'})
+            if (err.code === 'P2003') {
+                return res.status(400).json({message: `Sample ID "${sample_id}" does not exist. Create the sample first.`})
+            }
+            return res.status(500).json({message: `Failed to create isolate: ${err.message}`})
         }
     }
 )
@@ -46,7 +49,7 @@ router.post(
 // ─── GET /api/isolates - Get all isolates ────────────────────────────────────
 router.get('/', async (req, res) => {
     try {
-        const isolates = await prisma.isolate.findMany({include: {sample: true}})
+        const isolates = await prisma.isolate.findMany({include: {sample: true}, orderBy: {isolate_id: 'desc'}})
         return res.json({isolates})
     } catch (err) {
         console.error('Get isolates error:', err)

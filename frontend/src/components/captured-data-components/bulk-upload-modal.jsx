@@ -584,17 +584,22 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
                     {uploadResult && !loading && (
                         <Stack spacing='md'>
                             <Alert icon={<CheckCircle size={16} />} title='Upload Completed'>
-                                {uploadResult.successCount} of {uploadResult.totalSamples} samples were successfully uploaded.
+                                {uploadResult.createdCount != null ? (
+                                    <>
+                                        {uploadResult.createdCount} created, {uploadResult.updatedCount} updated
+                                        {uploadResult.failureCount > 0 && `, ${uploadResult.failureCount} failed`}
+                                        {' '}— {uploadResult.totalSamples} total.
+                                    </>
+                                ) : (
+                                    <>{uploadResult.successCount} of {uploadResult.totalSamples} samples were successfully uploaded.</>
+                                )}
                             </Alert>
                             {uploadResult.failureCount > 0 && (
                                 <>
-                                    <Text size='sm' color='red'>
-                                        <strong>Failed:</strong> {uploadResult.failureCount}
-                                    </Text>
                                     {uploadResult.errors && uploadResult.errors.length > 0 && (
                                         <Alert icon={<AlertCircle size={14} />} color='yellow' title='Failed Samples' size='sm'>
                                             {uploadResult.errors.map((err, idx) => (
-                                                <Text key={idx} size='sm'>Sample {err.sampleIndex}: {err.error}</Text>
+                                                <Text key={idx} size='sm'><strong>{err.sample_id || `Sample ${err.sampleIndex}`}:</strong> {err.error}</Text>
                                             ))}
                                         </Alert>
                                     )}

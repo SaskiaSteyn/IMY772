@@ -13,12 +13,12 @@ router.post(
     requireAuth,
     [
         body('sample_id').trim().isString().withMessage('Sample ID must be a string'),
-        body('latitude').isDecimal().withMessage('Latitude must be a decimal'),
-        body('longitude').isDecimal().withMessage('Longitude must be a decimal'),
-        body('water_temp').optional().isDecimal(),
-        body('ph').optional().isDecimal(),
-        body('tds').optional().isDecimal(),
-        body('do').optional().isDecimal(),
+        body('latitude').isNumeric().withMessage('Latitude must be a number'),
+        body('longitude').isNumeric().withMessage('Longitude must be a number'),
+        body('water_temp').optional({nullable: true}).isNumeric(),
+        body('ph').optional({nullable: true}).isNumeric(),
+        body('tds').optional({nullable: true}).isNumeric(),
+        body('do').optional({nullable: true}).isNumeric(),
         body('isolation_source').optional().trim().isString(),
         body('collection_date').optional().isISO8601(),
         body('location_name').optional().trim().isString(),
@@ -60,7 +60,10 @@ router.post(
             return res.status(201).json({sample})
         } catch (err) {
             console.error('Create sample error:', err)
-            return res.status(500).json({message: 'Failed to create sample'})
+            if (err.code === 'P2002') {
+                return res.status(409).json({message: `Sample ID "${sample_id}" already exists. Please use a different ID.`})
+            }
+            return res.status(500).json({message: `Failed to create sample: ${err.message}`})
         }
     }
 )
@@ -68,27 +71,39 @@ router.post(
 // ─── GET /api/samples - Get all samples ───────────────────────────────────────
 
 // Derive a flat SIR profile string ('resistant' | 'intermediate' | 'susceptible' | 'unknown')
-// from a sample's related predictedPhenotypes (which only carry a boolean `resistant` flag).
-function derivePredictedSirProfile(predictedPhenotypes) {
-    if (!predictedPhenotypes || predictedPhenotypes.length === 0) return 'unknown'
+// Priority: phenotypes (clinical) > AMR findings (genomic) > unknown
+function derivePredictedSirProfile(predictedPhenotypes, amrFindings) {
+    const hasPhenotypes = predictedPhenotypes && predictedPhenotypes.length > 0
+    const hasAmrFindings = amrFindings && amrFindings.length > 0
 
-    const hasResistant = predictedPhenotypes.some((p) => p.resistant === true)
-    if (hasResistant) return 'resistant'
+    if (!hasPhenotypes && !hasAmrFindings) return 'unknown'
 
-    const hasUnknown = predictedPhenotypes.some((p) => p.resistant === null || p.resistant === undefined)
-    if (hasUnknown) return 'intermediate'
+    // Phenotypes take clinical precedence
+    if (hasPhenotypes) {
+        const hasResistant = predictedPhenotypes.some((p) => p.resistant === true)
+        if (hasResistant) return 'resistant'
 
-    return 'susceptible'
+        const hasUnknown = predictedPhenotypes.some((p) => p.resistant === null || p.resistant === undefined)
+        if (hasUnknown) return 'intermediate'
+
+        return 'susceptible'
+    }
+
+    // AMR findings present but no phenotypes — presence of resistance genes implies resistance
+    if (hasAmrFindings) return 'resistant'
+
+    return 'unknown'
 }
 
 router.get('/', async (req, res) => {
     try {
         const samples = await prisma.sample.findMany({
-            include: {predictedPhenotypes: true},
+            include: {predictedPhenotypes: true, isolates: true, amrFindings: true},
+            orderBy: {created_at: 'desc'},
         })
         const samplesWithSirProfile = samples.map((sample) => ({
             ...sample,
-            predicted_sir_profile: derivePredictedSirProfile(sample.predictedPhenotypes),
+            predicted_sir_profile: derivePredictedSirProfile(sample.predictedPhenotypes, sample.amrFindings),
         }))
         return res.json({samples: samplesWithSirProfile})
     } catch (err) {
@@ -103,14 +118,14 @@ router.post(
     '/predict-phenotype',
     requireAuth,
     [
-        body('latitude').isDecimal().withMessage('Latitude must be a decimal'),
-        body('longitude').isDecimal().withMessage('Longitude must be a decimal'),
+        body('latitude').isNumeric().withMessage('Latitude must be a number'),
+        body('longitude').isNumeric().withMessage('Longitude must be a number'),
         body('organism').trim().notEmpty().withMessage('Organism is required'),
         body('antibiotic').trim().notEmpty().withMessage('Antibiotic is required'),
-        body('water_temp').optional({nullable: true}).isDecimal(),
-        body('ph').optional({nullable: true}).isDecimal(),
-        body('tds').optional({nullable: true}).isDecimal(),
-        body('do').optional({nullable: true}).isDecimal(),
+        body('water_temp').optional({nullable: true}).isNumeric(),
+        body('ph').optional({nullable: true}).isNumeric(),
+        body('tds').optional({nullable: true}).isNumeric(),
+        body('do').optional({nullable: true}).isNumeric(),
         body('isolation_source').optional({nullable: true}).trim().isString(),
     ],
     async (req, res) => {

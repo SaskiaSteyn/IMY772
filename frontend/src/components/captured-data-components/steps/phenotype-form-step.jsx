@@ -1,9 +1,16 @@
-import {Stack, Select, Checkbox, Button, Group, Text} from '@mantine/core';
-import {forwardRef, useImperativeHandle, useState} from 'react';
+import {Stack, Select, TextInput, Button, Group, Text, Loader, Badge} from '@mantine/core';
+import {forwardRef, useImperativeHandle, useState, useEffect, useRef} from 'react';
+import {predictPhenotype} from '../../../api/sample-data-management';
 
 const PhenotypeFormStep = forwardRef(({formData, setFormData, onAddMore, onValidationChange}, ref) => {
-    const [phenotypeData, setPhenotypeData] = useState({organism: '', antibiotic: '', resistant: false});
+    const [phenotypeData, setPhenotypeData] = useState({organism: '', antibiotic: '', resistant: null});
     const [touched, setTouched] = useState({});
+    const [customOrganism, setCustomOrganism] = useState('');
+    const [customAntibiotic, setCustomAntibiotic] = useState('');
+    const [predictionLoading, setPredictionLoading] = useState(false);
+    const [predictionError, setPredictionError] = useState('');
+    const [aiPrediction, setAiPrediction] = useState(null);
+    const abortRef = useRef(null);
 
     const organisms = [
         'Escherichia coli',
@@ -14,6 +21,7 @@ const PhenotypeFormStep = forwardRef(({formData, setFormData, onAddMore, onValid
         'Vibrio parahaemolyticus',
         'Clostridium difficile',
         'Enterococcus faecalis',
+        'Other',
     ];
 
     const antibiotics = [
@@ -29,6 +37,7 @@ const PhenotypeFormStep = forwardRef(({formData, setFormData, onAddMore, onValid
         'Ceftriaxone',
         'Azithromycin',
         'Fluoroquinolone',
+        'Other',
     ];
 
     const handleChange = (field, value) => {
@@ -36,7 +45,65 @@ const PhenotypeFormStep = forwardRef(({formData, setFormData, onAddMore, onValid
         setTouched((prev) => ({...prev, [field]: true}));
     };
 
-    const isValid = phenotypeData.organism && phenotypeData.antibiotic;
+    const effectiveOrganism = phenotypeData.organism === 'Other' ? customOrganism : phenotypeData.organism;
+    const effectiveAntibiotic = phenotypeData.antibiotic === 'Other' ? customAntibiotic : phenotypeData.antibiotic;
+
+    // Trigger AI prediction whenever organism + antibiotic are both set
+    useEffect(() => {
+        if (!effectiveOrganism || !effectiveAntibiotic) {
+            setAiPrediction(null);
+            setPredictionError('');
+            return;
+        }
+
+        if (abortRef.current) abortRef.current.abort();
+        const controller = new AbortController();
+        abortRef.current = controller;
+
+        setPredictionLoading(true);
+        setPredictionError('');
+
+        const payload = {
+            organism: effectiveOrganism,
+            antibiotic: effectiveAntibiotic,
+            latitude: formData?.latitude ?? 0,
+            longitude: formData?.longitude ?? 0,
+            water_temp: formData?.water_temp ?? null,
+            ph: formData?.ph ?? null,
+            tds: formData?.tds ?? null,
+            do: formData?.do ?? null,
+            isolation_source: formData?.isolation_source ?? null,
+        };
+
+        predictPhenotype(payload, controller.signal)
+            .then((prediction) => {
+                if (!controller.signal.aborted) {
+                    const predicted = prediction?.predicted_sir_profile ?? null;
+                    setAiPrediction(predicted);
+                    setPhenotypeData((prev) => ({
+                        ...prev,
+                        resistant: predicted === 'resistant',
+                    }));
+                }
+            })
+            .catch(() => {
+                if (!controller.signal.aborted) setPredictionError('AI prediction unavailable');
+            })
+            .finally(() => {
+                if (!controller.signal.aborted) setPredictionLoading(false);
+            });
+
+        return () => controller.abort();
+    }, [effectiveOrganism, effectiveAntibiotic]);
+
+    const isValid = effectiveOrganism.trim() !== '' && effectiveAntibiotic.trim() !== '';
+
+    const getEffectiveData = () => ({
+        ...phenotypeData,
+        organism: effectiveOrganism,
+        antibiotic: effectiveAntibiotic,
+        resistant: phenotypeData.resistant === true,
+    });
 
     useImperativeHandle(ref, () => ({
         validate: () => {
@@ -48,9 +115,13 @@ const PhenotypeFormStep = forwardRef(({formData, setFormData, onAddMore, onValid
             if (onValidationChange) onValidationChange(true);
             return true;
         },
-        getData: () => phenotypeData,
+        getData: getEffectiveData,
         reset: () => {
-            setPhenotypeData({organism: '', antibiotic: '', resistant: false});
+            setPhenotypeData({organism: '', antibiotic: '', resistant: null});
+            setCustomOrganism('');
+            setCustomAntibiotic('');
+            setAiPrediction(null);
+            setPredictionError('');
             setTouched({});
         },
     }));
@@ -67,29 +138,79 @@ const PhenotypeFormStep = forwardRef(({formData, setFormData, onAddMore, onValid
                 placeholder="Select or type organism"
                 data={organisms}
                 value={phenotypeData.organism}
-                onChange={(value) => handleChange('organism', value || '')}
-                error={touched.organism && !phenotypeData.organism ? 'Organism is required' : ''}
+                onChange={(value) => {
+                    handleChange('organism', value || '');
+                    if (value !== 'Other') setCustomOrganism('');
+                }}
+                error={touched.organism && !effectiveOrganism ? 'Organism is required' : ''}
                 searchable
                 creatable
                 getCreateLabel={(query) => `+ Create "${query}"`}
             />
+
+            {phenotypeData.organism === 'Other' && (
+                <TextInput
+                    label="Specify organism"
+                    placeholder="Enter organism name"
+                    value={customOrganism}
+                    onChange={(e) => setCustomOrganism(e.currentTarget.value)}
+                    error={touched.organism && !customOrganism.trim() ? 'Please specify the organism' : ''}
+                    autoFocus
+                />
+            )}
 
             <Select
                 label="Antibiotic"
                 placeholder="Select or type antibiotic"
                 data={antibiotics}
                 value={phenotypeData.antibiotic}
-                onChange={(value) => handleChange('antibiotic', value || '')}
-                error={touched.antibiotic && !phenotypeData.antibiotic ? 'Antibiotic is required' : ''}
+                onChange={(value) => {
+                    handleChange('antibiotic', value || '');
+                    if (value !== 'Other') setCustomAntibiotic('');
+                }}
+                error={touched.antibiotic && !effectiveAntibiotic ? 'Antibiotic is required' : ''}
                 searchable
                 creatable
                 getCreateLabel={(query) => `+ Create "${query}"`}
             />
 
-            <Checkbox
-                label="Resistant"
-                checked={phenotypeData.resistant}
-                onChange={(e) => handleChange('resistant', e.currentTarget.checked)}
+            {phenotypeData.antibiotic === 'Other' && (
+                <TextInput
+                    label="Specify antibiotic"
+                    placeholder="Enter antibiotic name"
+                    value={customAntibiotic}
+                    onChange={(e) => setCustomAntibiotic(e.currentTarget.value)}
+                    error={touched.antibiotic && !customAntibiotic.trim() ? 'Please specify the antibiotic' : ''}
+                    autoFocus
+                />
+            )}
+
+            {/* AI prediction result */}
+            {(predictionLoading || aiPrediction || predictionError) && (
+                <Group gap="xs" align="center">
+                    <Text size="sm" fw={500}>AI Prediction:</Text>
+                    {predictionLoading && <Loader size="xs" />}
+                    {!predictionLoading && aiPrediction && (
+                        <Badge color={aiPrediction === 'resistant' ? 'red' : aiPrediction === 'susceptible' ? 'green' : 'yellow'}>
+                            {aiPrediction}
+                        </Badge>
+                    )}
+                    {!predictionLoading && predictionError && (
+                        <Text size="xs" c="dimmed">{predictionError}</Text>
+                    )}
+                </Group>
+            )}
+
+            <Select
+                label="Resistant Status"
+                description={aiPrediction ? 'Pre-filled by AI — override if needed' : 'Select resistance status'}
+                placeholder="Select status"
+                data={[
+                    {value: 'true', label: 'Resistant'},
+                    {value: 'false', label: 'Susceptible'},
+                ]}
+                value={phenotypeData.resistant === null ? null : String(phenotypeData.resistant)}
+                onChange={(value) => handleChange('resistant', value === 'true')}
             />
 
             {onAddMore && (
@@ -98,8 +219,12 @@ const PhenotypeFormStep = forwardRef(({formData, setFormData, onAddMore, onValid
                         variant="light"
                         onClick={() => {
                             if (isValid) {
-                                onAddMore(phenotypeData);
-                                setPhenotypeData({organism: '', antibiotic: '', resistant: false});
+                                onAddMore(getEffectiveData());
+                                setPhenotypeData({organism: '', antibiotic: '', resistant: null});
+                                setCustomOrganism('');
+                                setCustomAntibiotic('');
+                                setAiPrediction(null);
+                                setPredictionError('');
                                 setTouched({});
                             } else {
                                 setTouched({organism: true, antibiotic: true});
