@@ -58,11 +58,6 @@ async function writeDeleteAudit({actor, entityType, entityKey, reason}) {
 }
 
 // -------------------- User CRUD --------------------
-router.get('/users', async (_req, res) => { /* same as your current */})
-router.get('/users/:id', async (req, res) => { /* same */})
-router.post('/users', async (req, res) => { /* same */})
-router.put('/users/:id', async (req, res) => { /* same */})
-router.delete('/users/:id', async (req, res) => { /* same */})
 
 router.get('/users', async (_req, res) => {
     try {

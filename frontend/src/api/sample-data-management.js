@@ -75,6 +75,11 @@ export const fetchSampleById = async (sampleId, signal) => {
     return response.sample
 }
 
+export const fetchSamplesByUser = async (userId, signal) => {
+    const response = await request(`/api/samples/uploaded_by/${userId}`, {signal})
+    return response.samples || []
+}
+
 export const createSample = async (sampleData, signal) => {
     const response = await request('/api/samples', {
         method: 'POST',

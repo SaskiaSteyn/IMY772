@@ -283,7 +283,7 @@ describe('GET /api/samples', () => {
 
     test('derives predicted_sir_profile as "resistant" when any phenotype has resistant=true', async () => {
         mockPrismaSample.findMany.mockResolvedValue([
-            { ...sampleFixture, predictedPhenotypes: [{ resistant: true }] },
+            {...sampleFixture, predictedPhenotypes: [{resistant: true}]},
         ])
 
         const res = await api().get('/api/samples')
@@ -294,7 +294,7 @@ describe('GET /api/samples', () => {
 
     test('derives predicted_sir_profile as "intermediate" when a phenotype has resistant=null', async () => {
         mockPrismaSample.findMany.mockResolvedValue([
-            { ...sampleFixture, predictedPhenotypes: [{ resistant: null }] },
+            {...sampleFixture, predictedPhenotypes: [{resistant: null}]},
         ])
 
         const res = await api().get('/api/samples')
@@ -305,7 +305,7 @@ describe('GET /api/samples', () => {
 
     test('derives predicted_sir_profile as "susceptible" when all phenotypes have resistant=false', async () => {
         mockPrismaSample.findMany.mockResolvedValue([
-            { ...sampleFixture, predictedPhenotypes: [{ resistant: false }] },
+            {...sampleFixture, predictedPhenotypes: [{resistant: false}]},
         ])
 
         const res = await api().get('/api/samples')
@@ -316,7 +316,7 @@ describe('GET /api/samples', () => {
 
     test('derives predicted_sir_profile as "unknown" when predictedPhenotypes is empty', async () => {
         mockPrismaSample.findMany.mockResolvedValue([
-            { ...sampleFixture, predictedPhenotypes: [] },
+            {...sampleFixture, predictedPhenotypes: []},
         ])
 
         const res = await api().get('/api/samples')
@@ -359,6 +359,56 @@ describe('GET /api/samples/:sample_id', () => {
 
         expect(res.status).toBe(500)
         expect(res.body.message).toMatch(/failed to retrieve sample/i)
+    })
+})
+
+// ─── GET /api/samples/uploaded_by/:uploaded_by ──────────────────────────────────────────
+
+describe('GET /api/samples/uploaded_by/:uploaded_by', () => {
+    beforeEach(() => jest.clearAllMocks())
+
+    test('returns 400 when uploaded_by is not an integer', async () => {
+        const res = await api().get('/api/samples/uploaded_by/not-an-integer')
+        expect(res.status).toBe(400)
+        expect(res.body.errors).toBeDefined()
+        expect(res.body.errors[0].msg).toMatch(/must be an integer/)
+    })
+
+    test('returns 200 with array of samples for valid uploaded_by', async () => {
+        const userSamples = [
+            {...sampleFixture, sample_id: 'SAMP-1', uploaded_by: 2},
+            {...sampleFixture, sample_id: 'SAMP-2', uploaded_by: 2}
+        ]
+        mockPrismaSample.findMany.mockResolvedValue(userSamples)
+
+        const res = await api().get('/api/samples/uploaded_by/2')
+        expect(res.status).toBe(200)
+        expect(res.body.samples).toHaveLength(2)
+        expect(res.body.samples[0].uploaded_by).toBe(2)
+        expect(mockPrismaSample.findMany).toHaveBeenCalledWith({
+            where: {uploaded_by: 2},
+            include: {
+                isolates: true,
+                amrFindings: true,
+                predictedPhenotypes: true,
+            },
+        })
+    })
+
+    test('returns 200 with empty array when no samples exist for uploaded_by', async () => {
+        mockPrismaSample.findMany.mockResolvedValue([])
+
+        const res = await api().get('/api/samples/uploaded_by/999')
+        expect(res.status).toBe(200)
+        expect(res.body.samples).toEqual([])
+    })
+
+    test('returns 500 when database query fails', async () => {
+        mockPrismaSample.findMany.mockRejectedValue(new Error('db down'))
+
+        const res = await api().get('/api/samples/uploaded_by/1')
+        expect(res.status).toBe(500)
+        expect(res.body.message).toMatch(/failed to retrieve samples/i)
     })
 })
 

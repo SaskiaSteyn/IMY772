@@ -174,6 +174,33 @@ router.get(
     }
 )
 
+// ─── GET /api/samples/:sample_id - Get sample by uploaded by integer ID value ──────────────────────────
+
+router.get(
+    '/uploaded_by/:uploaded_by',
+    [param('uploaded_by').isInt().withMessage('Uploaded by must be an integer')],
+    async (req, res) => {
+        const errors = validationResult(req)
+        if (!errors.isEmpty()) return res.status(400).json({errors: errors.array()})
+
+        const {uploaded_by} = req.params
+        try {
+            const samples = await prisma.sample.findMany({
+                where: {uploaded_by: parseInt(uploaded_by)},
+                include: {
+                    isolates: true,
+                    amrFindings: true,
+                    predictedPhenotypes: true,
+                },
+            })
+            return res.json({samples})
+        } catch (err) {
+            console.error('Get samples error:', err)
+            return res.status(500).json({message: 'Failed to retrieve samples'})
+        }
+    }
+)
+
 // ─── PUT /api/samples/:sample_id - Update sample ──────────────────────────────
 
 router.put(
@@ -191,7 +218,6 @@ router.put(
         body('longitude').optional().isDecimal(),
     ],
     async (req, res) => {
-        // ... (unchanged)
         const errors = validationResult(req)
         if (!errors.isEmpty()) return res.status(400).json({errors: errors.array()})
 
