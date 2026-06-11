@@ -17,8 +17,7 @@ import {
 } from '@mantine/core';
 import {AlertCircle, CheckCircle, FileUp, Image as ImageIcon, X} from 'lucide-react';
 import styles from './bulk-upload-modal.module.scss';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+import {buildApiUrl} from '../../api/api-client.js';
 
 // Normalise the backend's upload response into the summary shape the results
 // panel renders. The /api/bulk-upload/samples endpoint returns `results` as a
@@ -328,7 +327,7 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
             const formData = new FormData();
             formData.append('file', fileToUpload);
 
-            const endpoint = specificEndpoint ? `${API_URL}${specificEndpoint}` : `${API_URL}/api/bulk-upload/samples`;
+            const endpoint = buildApiUrl(specificEndpoint || '/api/bulk-upload/samples');
             const response = await fetch(endpoint, {
                 method: 'POST',
                 body: formData,

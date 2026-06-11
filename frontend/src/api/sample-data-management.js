@@ -1,8 +1,8 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+import { buildApiUrl } from './api-client.js'
 
 async function request(path, options = {}) {
     const {signal, ...restOptions} = options
-    const res = await fetch(`${API_URL}${path}`, {
+    const res = await fetch(buildApiUrl(path), {
         headers: {'Content-Type': 'application/json'},
         credentials: 'include',
         signal,
@@ -28,7 +28,7 @@ export const extractSampleFromImage = async (file) => {
     const formData = new FormData()
     formData.append('image', file)
 
-    const res = await fetch(`${API_URL}/api/samples/extract-image`, {
+    const res = await fetch(buildApiUrl('/api/samples/extract-image'), {
         method: 'POST',
         credentials: 'include',
         body: formData,
@@ -50,7 +50,7 @@ export const extractSamplesFromImage = async (file) => {
     formData.append('image', file)
     formData.append('mode', 'multi')
 
-    const res = await fetch(`${API_URL}/api/samples/extract-image`, {
+    const res = await fetch(buildApiUrl('/api/samples/extract-image'), {
         method: 'POST',
         credentials: 'include',
         body: formData,
