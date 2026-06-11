@@ -32,7 +32,9 @@ const getPredominantSIRProfile = (locationSamples) => {
     const profileCounts = {};
 
     locationSamples.forEach((sample) => {
-        const profile = (sample.predicted_sir_profile || 'unknown').toLowerCase();
+        const profile = (
+            sample.predicted_sir_profile || 'unknown'
+        ).toLowerCase();
         profileCounts[profile] = (profileCounts[profile] || 0) + 1;
     });
 
@@ -99,30 +101,41 @@ export default function Dashboard() {
     const { user } = useAuth();
 
     const aiFilter = useAiFilter();
-    const displayedSamples = aiFilter.filters.length > 0
-        ? aiFilter.applyFiltersToSamples(samples, aiFilter.filters)
-        : samples;
+    const displayedSamples =
+        aiFilter.filters.length > 0
+            ? aiFilter.applyFiltersToSamples(samples, aiFilter.filters)
+            : samples;
 
     // Comparison state management
     const comparison = useComparisonState();
 
-    // Fetch samples from the API
+    const [retryCount, setRetryCount] = useState(0);
+    const RETRY_INTERVAL_MS = 5000;
+
+    // Fetch samples from the API, auto-retrying while the server is waking up
     useEffect(() => {
         const controller = new AbortController();
         setLoading(true);
         fetchAllSamples(controller.signal)
-            .then((data) => setSamples(data))
+            .then((data) => {
+                setSamples(data);
+                setError(null);
+            })
             .catch((err) => {
                 if (!controller.signal.aborted) {
                     console.error('Error fetching samples:', err);
                     setError(err.message);
+                    const timer = setTimeout(() => {
+                        setRetryCount((c) => c + 1);
+                    }, RETRY_INTERVAL_MS);
+                    return () => clearTimeout(timer);
                 }
             })
             .finally(() => {
                 if (!controller.signal.aborted) setLoading(false);
             });
         return () => controller.abort();
-    }, []);
+    }, [retryCount]);
 
     // Center coordinates for South Africa
     const centerCoord = [-30.5, 22.5];
@@ -168,7 +181,21 @@ export default function Dashboard() {
         return (
             <div className='dashboard-container'>
                 <DashboardNavbar />
-                <div className='error'>Error loading samples: {error}</div>
+                <div className='server-waking-up'>
+                    <div className='server-waking-up__card'>
+                        <div className='server-waking-up__spinner' />
+                        <h2 className='server-waking-up__title'>
+                            Server is waking up
+                        </h2>
+                        <p className='server-waking-up__body'>
+                            The server may be starting up after a period of
+                            inactivity. This usually takes under a minute.
+                        </p>
+                        <span className='server-waking-up__badge'>
+                            Retrying automatically
+                        </span>
+                    </div>
+                </div>
             </div>
         );
     }
@@ -230,14 +257,19 @@ export default function Dashboard() {
                 </MapContainer>
             </div>
 
-            <div className={`ai-float${comparison.comparisonMode ? ' ai-float--side' : ''}`}>
+            <div
+                className={`ai-float${comparison.comparisonMode ? ' ai-float--side' : ''}`}
+            >
                 <AskAiBar
                     query={aiFilter.query}
                     setQuery={aiFilter.setQuery}
                     filters={aiFilter.filters}
                     loading={aiFilter.loading}
                     error={aiFilter.error}
-                    onApply={() => { comparison.closeAll(); aiFilter.applyFilter(); }}
+                    onApply={() => {
+                        comparison.closeAll();
+                        aiFilter.applyFilter();
+                    }}
                     onClear={aiFilter.clearFilter}
                     totalCount={samples.length}
                     filteredCount={displayedSamples.length}
@@ -250,7 +282,9 @@ export default function Dashboard() {
             {!comparison.comparisonMode && comparison.getActiveLocation() && (
                 <SamplePanel
                     locationData={comparison.getActiveLocation()}
-                    onClose={() => handleLocationCardClose(comparison.activeLocationId)}
+                    onClose={() =>
+                        handleLocationCardClose(comparison.activeLocationId)
+                    }
                     showCompareHint
                 />
             )}
