@@ -1,4 +1,5 @@
 import { GoogleOAuthProvider } from '@react-oauth/google';
+import { useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import App from './App.jsx';
 import { AuthProvider, useAuth } from './context/auth-context.jsx';
@@ -9,6 +10,7 @@ import WaterData from './pages/admin/water-data.jsx';
 import CapturedData from './pages/captured-data/captured-data.jsx';
 import Dashboard from './pages/dashboard.jsx';
 import Login from './pages/login.jsx';
+import NotFound from './pages/not-found.jsx';
 import Profile from './pages/profile.jsx';
 import SignUp from './pages/sign-up.jsx';
 
@@ -27,19 +29,18 @@ function AppRoutes() {
         return <AdminLayout />;
     }
 
+    useEffect(() => {
+        if (!loading) {
+            const splash = document.getElementById('splash-screen');
+            if (splash) {
+                splash.classList.add('hidden');
+                splash.addEventListener('transitionend', () => splash.remove(), { once: true });
+            }
+        }
+    }, [loading]);
+
     if (loading) {
-        return (
-            <div
-                style={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    height: '100vh',
-                }}
-            >
-                Loading...
-            </div>
-        );
+        return null;
     }
 
     return (
@@ -88,7 +89,7 @@ function AppRoutes() {
                     user ? <CapturedData /> : <Navigate to='/login' replace />
                 }
             />
-            <Route path='*' element={<Navigate to='/dashboard' replace />} />
+            <Route path='*' element={<NotFound />} />
         </Routes>
     );
 }

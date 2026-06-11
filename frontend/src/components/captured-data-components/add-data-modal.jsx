@@ -4,477 +4,584 @@ import {
     Group,
     Modal,
     Stack,
-    Stepper,
     Text,
+    Badge,
+    Paper,
+    Divider,
 } from '@mantine/core';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
-import { useRef, useState } from 'react';
-import { useAuth } from '../../context/auth-context';
+import {ArrowLeft, ArrowRight, Check} from 'lucide-react';
+import {useRef, useState} from 'react';
+import {useAuth} from '../../context/auth-context';
 
-import ExpandedDataModal from './expanded-data-modal';
-import AmrGenesStep from './steps/amr-genes-step';
-import JsonUploadStep from './steps/json-upload-step';
-import MetagenomicStep from './steps/metagenomic-step';
+// Step components
 import MethodSelectionStep from './steps/method-selection-step';
+import EntryTypeSelectionStep from './steps/entry-type-selection-step';
+import SampleSelectionStep from './steps/sample-selection-step';
 import SampleInfoStep from './steps/sample-info-step';
-import VirulenceGenesStep from './steps/virulence-genes-step';
-import WgsStep from './steps/wgs-step';
+import OptionalDataTypeStep from './steps/optional-data-type-step';
+import DataTypeSelectionStep from './steps/data-type-selection-step';
+import IsolateFormStep from './steps/isolate-form-step';
+import PhenotypeFormStep from './steps/phenotype-form-step';
+import AmrFindingFormStep from './steps/amr-finding-form-step';
+import JsonUploadStep from './steps/json-upload-step';
+import ImageUploadStep from './steps/image-upload-step';
 
-const AddDataModal = ({ opened, onClose, onAddEntry }) => {
-    const { user } = useAuth();
-    const [topStep, setTopStep] = useState(1);
-    const [stepperIndex, setStepperIndex] = useState(0);
-    const [analysisType, setAnalysisType] = useState('');
+// API
+import {
+    createSample,
+    createIsolate,
+    createPredictedPhenotype,
+    createAmrFinding,
+} from '../../api/sample-data-management';
+import {mapExtractionToFormData} from '../../lib/extraction-mapping';
+
+const AddDataModal = ({opened, onClose, onAddEntry, samples = []}) => {
+    const {user} = useAuth();
+    const [stepIndex, setStepIndex] = useState(0);
+    const [method, setMethod] = useState(''); // 'manual', 'json', or 'image'
+    const [entryType, setEntryType] = useState(''); // 'new-sample' or 'add-to-existing'
+    const [dataType, setDataType] = useState(''); // 'isolates', 'phenotypes', or 'amr_findings'
+    const [isValid, setIsValid] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
 
     const [formData, setFormData] = useState({
-        water_temperature: 25.0,
+        sample_id: '',
+        collection_date: null,
+        location_name: '',
+        latitude: '',
+        longitude: '',
+        isolation_source: '',
+        water_temp: 25.0,
         ph: 7.0,
         tds: 100.0,
         do: 100.0,
-        predicted_sir_profile: '',
-        sample_analysis_type: '',
-        isolation_source: '',
-        collection_date: new Date(),
-        location_name: '',
-        latitude: -25.7479,
-        longitude: 28.2293,
-        collected_by: 'Researcher A',
-        uploaded_by: user?.userID || '',
-        metagenomicRecords: [
-            { sequence_name: '', element_type: '', class: '', subclass: '' },
-        ],
-        wgsRecords: [{ isolateID: '', organism: '' }],
-        amrGenes: [''],
-        virulenceGenes: [''],
+        selectedRelatedDataTypes: [],
     });
 
-    const isMetagenomic = analysisType === 'Metagenomic';
+    const [isolates, setIsolates] = useState([]);
+    const [phenotypes, setPhenotypes] = useState([]);
+    const [amrFindings, setAmrFindings] = useState([]);
 
-    const handleModeSelect = (selectedMode) => {
-        if (selectedMode === 'manual') {
-            setTopStep(1);
-            setStepperIndex(0);
-        } else if (selectedMode === 'json') {
-            setTopStep(2);
+    // Refs for step validation
+    const sampleSelectionRef = useRef();
+    const sampleInfoRef = useRef();
+    const optionalDataTypeRef = useRef();
+    const isolateFormRef = useRef();
+    const phenotypeFormRef = useRef();
+    const amrFindingFormRef = useRef();
+    const jsonUploadRef = useRef();
+
+    // Determine total steps
+    const getTotalSteps = () => {
+        if (method === 'json') {
+            return 3; // Method, JSON upload, Preview
+        }
+        if (method === 'manual') {
+            if (entryType === 'new-sample') {
+                // Steps 0-3 (Method, Entry Type, Sample Info, Related Data) + one per selected type
+                const selectedTypes = formData.selectedRelatedDataTypes || [];
+                return 4 + selectedTypes.length;
+            }
+            if (entryType === 'add-to-existing') {
+                return 5; // Method, Entry Type, Sample Selection, Data Type Selection, Form
+            }
+        }
+        return 2; // At least method and entry type
+    };
+
+    // Get current step label
+    const getCurrentStepLabel = () => {
+        if (!method) return 'Method';
+        if (method === 'image' && stepIndex === 1) return 'Capture from Image';
+        if (method === 'json') {
+            if (stepIndex === 0) return 'Method';
+            if (stepIndex === 1) return 'Upload File';
+            if (stepIndex === 2) return 'Preview';
+        }
+        if (method === 'manual' && !entryType) return 'Entry Type';
+        if (method === 'manual' && entryType === 'new-sample') {
+            if (stepIndex === 1) return 'Entry Type';
+            if (stepIndex === 2) return 'Sample Info';
+            if (stepIndex === 3) return 'Related Data';
+            if (stepIndex >= 4) {
+                const selectedTypes = formData.selectedRelatedDataTypes || [];
+                if (selectedTypes.includes('isolates') && stepIndex === 4) return 'Add Isolate';
+                if (selectedTypes.includes('phenotypes')) return 'Add Phenotype';
+                if (selectedTypes.includes('amr_findings')) return 'Add AMR Finding';
+            }
+        }
+        if (method === 'manual' && entryType === 'add-to-existing') {
+            if (stepIndex === 1) return 'Entry Type';
+            if (stepIndex === 2) return 'Select Sample';
+            if (stepIndex === 3) return 'Data Type';
+            if (stepIndex === 4) return 'Form';
+        }
+        return 'Unknown';
+    };
+
+    const canProceedToNext = () => {
+        if (stepIndex === 0) return method !== '';
+        if (method === 'json' && stepIndex === 1) return isValid;
+        if (stepIndex === 2 && !method) return entryType !== '';
+        if (method === 'manual' && entryType === 'new-sample') {
+            if (stepIndex === 2) return isValid; // Sample info
+            if (stepIndex === 3) return true; // Optional data types are optional
+            if (stepIndex >= 4) return isValid; // Dynamic forms
+        }
+        if (method === 'manual' && entryType === 'add-to-existing') {
+            if (stepIndex === 2) return isValid; // Sample selection
+            if (stepIndex === 3) return dataType !== '';
+            if (stepIndex === 4) return isValid; // Form
+        }
+        return true;
+    };
+
+    const handleNext = async () => {
+        if (stepIndex === getTotalSteps() - 1) {
+            // Final submission
+            handleSubmit();
+        } else {
+            setStepIndex((prev) => prev + 1);
+        }
+    };
+
+    const handleValidationChange = (valid) => {
+        setIsValid(valid);
+    };
+
+    // Image capture: OCR result -> pre-fill the sample form, then drop the user
+    // into the standard manual "new sample" flow (step 2) to review/complete it.
+    // Sample ID is never read from the image, so the user always supplies it.
+    const handleImageExtracted = (result) => {
+        const {updates} = mapExtractionToFormData(result);
+        setFormData((prev) => ({...prev, ...updates, sample_id: ''}));
+        setMethod('manual');
+        setEntryType('new-sample');
+        setIsValid(false);
+        setStepIndex(2);
+    };
+
+    const handleAddIsolate = (isolateData) => {
+        setIsolates((prev) => [...prev, isolateData]);
+    };
+
+    const handleAddPhenotype = (phenotypeData) => {
+        setPhenotypes((prev) => [...prev, phenotypeData]);
+    };
+
+    const handleAddAmrFinding = (findingData) => {
+        setAmrFindings((prev) => [...prev, findingData]);
+    };
+
+    const handleSubmit = async () => {
+        setLoading(true);
+        setError('');
+        try {
+            // Flush any unsaved data from the current form step into the arrays
+            // (user may click Complete without clicking "+ Add Another")
+            const currentIsolates = [...isolates];
+            const currentPhenotypes = [...phenotypes];
+            const currentAmrFindings = [...amrFindings];
+            if (entryType === 'add-to-existing') {
+                if (dataType === 'isolates' && isolateFormRef.current) {
+                    const d = isolateFormRef.current.getData();
+                    if (d?.organism || d?.mlst_type) currentIsolates.push(d);
+                } else if (dataType === 'phenotypes' && phenotypeFormRef.current) {
+                    const d = phenotypeFormRef.current.getData();
+                    if (d?.organism && d?.antibiotic) currentPhenotypes.push(d);
+                } else if (dataType === 'amr_findings' && amrFindingFormRef.current) {
+                    const d = amrFindingFormRef.current.getData();
+                    if (d?.gene_symbol || d?.drug_class) currentAmrFindings.push(d);
+                }
+            } else if (entryType === 'new-sample') {
+                const selectedTypes = formData.selectedRelatedDataTypes || [];
+                const lastType = selectedTypes[selectedTypes.length - 1];
+                if (lastType === 'isolates' && isolateFormRef.current) {
+                    const d = isolateFormRef.current.getData();
+                    if (d?.organism || d?.mlst_type) currentIsolates.push(d);
+                } else if (lastType === 'phenotypes' && phenotypeFormRef.current) {
+                    const d = phenotypeFormRef.current.getData();
+                    if (d?.organism && d?.antibiotic) currentPhenotypes.push(d);
+                } else if (lastType === 'amr_findings' && amrFindingFormRef.current) {
+                    const d = amrFindingFormRef.current.getData();
+                    if (d?.gene_symbol || d?.drug_class) currentAmrFindings.push(d);
+                }
+            }
+
+            // First, create the sample
+            const samplePayload = {
+                sample_id: formData.sample_id,
+                collection_date: formData.collection_date,
+                location_name: formData.location_name,
+                latitude: formData.latitude,
+                longitude: formData.longitude,
+                isolation_source: formData.isolation_source,
+                water_temp: formData.water_temp,
+                ph: formData.ph,
+                tds: formData.tds,
+                do: formData.do,
+                uploaded_by: user?.userID,
+            };
+
+            let createdSample;
+            if (entryType === 'new-sample') {
+                createdSample = await createSample(samplePayload);
+            } else {
+                // For add-to-existing, get the sample_id from formData
+                createdSample = {sample_id: formData.sample_id};
+            }
+
+            // Create related records (use flushed arrays to include any unsaved current form data)
+            for (const isolate of currentIsolates) {
+                await createIsolate({...isolate, sample_id: createdSample.sample_id});
+            }
+
+            for (const phenotype of currentPhenotypes) {
+                await createPredictedPhenotype({...phenotype, sample_id: createdSample.sample_id});
+            }
+
+            for (const finding of currentAmrFindings) {
+                await createAmrFinding({...finding, sample_id: createdSample.sample_id});
+            }
+
+            // Reset and close
+            resetModal();
+            if (onAddEntry) onAddEntry(createdSample);
+            onClose();
+        } catch (err) {
+            setError(err.message || 'Error creating entry. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleAddMoreItem = async (itemData, type) => {
+        if (type === 'isolates') {
+            handleAddIsolate(itemData);
+        } else if (type === 'phenotypes') {
+            handleAddPhenotype(itemData);
+        } else if (type === 'amr_findings') {
+            handleAddAmrFinding(itemData);
+        }
+
+        // Reset the form for next entry
+        if (type === 'isolates' && isolateFormRef.current) {
+            isolateFormRef.current.reset();
+        } else if (type === 'phenotypes' && phenotypeFormRef.current) {
+            phenotypeFormRef.current.reset();
+        } else if (type === 'amr_findings' && amrFindingFormRef.current) {
+            amrFindingFormRef.current.reset();
         }
     };
 
     const resetModal = () => {
-        setTopStep(1);
-        setStepperIndex(0);
-        setAnalysisType('');
+        setStepIndex(0);
+        setMethod('');
+        setEntryType('');
+        setDataType('');
+        setIsValid(false);
+        setError('');
         setFormData({
-            water_temperature: 25.0,
+            sample_id: '',
+            collection_date: null,
+            location_name: '',
+            latitude: '',
+            longitude: '',
+            isolation_source: '',
+            water_temp: 25.0,
             ph: 7.0,
             tds: 100.0,
             do: 100.0,
-            predicted_sir_profile: '',
-            sample_analysis_type: '',
-            isolation_source: '',
-            collection_date: new Date(),
-            location_name: '',
-            latitude: -25.7479,
-            longitude: 28.2293,
-            collected_by: 'Researcher A',
-            uploaded_by: user?.userID || '',
-            metagenomicRecords: [
-                {
-                    sequence_name: '',
-                    element_type: '',
-                    class: '',
-                    subclass: '',
-                },
-            ],
-            wgsRecords: [{ isolateID: '', organism: '' }],
-            amrGenes: [''],
-            virulenceGenes: [''],
+            selectedRelatedDataTypes: [],
         });
+        setIsolates([]);
+        setPhenotypes([]);
+        setAmrFindings([]);
     };
 
-    const sampleInfoRef = useRef();
-    const metagenomicRef = useRef();
-    const wgsRef = useRef();
-    const amrGenesRef = useRef();
-    const virulenceGenesRef = useRef();
-
-    const [sampleInfoValid, setSampleInfoValid] = useState(true);
-    const [metagenomicValid, setMetagenomicValid] = useState(true);
-    const [wgsValid, setWgsValid] = useState(true);
-    const [amrGenesValid, setAmrGenesValid] = useState(true);
-    const [virulenceGenesValid, setVirulenceGenesValid] = useState(true);
-
-    const [showSampleInfoError, setShowSampleInfoError] = useState(false);
-    const [showMetagenomicError, setShowMetagenomicError] = useState(false);
-    const [showWgsError, setShowWgsError] = useState(false);
-    const [showAmrGenesError, setShowAmrGenesError] = useState(false);
-    const [showVirulenceGenesError, setShowVirulenceGenesError] =
-        useState(false);
-
-    const [expandedModalOpen, setExpandedModalOpen] = useState(false);
-
-    const nextStepper = () => {
-        // Step 0: Sample Info
-        if (stepperIndex === 0 && sampleInfoRef.current) {
-            const valid = sampleInfoRef.current.validate();
-            setShowSampleInfoError(!valid);
-            if (!valid) return;
+    const renderStep = () => {
+        // Step 0: Method Selection
+        if (stepIndex === 0) {
+            return (
+                <MethodSelectionStep
+                    onSelect={(selectedMethod) => {
+                        setMethod(selectedMethod);
+                        setStepIndex(1);
+                    }}
+                />
+            );
         }
-        // Step 1: Analysis Details (Metagenomic or WGS)
-        if (stepperIndex === 1) {
-            if (isMetagenomic && metagenomicRef.current) {
-                const valid = metagenomicRef.current.validate();
-                setShowMetagenomicError(!valid);
-                if (!valid) return;
-            } else if (!isMetagenomic && wgsRef.current) {
-                const valid = wgsRef.current.validate();
-                setShowWgsError(!valid);
-                if (!valid) return;
+
+        // JSON method flow
+        if (method === 'json') {
+            if (stepIndex === 1) {
+                return (
+                    <JsonUploadStep
+                        ref={jsonUploadRef}
+                        onValidationChange={handleValidationChange}
+                    />
+                );
+            }
+            if (stepIndex === 2) {
+                return <Center py="xl"><Text>Preview: Data loaded</Text></Center>;
             }
         }
-        // Step 2: Genes (AMR or Virulence)
-        if (stepperIndex === 2) {
-            if (isMetagenomic && amrGenesRef.current) {
-                const valid = amrGenesRef.current.validate();
-                setShowAmrGenesError(!valid);
-                if (!valid) return;
-            } else if (!isMetagenomic && virulenceGenesRef.current) {
-                const valid = virulenceGenesRef.current.validate();
-                setShowVirulenceGenesError(!valid);
-                if (!valid) return;
-            }
+
+        // Image capture flow - Step 1: upload + OCR, then hand off to the
+        // manual new-sample flow (handleImageExtracted switches method/step).
+        if (method === 'image' && stepIndex === 1) {
+            return (
+                <ImageUploadStep
+                    onExtracted={handleImageExtracted}
+                    onBack={() => {
+                        setMethod('');
+                        setStepIndex(0);
+                    }}
+                />
+            );
         }
-        // Clear errors before moving
-        setShowSampleInfoError(false);
-        setShowMetagenomicError(false);
-        setShowWgsError(false);
-        setShowAmrGenesError(false);
-        setShowVirulenceGenesError(false);
-        setStepperIndex((s) => s + 1);
-    };
 
-    const prevStepper = () => setStepperIndex((s) => Math.max(s - 1, 0));
-
-    const buildFinalData = () => {
-        const base = {
-            water_temperature: formData.water_temperature,
-            ph: formData.ph,
-            tds: formData.tds,
-            do: formData.do,
-            predicted_sir_profile: formData.predicted_sir_profile || null,
-            sample_analysis_type: formData.sample_analysis_type.toLowerCase(),
-            isolation_source: formData.isolation_source,
-            collection_date: formData.collection_date
-                ?.toISOString()
-                .split('T')[0],
-            location_name: formData.location_name,
-            latitude: formData.latitude,
-            longitude: formData.longitude,
-            collected_by: formData.collected_by,
-            uploaded_by: formData.uploaded_by,
-        };
-
-        if (isMetagenomic) {
-            const amrGenesList = formData.amrGenes.filter(
-                (g) => g.trim() !== '',
+        // Manual method flow - Step 1: Entry Type Selection
+        if (stepIndex === 1 && method === 'manual') {
+            return (
+                <EntryTypeSelectionStep
+                    onSelect={(selected) => {
+                        setEntryType(selected);
+                        setStepIndex(2);
+                    }}
+                />
             );
-            const metagenomicRecords = formData.metagenomicRecords.map(
-                (record) => ({
-                    sequence_name: record.sequence_name,
-                    element_type: record.element_type,
-                    class: record.class,
-                    subclass: record.subclass,
-                    amr_resistance_genes: [...amrGenesList],
-                }),
-            );
-            return { ...base, metagenomic: metagenomicRecords };
-        } else {
-            const virulenceGenesList = formData.virulenceGenes.filter(
-                (g) => g.trim() !== '',
-            );
-            const wgsRecords = formData.wgsRecords
-                .map((record) => ({
-                    isolateID: record.isolateID
-                        ? parseInt(record.isolateID, 10)
-                        : null,
-                    organism: record.organism,
-                    virulence_genes: [...virulenceGenesList],
-                }))
-                .filter((record) => record.isolateID !== null);
-            return { ...base, wgs: wgsRecords };
         }
-    };
 
-    const handleSubmit = () => {
-        const finalData = buildFinalData();
-        console.log('Final data being submitted:', finalData);
-        onAddEntry(finalData);
-        onClose();
-        resetModal();
-    };
-
-    const handleJsonSubmit = (parsedData) => {
-        onAddEntry(parsedData);
-        onClose();
-        resetModal();
-    };
-
-    const handleJsonBack = () => {
-        setTopStep(1);
-    };
-
-    const closeModal = () => {
-        onClose();
-        resetModal();
-    };
-
-    // Preview data for expanded modal (unchanged)
-    const previewSample = { ...formData, sampleID: 'Preview' };
-    const previewMetagenomic = isMetagenomic
-        ? formData.metagenomicRecords.map((rec) => ({
-              ...rec,
-              sampleID: 'Preview',
-          }))
-        : [];
-    const previewWgs = !isMetagenomic
-        ? formData.wgsRecords.map((rec) => ({ ...rec, sampleID: 'Preview' }))
-        : [];
-    const previewAmrGenes = isMetagenomic
-        ? formData.amrGenes
-              .filter((g) => g.trim() !== '')
-              .map((g) => ({ sampleID: 'Preview', geneSymbol: g }))
-        : [];
-    const previewVirulenceGenes = !isMetagenomic
-        ? formData.virulenceGenes
-              .filter((g) => g.trim() !== '')
-              .map((g) => ({
-                  'wgs.sampleID': 'Preview',
-                  'wgs.isolateID': formData.wgsRecords[0]?.isolateID || '',
-                  geneSymbol: g,
-              }))
-        : [];
-
-    const renderManualForm = () => (
-        <Stack gap='lg'>
-            <Stepper active={stepperIndex} onStepClick={setStepperIndex}>
-                <Stepper.Step
-                    label='Sample Info'
-                    description='Core sample data'
-                >
+        // Manual + New Sample flow
+        if (method === 'manual' && entryType === 'new-sample') {
+            // Step 2: Sample Info
+            if (stepIndex === 2) {
+                return (
                     <SampleInfoStep
                         ref={sampleInfoRef}
                         formData={formData}
                         setFormData={setFormData}
-                        analysisType={analysisType}
-                        setAnalysisType={setAnalysisType}
-                        onValidationChange={setSampleInfoValid}
+                        onValidationChange={handleValidationChange}
                     />
-                </Stepper.Step>
+                );
+            }
 
-                <Stepper.Step
-                    label='Analysis Details'
-                    description={
-                        isMetagenomic ? 'Metagenomic Records' : 'WGS Records'
-                    }
-                >
-                    {isMetagenomic ? (
-                        <MetagenomicStep
-                            ref={metagenomicRef}
+            // Step 3: Optional Data Types
+            if (stepIndex === 3) {
+                return (
+                    <OptionalDataTypeStep
+                        ref={optionalDataTypeRef}
+                        formData={formData}
+                        setFormData={setFormData}
+                        onValidationChange={handleValidationChange}
+                    />
+                );
+            }
+
+            // Step 4+: Dynamic form steps for each selected type (in selection order)
+            const selectedTypes = formData.selectedRelatedDataTypes || [];
+            if (selectedTypes.length > 0 && stepIndex >= 4) {
+                const typeAtStep = selectedTypes[stepIndex - 4];
+                if (typeAtStep === 'isolates') {
+                    return (
+                        <IsolateFormStep
+                            ref={isolateFormRef}
                             formData={formData}
                             setFormData={setFormData}
-                            onValidationChange={setMetagenomicValid}
+                            onAddMore={(data) => handleAddMoreItem(data, 'isolates')}
+                            onValidationChange={handleValidationChange}
                         />
-                    ) : (
-                        <WgsStep
-                            ref={wgsRef}
+                    );
+                }
+                if (typeAtStep === 'phenotypes') {
+                    return (
+                        <PhenotypeFormStep
+                            ref={phenotypeFormRef}
                             formData={formData}
                             setFormData={setFormData}
-                            onValidationChange={setWgsValid}
+                            onAddMore={(data) => handleAddMoreItem(data, 'phenotypes')}
+                            onValidationChange={handleValidationChange}
                         />
-                    )}
-                </Stepper.Step>
-
-                <Stepper.Step
-                    label='Genes'
-                    description={
-                        isMetagenomic
-                            ? 'AMR Resistance Genes'
-                            : 'Virulence Genes'
-                    }
-                >
-                    {isMetagenomic ? (
-                        <AmrGenesStep
-                            ref={amrGenesRef}
+                    );
+                }
+                if (typeAtStep === 'amr_findings') {
+                    return (
+                        <AmrFindingFormStep
+                            ref={amrFindingFormRef}
                             formData={formData}
                             setFormData={setFormData}
-                            onValidationChange={setAmrGenesValid}
+                            onAddMore={(data) => handleAddMoreItem(data, 'amr_findings')}
+                            onValidationChange={handleValidationChange}
                         />
-                    ) : (
-                        <VirulenceGenesStep
-                            ref={virulenceGenesRef}
+                    );
+                }
+            }
+        }
+
+        // Manual + Add to Existing flow
+        if (method === 'manual' && entryType === 'add-to-existing') {
+            // Step 2: Sample Selection
+            if (stepIndex === 2) {
+                return (
+                    <SampleSelectionStep
+                        ref={sampleSelectionRef}
+                        samples={samples}
+                        formData={formData}
+                        setFormData={setFormData}
+                        onValidationChange={handleValidationChange}
+                    />
+                );
+            }
+
+            // Step 3: Data Type Selection
+            if (stepIndex === 3) {
+                return (
+                    <DataTypeSelectionStep
+                        onSelect={(selected) => {
+                            setDataType(selected);
+                            setStepIndex(4);
+                        }}
+                    />
+                );
+            }
+
+            // Step 4: Data Entry Form
+            if (stepIndex === 4) {
+                if (dataType === 'isolates') {
+                    return (
+                        <IsolateFormStep
+                            ref={isolateFormRef}
                             formData={formData}
                             setFormData={setFormData}
-                            onValidationChange={setVirulenceGenesValid}
+                            onValidationChange={handleValidationChange}
                         />
-                    )}
-                </Stepper.Step>
+                    );
+                }
+                if (dataType === 'phenotypes') {
+                    return (
+                        <PhenotypeFormStep
+                            ref={phenotypeFormRef}
+                            formData={formData}
+                            setFormData={setFormData}
+                            onValidationChange={handleValidationChange}
+                        />
+                    );
+                }
+                if (dataType === 'amr_findings') {
+                    return (
+                        <AmrFindingFormStep
+                            ref={amrFindingFormRef}
+                            formData={formData}
+                            setFormData={setFormData}
+                            onValidationChange={handleValidationChange}
+                        />
+                    );
+                }
+            }
+        }
 
-                <Stepper.Completed>
-                    <Center py='xl' style={{ flexDirection: 'column' }}>
-                        <Text size='lg' fw={500} mb='md'>
-                            Review your data and click "Add Data"
-                        </Text>
-                        <Button
-                            variant='light'
-                            color='blue'
-                            onClick={() => setExpandedModalOpen(true)}
-                            style={{ margin: '0 auto' }}
-                        >
-                            Expand Recorded Data
-                        </Button>
-                    </Center>
-                </Stepper.Completed>
-            </Stepper>
+        return <Text>Unknown step</Text>;
+    };
 
-            <Group justify='space-between' mt='lg'>
-                <Group>
-                    {stepperIndex > 0 && stepperIndex < 3 && (
-                        <Button
-                            variant='default'
-                            onClick={prevStepper}
-                            leftSection={<ArrowLeft size={18} />}
-                        >
-                            Back
-                        </Button>
-                    )}
-                </Group>
-                <Group>
-                    {/* Step-specific error messages */}
-                    {showSampleInfoError && stepperIndex === 0 && (
-                        <span
-                            style={{
-                                color: 'red',
-                                fontWeight: 500,
-                                marginRight: 12,
-                            }}
-                        >
-                            Please fill in all required fields.
-                        </span>
-                    )}
-                    {showMetagenomicError &&
-                        stepperIndex === 1 &&
-                        isMetagenomic && (
-                            <span
-                                style={{
-                                    color: 'red',
-                                    fontWeight: 500,
-                                    marginRight: 12,
-                                }}
-                            >
-                                Please fill in all required fields for each
-                                record.
-                            </span>
-                        )}
-                    {showWgsError && stepperIndex === 1 && !isMetagenomic && (
-                        <span
-                            style={{
-                                color: 'red',
-                                fontWeight: 500,
-                                marginRight: 12,
-                            }}
-                        >
-                            Please fill in all WGS record fields.
-                        </span>
-                    )}
-                    {showAmrGenesError &&
-                        stepperIndex === 2 &&
-                        isMetagenomic && (
-                            <span
-                                style={{
-                                    color: 'red',
-                                    fontWeight: 500,
-                                    marginRight: 12,
-                                }}
-                            >
-                                Please fill in all gene symbols.
-                            </span>
-                        )}
-                    {showVirulenceGenesError &&
-                        stepperIndex === 2 &&
-                        !isMetagenomic && (
-                            <span
-                                style={{
-                                    color: 'red',
-                                    fontWeight: 500,
-                                    marginRight: 12,
-                                }}
-                            >
-                                Please fill in all gene symbols.
-                            </span>
-                        )}
+    const handlePrevious = () => {
+        if (stepIndex > 0) {
+            setStepIndex((prev) => prev - 1);
+        }
+    };
 
-                    {stepperIndex < 3 && (
-                        <Button
-                            onClick={nextStepper}
-                            rightSection={<ArrowRight size={18} />}
-                            disabled={
-                                (stepperIndex === 0 && !sampleInfoValid) ||
-                                (stepperIndex === 1 &&
-                                    isMetagenomic &&
-                                    !metagenomicValid) ||
-                                (stepperIndex === 1 &&
-                                    !isMetagenomic &&
-                                    !wgsValid) ||
-                                (stepperIndex === 2 &&
-                                    isMetagenomic &&
-                                    !amrGenesValid) ||
-                                (stepperIndex === 2 &&
-                                    !isMetagenomic &&
-                                    !virulenceGenesValid)
-                            }
-                        >
-                            Next
-                        </Button>
-                    )}
-                    {stepperIndex === 3 && (
-                        <Button onClick={handleSubmit}>Add Data</Button>
-                    )}
-                </Group>
-            </Group>
-        </Stack>
-    );
+    const isLastStep = stepIndex === getTotalSteps() - 1;
 
     return (
-        <>
-            <Modal
-                opened={opened}
-                onClose={closeModal}
-                title='Add New Data Entry'
-                size='lg'
-                centered
-                radius='md'
-                styles={{ title: { fontWeight: 600, fontSize: 18 } }}
-            >
-                {topStep === 0 && (
-                    <MethodSelectionStep onSelect={handleModeSelect} />
+        <Modal
+            opened={opened}
+            onClose={() => {
+                resetModal();
+                onClose();
+            }}
+            title="Add New Entry"
+            size="lg"
+            centered
+            closeOnClickOutside={false}
+        >
+            <Stack gap="lg">
+                {/* Progress indicator */}
+                {method && (
+                    <Paper p="sm" bg="gray.0" radius="md">
+                        <Group justify="space-between" align="center">
+                            <Text size="sm" fw={500}>
+                                {getCurrentStepLabel()}
+                            </Text>
+                            <Badge variant="light" size="lg">
+                                Step {stepIndex + 1} of {getTotalSteps()}
+                            </Badge>
+                        </Group>
+                    </Paper>
                 )}
-                {topStep === 1 && renderManualForm()}
-                {topStep === 2 && (
-                    <JsonUploadStep
-                        onSubmit={handleJsonSubmit}
-                        onBack={handleJsonBack}
-                    />
+
+                {/* Error message */}
+                {error && (
+                    <Paper p="sm" bg="red.0" c="red.8" radius="md">
+                        <Text size="sm">{error}</Text>
+                    </Paper>
                 )}
-            </Modal>
-            <ExpandedDataModal
-                opened={expandedModalOpen}
-                onClose={() => setExpandedModalOpen(false)}
-                sample={previewSample}
-                metagenomic={previewMetagenomic}
-                wgs={previewWgs}
-                amrGenes={previewAmrGenes}
-                virulenceGenes={previewVirulenceGenes}
-            />
-        </>
+
+                {/* Step content */}
+                {renderStep()}
+
+                {/* Summary of added items */}
+                {(isolates.length > 0 || phenotypes.length > 0 || amrFindings.length > 0) && (
+                    <>
+                        <Divider />
+                        <Paper p="md" bg="blue.0" radius="md">
+                            <Text fw={600} mb="sm">Added Data Summary</Text>
+                            <Group gap="xs">
+                                {isolates.length > 0 && (
+                                    <Badge leftSection={<Check size={12} />} variant="light" color="blue">
+                                        {isolates.length} Isolate(s)
+                                    </Badge>
+                                )}
+                                {phenotypes.length > 0 && (
+                                    <Badge leftSection={<Check size={12} />} variant="light" color="blue">
+                                        {phenotypes.length} Phenotype(s)
+                                    </Badge>
+                                )}
+                                {amrFindings.length > 0 && (
+                                    <Badge leftSection={<Check size={12} />} variant="light" color="blue">
+                                        {amrFindings.length} AMR Finding(s)
+                                    </Badge>
+                                )}
+                            </Group>
+                        </Paper>
+                    </>
+                )}
+
+                {/* Navigation buttons (hidden during image capture — that step
+                    has its own Cancel/Extract controls) */}
+                {!(method === 'image' && stepIndex === 1) && (
+                    <Group justify="space-between">
+                        <Button
+                            variant="default"
+                            onClick={handlePrevious}
+                            disabled={stepIndex === 0}
+                            leftSection={<ArrowLeft size={18} />}
+                        >
+                            Previous
+                        </Button>
+
+                        <Button
+                            onClick={handleNext}
+                            disabled={!canProceedToNext()}
+                            loading={loading}
+                            rightSection={isLastStep ? <Check size={18} /> : <ArrowRight size={18} />}
+                        >
+                            {isLastStep ? 'Complete' : 'Next'}
+                        </Button>
+                    </Group>
+                )}
+            </Stack>
+        </Modal>
     );
 };
 

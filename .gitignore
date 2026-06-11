@@ -5,3 +5,12 @@ node_modules/
 .DS_Store/
 
 .env
+
+# Build artifacts — never commit these
+frontend/dist/
+backend/dist/
+
+# Local OCR test images (kept on disk, not committed)
+/water-sample-*.png
+/single-*.png
+/multi-*.png

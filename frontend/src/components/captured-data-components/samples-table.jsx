@@ -8,22 +8,29 @@ const SamplesTable = ({records, highlightedSampleIds, onEditClick, onExpandClick
             striped
             highlightOnHover
             records={records}
-            idAccessor='sampleID'
-            rowSx={(record) => ({
-                backgroundColor: highlightedSampleIds?.has(record.sampleID)
+            idAccessor='sample_id'
+            rowStyle={(record) => ({
+                backgroundColor: highlightedSampleIds?.has(record.sample_id)
                     ? 'rgba(59, 130, 246, 0.2)'
                     : undefined,
                 transition: 'background-color 0.3s ease',
             })}
             columns={[
                 {
-                    accessor: 'sampleID',
+                    accessor: 'sample_id',
                     title: 'Sample ID',
-                    width: 100,
+                    width: 120,
                     textAlignment: 'center',
                 },
                 {
-                    accessor: 'water_temperature',
+                    accessor: 'collection_date',
+                    title: 'Collection Date',
+                    width: 130,
+                    textAlignment: 'center',
+                    render: (record) => record.collection_date ? new Date(record.collection_date).toLocaleDateString() : '-',
+                },
+                {
+                    accessor: 'water_temp',
                     title: 'Temp (°C)',
                     width: 110,
                     textAlignment: 'center',
@@ -47,12 +54,15 @@ const SamplesTable = ({records, highlightedSampleIds, onEditClick, onExpandClick
                     textAlignment: 'center',
                 },
                 {
-                    accessor: 'sample_analysis_type',
-                    title: 'Analysis Type',
-                    width: 140,
+                    accessor: 'isolation_source',
+                    title: 'Source',
+                    width: 150,
                 },
-                {accessor: 'location_name', title: 'Location'},
-                {accessor: 'collected_by', title: 'Collected By', width: 140},
+                {
+                    accessor: 'location_name',
+                    title: 'Location',
+                    width: 180,
+                },
                 {
                     accessor: 'actions',
                     title: '',

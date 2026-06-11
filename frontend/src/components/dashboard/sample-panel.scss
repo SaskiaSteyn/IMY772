@@ -1,7 +1,7 @@
 .side-panel {
     position: fixed;
     right: 1rem;
-    top: calc(60px + 1rem);
+    top: 1rem;
     bottom: 1rem;
     width: 30rem;
     background-color: white;
@@ -11,6 +11,7 @@
     flex-direction: column;
     z-index: 100;
     animation: slideIn 0.3s ease-out;
+    height: calc(100vh - 2rem);
 
     @media (max-width: 768px) {
         width: calc(100% - 2rem);
@@ -27,6 +28,16 @@
         transform: translateX(0);
         opacity: 1;
     }
+}
+
+.side-panel-compare-hint {
+    padding: 6px 16px;
+    background: #f0f7e8;
+    border-bottom: 1px solid #d9edd0;
+    font-size: 12px;
+    color: #4a7a22;
+    text-align: center;
+    flex-shrink: 0;
 }
 
 .side-panel-header {

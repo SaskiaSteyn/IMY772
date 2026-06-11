@@ -1,5 +1,5 @@
 // Import variables
-@import './styles/variables';
+@use './styles/variables' as *;
 
 body {
     font-family: Roboto;

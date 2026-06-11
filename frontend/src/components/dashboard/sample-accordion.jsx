@@ -7,8 +7,8 @@ export default function SampleAccordion({ samples }) {
         <Accordion>
             {samples.map((sample) => (
                 <Accordion.Item
-                    key={sample.sampleID}
-                    value={String(sample.sampleID)}
+                    key={sample.sample_id}
+                    value={String(sample.sample_id)}
                 >
                     <Accordion.Control>
                         {new Date(sample.collection_date).toLocaleDateString(
@@ -49,8 +49,8 @@ export default function SampleAccordion({ samples }) {
                                 fields={[
                                     {
                                         label: 'Water Temperature',
-                                        value: sample.water_temperature
-                                            ? `${sample.water_temperature}°C`
+                                        value: sample.water_temp
+                                            ? `${sample.water_temp}°C`
                                             : 'N/A',
                                     },
                                     {

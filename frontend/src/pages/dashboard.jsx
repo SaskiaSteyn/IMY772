@@ -1,34 +1,26 @@
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { MapContainer, Marker, TileLayer } from 'react-leaflet';
-import { useNavigate } from 'react-router-dom';
 import DashboardNavbar from '../components/dashboard/dashboard-navbar.jsx';
 import SamplePanel from '../components/dashboard/sample-panel.jsx';
+import ComparisonOverlay from '../components/dashboard/comparison-overlay.jsx';
+import { AskAiBar } from '../components/dashboard/ask-ai-bar.jsx';
+import { useAiFilter } from '../hooks/useAiFilter.js';
 import { useAuth } from '../context/auth-context.jsx';
+import { useComparisonState } from '../hooks/useComparisonState.js';
+import { fetchAllSamples } from '../api/sample-data-management.js';
 import './dashboard.scss';
-
-// Fix for default markers not showing in React Leaflet
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-    iconRetinaUrl:
-        'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-    iconUrl:
-        'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-    shadowUrl:
-        'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
 
 // Map SIR profile to color
 const getSIRProfileColor = (sirProfile) => {
     const profile = (sirProfile || '').toLowerCase();
     const colorMap = {
-        resistant: '#7db344', // Green for resistant
-        intermediate: '#f08c00', // Orange for intermediate
-        susceptible: '#e03131', // Red for susceptible
+        resistant: '#e03131',
+        intermediate: '#f08c00',
+        susceptible: '#7db344',
     };
-    return colorMap[profile] || '#999999'; // Gray as fallback
+    return colorMap[profile] || '#999999';
 };
 
 // Get the predominant SIR profile for a location
@@ -51,7 +43,6 @@ const getPredominantSIRProfile = (locationSamples) => {
         return 'unknown';
     }
 
-    // Return the most common profile
     return keys.reduce((a, b) => (profileCounts[a] > profileCounts[b] ? a : b));
 };
 
@@ -60,7 +51,6 @@ const createCustomIcon = (color = '#52C41A', isSelected = false) => {
     const size = isSelected ? 26 : 18;
     const anchor = isSelected ? 18 : 12;
 
-    // Convert hex color to rgba for shadow
     const hexToRgba = (hex, alpha) => {
         const r = parseInt(hex.slice(1, 3), 16);
         const g = parseInt(hex.slice(3, 5), 16);
@@ -76,7 +66,7 @@ const createCustomIcon = (color = '#52C41A', isSelected = false) => {
                 background-color: ${color};
                 border-radius: 50%;
                 ${isSelected ? `border: 3px solid #1890ff;` : ''}
-                box-shadow: 
+                box-shadow:
                     0 0 0 3px ${hexToRgba(color, 0.4)},
                     ${isSelected ? '0 0 0 8px rgba(24, 144, 255, 0.2),' : ''}
                     0 2px 8px rgba(0, 0, 0, 0.2);
@@ -93,59 +83,65 @@ const createCustomIcon = (color = '#52C41A', isSelected = false) => {
     });
 };
 
+// Fix for default markers not showing in React Leaflet
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+    iconRetinaUrl:
+        'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+    iconUrl:
+        'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+    shadowUrl:
+        'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
+
 export default function Dashboard() {
     const [samples, setSamples] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [selectedLocationSamples, setSelectedLocationSamples] =
-        useState(null);
     const { user } = useAuth();
-    const navigate = useNavigate();
 
-    // Fetch samples from the API
+    const aiFilter = useAiFilter();
+    const displayedSamples =
+        aiFilter.filters.length > 0
+            ? aiFilter.applyFiltersToSamples(samples, aiFilter.filters)
+            : samples;
+
+    // Comparison state management
+    const comparison = useComparisonState();
+
+    const [retryCount, setRetryCount] = useState(0);
+    const RETRY_INTERVAL_MS = 5000;
+
+    // Fetch samples from the API, auto-retrying while the server is waking up
     useEffect(() => {
-        const fetchSamples = async () => {
-            try {
-                setLoading(true);
-                const response = await fetch(
-                    'http://localhost:3000/api/samples',
-                    {
-                        method: 'GET',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        credentials: 'include',
-                    },
-                );
-
-                if (!response.ok) {
-                    const errorData = await response.text();
-                    console.error(
-                        'Server response:',
-                        response.status,
-                        errorData,
-                    );
-                    throw new Error(`HTTP ${response.status}: ${errorData}`);
+        const controller = new AbortController();
+        setLoading(true);
+        fetchAllSamples(controller.signal)
+            .then((data) => {
+                setSamples(data);
+                setError(null);
+            })
+            .catch((err) => {
+                if (!controller.signal.aborted) {
+                    console.error('Error fetching samples:', err);
+                    setError(err.message);
+                    const timer = setTimeout(() => {
+                        setRetryCount((c) => c + 1);
+                    }, RETRY_INTERVAL_MS);
+                    return () => clearTimeout(timer);
                 }
-
-                const data = await response.json();
-                setSamples(data.samples || []);
-            } catch (err) {
-                console.error('Error fetching samples:', err);
-                setError(err.message);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchSamples();
-    }, []);
+            })
+            .finally(() => {
+                if (!controller.signal.aborted) setLoading(false);
+            });
+        return () => controller.abort();
+    }, [retryCount]);
 
     // Center coordinates for South Africa
     const centerCoord = [-30.5, 22.5];
 
     // Get unique locations (one per location_name + coordinates)
-    const uniqueLocations = samples.reduce((acc, sample) => {
+    const uniqueLocations = displayedSamples.reduce((acc, sample) => {
         const exists = acc.some(
             (loc) =>
                 loc.location_name === sample.location_name &&
@@ -162,6 +158,16 @@ export default function Dashboard() {
         return acc;
     }, []);
 
+    const handleMarkerClick = (locationData) => {
+        // addOpenLocation also sets this as the active location
+        comparison.addOpenLocation(locationData);
+    };
+
+    const handleLocationCardClose = (id) => {
+        // removeOpenLocation cleans all state for this location and auto-promotes remaining
+        comparison.removeOpenLocation(id);
+    };
+
     if (loading) {
         return (
             <div className='dashboard-container'>
@@ -175,7 +181,21 @@ export default function Dashboard() {
         return (
             <div className='dashboard-container'>
                 <DashboardNavbar />
-                <div className='error'>Error loading samples: {error}</div>
+                <div className='server-waking-up'>
+                    <div className='server-waking-up__card'>
+                        <div className='server-waking-up__spinner' />
+                        <h2 className='server-waking-up__title'>
+                            Server is waking up
+                        </h2>
+                        <p className='server-waking-up__body'>
+                            The server may be starting up after a period of
+                            inactivity. This usually takes under a minute.
+                        </p>
+                        <span className='server-waking-up__badge'>
+                            Retrying automatically
+                        </span>
+                    </div>
+                </div>
             </div>
         );
     }
@@ -183,6 +203,7 @@ export default function Dashboard() {
     return (
         <div className='dashboard-container'>
             <DashboardNavbar />
+
             <div className='map-wrapper'>
                 <MapContainer
                     center={centerCoord}
@@ -195,10 +216,7 @@ export default function Dashboard() {
                         url='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
                     />
                     {uniqueLocations.map((location) => {
-                        const isSelected =
-                            selectedLocationSamples?.location_name ===
-                            location.location_name;
-                        const locationSamples = samples.filter(
+                        const locationSamples = displayedSamples.filter(
                             (s) => s.location_name === location.location_name,
                         );
                         const predominantProfile =
@@ -213,7 +231,7 @@ export default function Dashboard() {
                                     parseFloat(location.latitude),
                                     parseFloat(location.longitude),
                                 ]}
-                                icon={createCustomIcon(markerColor, isSelected)}
+                                icon={createCustomIcon(markerColor, false)}
                                 eventHandlers={{
                                     click: () => {
                                         const sortedSamples =
@@ -224,7 +242,7 @@ export default function Dashboard() {
                                                     ) -
                                                     new Date(a.collection_date),
                                             );
-                                        setSelectedLocationSamples({
+                                        handleMarkerClick({
                                             location_name:
                                                 location.location_name,
                                             latitude: location.latitude,
@@ -239,48 +257,44 @@ export default function Dashboard() {
                 </MapContainer>
             </div>
 
-            <SamplePanel
-                locationData={selectedLocationSamples}
-                onClose={() => setSelectedLocationSamples(null)}
-            />
+            <div
+                className={`ai-float${comparison.comparisonMode ? ' ai-float--side' : ''}`}
+            >
+                <AskAiBar
+                    query={aiFilter.query}
+                    setQuery={aiFilter.setQuery}
+                    filters={aiFilter.filters}
+                    loading={aiFilter.loading}
+                    error={aiFilter.error}
+                    onApply={() => {
+                        comparison.closeAll();
+                        aiFilter.applyFilter();
+                    }}
+                    onClear={aiFilter.clearFilter}
+                    totalCount={samples.length}
+                    filteredCount={displayedSamples.length}
+                    appliedQuery={aiFilter.appliedQuery}
+                    side={comparison.comparisonMode}
+                />
+            </div>
 
-            {user && (
-                <button
-                    onClick={() => navigate('/capture-data')}
-                    style={{
-                        position: 'fixed',
-                        bottom: '20px',
-                        left: '20px',
-                        width: '56px',
-                        height: '56px',
-                        borderRadius: '50%',
-                        backgroundColor: '#7db344',
-                        border: 'none',
-                        color: 'white',
-                        fontSize: '28px',
-                        fontWeight: 'bold',
-                        cursor: 'pointer',
-                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'all 0.3s ease',
-                        zIndex: selectedLocationSamples ? 50 : 100,
-                    }}
-                    onMouseEnter={(e) => {
-                        e.target.style.backgroundColor = '#45a049';
-                        e.target.style.boxShadow =
-                            '0 4px 12px rgba(0, 0, 0, 0.3)';
-                    }}
-                    onMouseLeave={(e) => {
-                        e.target.style.backgroundColor = '#4CAF50';
-                        e.target.style.boxShadow =
-                            '0 2px 8px rgba(0, 0, 0, 0.2)';
-                    }}
-                    title='Add new data'
-                >
-                    <Plus size={28} color='white' strokeWidth={3} />
-                </button>
+            {/* Single location panel */}
+            {!comparison.comparisonMode && comparison.getActiveLocation() && (
+                <SamplePanel
+                    locationData={comparison.getActiveLocation()}
+                    onClose={() =>
+                        handleLocationCardClose(comparison.activeLocationId)
+                    }
+                    showCompareHint
+                />
+            )}
+
+            {/* Comparison mode: two panels side-by-side */}
+            {comparison.comparisonMode && (
+                <ComparisonOverlay
+                    locations={comparison.getSelectedLocations()}
+                    onClosePanel={handleLocationCardClose}
+                />
             )}
         </div>
     );

@@ -9,377 +9,262 @@ const prisma = new PrismaClient()
 
 function readMockData() {
     const mockDataPath = path.join(__dirname, '..', 'mock-data-flat.json')
-    const mockDataContent = fs.readFileSync(mockDataPath, 'utf-8')
-    return JSON.parse(mockDataContent)
+    return JSON.parse(fs.readFileSync(mockDataPath, 'utf-8'))
 }
 
 function toNullableNumber(value) {
-    if (value === null || value === undefined || value === '') {
-        return null
-    }
-
+    if (value === null || value === undefined || value === '') return null
     const parsed = Number(value)
     return Number.isFinite(parsed) ? parsed : null
 }
 
 function toNullableDate(value) {
-    if (!value) {
-        return null
-    }
-
+    if (!value) return null
     const date = new Date(value)
     return Number.isNaN(date.getTime()) ? null : date
 }
 
-async function ensureAdminDeleteAuditTable() {
-    await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "adminDeleteAudits" (
-            "id" SERIAL NOT NULL,
-            "actorUserID" INTEGER NOT NULL,
-            "actorEmail" VARCHAR(255),
-            "entityType" VARCHAR(120) NOT NULL,
-            "entityKey" JSONB NOT NULL,
-            "reason" TEXT NOT NULL,
-            "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            CONSTRAINT "adminDeleteAudits_pkey" PRIMARY KEY ("id")
-        )
-    `)
+// Map old predicted_sir_profile string to the boolean used by PredictedPhenotype.resistant
+function sirProfileToResistant(profile) {
+    if (profile === 'resistant') return true
+    if (profile === 'susceptible') return false
+    return null // intermediate or unknown
+}
 
-    await prisma.$executeRawUnsafe(
-        'CREATE INDEX IF NOT EXISTS "adminDeleteAudits_actorUserID_idx" ON "adminDeleteAudits"("actorUserID")'
-    )
-    await prisma.$executeRawUnsafe(
-        'CREATE INDEX IF NOT EXISTS "adminDeleteAudits_entityType_idx" ON "adminDeleteAudits"("entityType")'
-    )
-    await prisma.$executeRawUnsafe(
-        'CREATE INDEX IF NOT EXISTS "adminDeleteAudits_created_at_idx" ON "adminDeleteAudits"("created_at")'
-    )
+async function isAlreadySeeded() {
+    const count = await prisma.sample.count()
+    const phenotypeCount = await prisma.predictedPhenotype.count()
+    // Re-seed if samples exist but phenotypes are missing (old broken seed)
+    if (count > 0 && phenotypeCount > 0) {
+        console.log(`Database already seeded (${count} samples, ${phenotypeCount} phenotypes). Skipping.`)
+        return true
+    }
+    if (count > 0 && phenotypeCount === 0) {
+        console.log('Samples found but no phenotypes — old seed detected. Re-seeding...')
+    }
+    return false
+}
+
+async function clearData() {
+    console.log('Clearing existing data...')
+    await prisma.predictedPhenotype.deleteMany({})
+    await prisma.amrFinding.deleteMany({})
+    await prisma.isolate.deleteMany({})
+    await prisma.adminDeleteAudit.deleteMany({}).catch(() => {})
+    await prisma.sample.deleteMany({})
+    console.log('Cleared.')
 }
 
 async function seedUsers() {
-    const fallbackPasswordHash = await bcrypt.hash('testpassword123', 12)
+    const fallbackHash = await bcrypt.hash('testpassword123', 12)
 
     const adminEmail = process.env.ADMIN_EMAIL?.trim() || 'admin@microtrack.local'
     const adminPassword = process.env.ADMIN_PASSWORD || 'change_me_before_use'
     const adminName = process.env.ADMIN_NAME?.trim() || 'Admin'
     const adminSurname = process.env.ADMIN_SURNAME?.trim() || 'User'
-    const adminPasswordHash = await bcrypt.hash(adminPassword, 12)
+    const adminHash = await bcrypt.hash(adminPassword, 12)
 
-    const adminUser = await prisma.user.upsert({
+    const admin = await prisma.user.upsert({
         where: { email: adminEmail },
-        update: {
-            name: adminName,
-            surname: adminSurname,
-            password_hash: adminPasswordHash,
-            role: 'admin',
-        },
-        create: {
-            name: adminName,
-            surname: adminSurname,
-            email: adminEmail,
-            password_hash: adminPasswordHash,
-            role: 'admin',
-        },
+        update: { name: adminName, surname: adminSurname, password_hash: adminHash, role: 'admin' },
+        create: { name: adminName, surname: adminSurname, email: adminEmail, password_hash: adminHash, role: 'admin' },
     })
 
-    const users = [
-        {
-            name: 'Alice',
-            surname: 'Johnson',
-            email: 'alice@example.com',
-            role: 'logged_in_user',
-        },
-        {
-            name: 'Bob',
-            surname: 'Smith',
-            email: 'bob@example.com',
-            role: 'admin',
-        },
-        {
-            name: 'Carol',
-            surname: 'Mokoena',
-            email: 'carol@example.com',
-            role: 'logged_in_user',
-        },
-        {
-            name: 'David',
-            surname: 'Ndlovu',
-            email: 'david@example.com',
-            role: 'logged_in_user',
-        },
+    const others = [
+        { name: 'Alice', surname: 'Johnson', email: 'alice@example.com', role: 'logged_in_user' },
+        { name: 'Bob',   surname: 'Smith',   email: 'bob@example.com',   role: 'admin' },
+        { name: 'Carol', surname: 'Mokoena', email: 'carol@example.com', role: 'logged_in_user' },
+        { name: 'David', surname: 'Ndlovu',  email: 'david@example.com', role: 'logged_in_user' },
     ]
 
-    const upsertedUsers = []
-
-    for (const user of users) {
-        const upserted = await prisma.user.upsert({
-            where: { email: user.email },
-            update: {
-                name: user.name,
-                surname: user.surname,
-                role: user.role,
-            },
-            create: {
-                ...user,
-                password_hash: fallbackPasswordHash,
-            },
+    for (const u of others) {
+        await prisma.user.upsert({
+            where: { email: u.email },
+            update: { name: u.name, surname: u.surname, role: u.role },
+            create: { ...u, password_hash: fallbackHash },
         })
-
-        upsertedUsers.push(upserted)
     }
 
-    return {
-        adminUser,
-        secondaryActor: upsertedUsers[0] || adminUser,
-        count: upsertedUsers.length + 1,
-    }
+    return admin
 }
 
-async function seedSamplesAndRelatedData(mockData) {
-    const sampleIdMap = new Map()
+async function seedSamples(mockData, adminUserID) {
+    const samples = Array.isArray(mockData.samples) ? mockData.samples : []
+    // Map old integer sampleID → new string sample_id
+    const idMap = new Map() // old int → new string sample_id
 
-    const sourceSamples = Array.isArray(mockData.samples) ? mockData.samples : []
-    const sourceMetagenomic = Array.isArray(mockData.metagenomic)
-        ? mockData.metagenomic
-        : []
-    const sourceAmrGenes = Array.isArray(mockData.amrResistanceGenes)
-        ? mockData.amrResistanceGenes
-        : []
-    const sourceWgs = Array.isArray(mockData.wgs) ? mockData.wgs : []
-    const sourceVirulenceGenes = Array.isArray(mockData.virulenceGenes)
-        ? mockData.virulenceGenes
-        : []
-
-    for (const sample of sourceSamples) {
-        const created = await prisma.sample.create({
+    for (const s of samples) {
+        const sample_id = String(s.sampleID)
+        await prisma.sample.create({
             data: {
-                water_temperature: toNullableNumber(sample.water_temperature),
-                ph: toNullableNumber(sample.ph),
-                tds: toNullableNumber(sample.tds),
-                do: toNullableNumber(sample.do),
-                sample_analysis_type: sample.sample_analysis_type || null,
-                isolation_source: sample.isolation_source || null,
-                collection_date: toNullableDate(sample.collection_date),
-                location_name: sample.location_name || null,
-                latitude: Number(sample.latitude),
-                longitude: Number(sample.longitude),
-                collected_by: sample.collected_by || null,
-                predicted_sir_profile: sample.predicted_sir_profile || null,
+                sample_id,
+                collection_date: toNullableDate(s.collection_date),
+                location_name: s.location_name || null,
+                latitude: Number(s.latitude),
+                longitude: Number(s.longitude),
+                isolation_source: s.isolation_source || null,
+                water_temp: toNullableNumber(s.water_temperature),
+                ph: toNullableNumber(s.ph),
+                tds: toNullableNumber(s.tds),
+                do: toNullableNumber(s.do),
+                uploaded_by: adminUserID,
             },
         })
-
-        const sourceSampleID = Number(sample.sampleID)
-        if (Number.isFinite(sourceSampleID)) {
-            sampleIdMap.set(sourceSampleID, created.sampleID)
-        }
+        idMap.set(Number(s.sampleID), sample_id)
     }
 
-    const metagenomicRows = sourceMetagenomic
-        .map((row) => {
-            const mappedSampleID = sampleIdMap.get(Number(row.sampleID))
-            if (!mappedSampleID || !row.sequence_name) {
-                return null
-            }
-
-            return {
-                sampleID: mappedSampleID,
-                sequence_name: String(row.sequence_name),
-                element_type: row.element_type || null,
-                class: row.class || null,
-                subclass: row.subclass || null,
-            }
-        })
-        .filter(Boolean)
-
-    if (metagenomicRows.length > 0) {
-        await prisma.metagenomic.createMany({
-            data: metagenomicRows,
-            skipDuplicates: true,
-        })
-    }
-
-    const amrRows = sourceAmrGenes
-        .map((row) => {
-            const mappedSampleID = sampleIdMap.get(Number(row.sampleID))
-            if (!mappedSampleID || !row.geneSymbol) {
-                return null
-            }
-
-            return {
-                sampleID: mappedSampleID,
-                geneSymbol: String(row.geneSymbol),
-            }
-        })
-        .filter(Boolean)
-
-    if (amrRows.length > 0) {
-        await prisma.amrResistanceGene.createMany({
-            data: amrRows,
-            skipDuplicates: true,
-        })
-    }
-
-    const isolateToSampleMap = new Map()
-
-    const wgsRows = sourceWgs
-        .map((row) => {
-            const mappedSampleID = sampleIdMap.get(Number(row.sampleID))
-            const isolateID = Number(row.isolateID)
-
-            if (!mappedSampleID || !Number.isInteger(isolateID)) {
-                return null
-            }
-
-            isolateToSampleMap.set(isolateID, mappedSampleID)
-
-            return {
-                sampleID: mappedSampleID,
-                isolateID,
-                organism: row.organism || null,
-            }
-        })
-        .filter(Boolean)
-
-    if (wgsRows.length > 0) {
-        await prisma.wgs.createMany({
-            data: wgsRows,
-            skipDuplicates: true,
-        })
-    }
-
-    const virulenceRows = sourceVirulenceGenes
-        .map((row) => {
-            const isolateID = Number(row.isolateID)
-            const mappedFromSample = sampleIdMap.get(Number(row.sampleID))
-            const mappedFromIsolate = isolateToSampleMap.get(isolateID)
-            const sampleID = mappedFromSample || mappedFromIsolate
-
-            if (!sampleID || !Number.isInteger(isolateID) || !row.geneSymbol) {
-                return null
-            }
-
-            return {
-                sampleID,
-                isolateID,
-                geneSymbol: String(row.geneSymbol),
-            }
-        })
-        .filter(Boolean)
-
-    if (virulenceRows.length > 0) {
-        await prisma.virulenceGene.createMany({
-            data: virulenceRows,
-            skipDuplicates: true,
-        })
-    }
-
-    return {
-        counts: {
-            samples: sourceSamples.length,
-            metagenomic: metagenomicRows.length,
-            amrGenes: amrRows.length,
-            wgs: wgsRows.length,
-            virulenceGenes: virulenceRows.length,
-        },
-        sampleIDs: Array.from(sampleIdMap.values()),
-        wgsRows,
-    }
+    return idMap
 }
 
-async function seedDeleteAudits(adminUser, secondaryActor, seededData) {
-    const firstSampleID = seededData.sampleIDs[0]
-    const secondSampleID = seededData.sampleIDs[1] || firstSampleID
-    const firstWgs = seededData.wgsRows[0]
+const MLST_BY_ORGANISM = {
+    'Escherichia coli': 'ST58',
+    'Salmonella enterica': 'ST19',
+    'Klebsiella pneumoniae': 'ST258',
+    'Staphylococcus aureus': 'ST8',
+    'Enterococcus faecium': 'ST17',
+}
 
-    if (!firstSampleID) {
-        return 0
+async function seedIsolates(mockData, idMap) {
+    const wgs = Array.isArray(mockData.wgs) ? mockData.wgs : []
+    let count = 0
+
+    for (const row of wgs) {
+        const sample_id = idMap.get(Number(row.sampleID))
+        if (!sample_id) continue
+
+        await prisma.isolate.create({
+            data: {
+                sample_id,
+                organism: row.organism || null,
+                mlst_type: MLST_BY_ORGANISM[row.organism] || null,
+            },
+        })
+        count++
     }
 
-    const auditRows = [
-        {
-            actorUserID: adminUser.userID,
-            actorEmail: adminUser.email,
-            entityType: 'sample',
-            entityKey: { sampleID: firstSampleID },
-            reason: 'Duplicate sample uploaded during QA validation.',
-        },
-        {
-            actorUserID: adminUser.userID,
-            actorEmail: adminUser.email,
-            entityType: 'wgs',
-            entityKey: firstWgs
-                ? {
-                      sampleID: firstWgs.sampleID,
-                      isolateID: firstWgs.isolateID,
-                  }
-                : { sampleID: secondSampleID },
-            reason: 'Incorrect isolate mapping detected in sequencing metadata.',
-        },
-        {
-            actorUserID: secondaryActor.userID,
-            actorEmail: secondaryActor.email,
-            entityType: 'user',
-            entityKey: { userID: secondaryActor.userID },
-            reason: 'Demo cleanup entry created for audit trail testing.',
-        },
-    ]
+    return count
+}
 
-    const result = await prisma.adminDeleteAudit.createMany({
-        data: auditRows,
+async function seedAmrFindings(mockData, idMap) {
+    const genes = Array.isArray(mockData.amrResistanceGenes) ? mockData.amrResistanceGenes : []
+    let count = 0
+
+    for (const row of genes) {
+        const sample_id = idMap.get(Number(row.sampleID))
+        if (!sample_id) continue
+
+        const drug_class = deriveDrugClass(row.geneSymbol)
+
+        await prisma.amrFinding.create({
+            data: {
+                sample_id,
+                gene_symbol: row.geneSymbol || null,
+                drug_class,
+                analysis_type: 'metagenomic',
+                method: 'ResFinder',
+                percent_identity: derivePercentIdentity(row.geneSymbol),
+            },
+        })
+        count++
+    }
+
+    return count
+}
+
+function derivePercentIdentity(geneSymbol) {
+    if (!geneSymbol) return null
+    // Exact matches get 100%, partial/variant names get slightly lower
+    if (geneSymbol.includes('-') || /\d/.test(geneSymbol)) return 99.5
+    return 100.0
+}
+
+function deriveDrugClass(geneSymbol) {
+    if (!geneSymbol) return null
+    const g = geneSymbol.toLowerCase()
+    if (g.startsWith('bla')) return 'BETA-LACTAM'
+    if (g.startsWith('erm')) return 'MACROLIDE'
+    if (g.startsWith('tet')) return 'TETRACYCLINE'
+    if (g.startsWith('aac') || g.startsWith('aph') || g.startsWith('ant')) return 'AMINOGLYCOSIDE'
+    if (g.startsWith('sul')) return 'SULFONAMIDE'
+    if (g.startsWith('qnr')) return 'QUINOLONE'
+    if (g.startsWith('van')) return 'GLYCOPEPTIDE'
+    if (g.startsWith('cat') || g.startsWith('cml')) return 'PHENICOL'
+    return null
+}
+
+async function seedPredictedPhenotypes(mockData, idMap) {
+    const samples = Array.isArray(mockData.samples) ? mockData.samples : []
+    let count = 0
+
+    for (const s of samples) {
+        const sample_id = idMap.get(Number(s.sampleID))
+        if (!sample_id) continue
+
+        await prisma.predictedPhenotype.create({
+            data: {
+                sample_id,
+                organism: 'E. coli',
+                antibiotic: 'ampicillin',
+                resistant: sirProfileToResistant(s.predicted_sir_profile),
+            },
+        })
+        count++
+    }
+
+    return count
+}
+
+async function seedAuditLog(admin) {
+    await prisma.adminDeleteAudit.createMany({
+        data: [
+            {
+                actorUserID: admin.userID,
+                actorEmail: admin.email,
+                entityType: 'sample',
+                entityKey: { sample_id: '1' },
+                reason: 'Duplicate sample uploaded during QA validation.',
+            },
+            {
+                actorUserID: admin.userID,
+                actorEmail: admin.email,
+                entityType: 'isolate',
+                entityKey: { isolate_id: 1 },
+                reason: 'Incorrect isolate mapping detected in sequencing metadata.',
+            },
+        ],
         skipDuplicates: false,
     })
-
-    return result.count
 }
 
 async function main() {
-    console.log('🌱 Starting database seed...')
+    console.log('Starting database seed...')
 
-    try {
-        await ensureAdminDeleteAuditTable()
+    if (await isAlreadySeeded()) return
 
-        // ─── Clear existing sample-related data ─────────────────────────────────────
-        console.log('🧹 Clearing existing data...')
-        await prisma.virulenceGene.deleteMany({})
-        await prisma.wgs.deleteMany({})
-        await prisma.metagenomic.deleteMany({})
-        await prisma.amrResistanceGene.deleteMany({})
-        await prisma.adminDeleteAudit.deleteMany({})
-        await prisma.sample.deleteMany({})
-        console.log('✓ Cleared old samples and related data')
+    await clearData()
 
-        const mockData = readMockData()
-        const userResult = await seedUsers()
-        console.log(`✓ Created/Updated ${userResult.count} users`)
+    const admin = await seedUsers()
+    console.log('Users seeded.')
 
-        const seededData = await seedSamplesAndRelatedData(mockData)
-        console.log(`✓ Loaded ${seededData.counts.samples} samples`)
-        console.log(`✓ Loaded ${seededData.counts.metagenomic} metagenomic records`)
-        console.log(`✓ Loaded ${seededData.counts.amrGenes} AMR resistance genes`)
-        console.log(`✓ Loaded ${seededData.counts.wgs} WGS records`)
-        console.log(`✓ Loaded ${seededData.counts.virulenceGenes} virulence genes`)
-        const auditCount = await seedDeleteAudits(
-            userResult.adminUser,
-            userResult.secondaryActor,
-            seededData
-        )
-        console.log(`✓ Loaded ${auditCount} admin delete audit rows`)
+    const mockData = readMockData()
+    const idMap = await seedSamples(mockData, admin.userID)
+    console.log(`Samples seeded: ${idMap.size}`)
 
-        console.log('✅ Seed completed successfully!')
-        console.log('\n📋 Summary:')
-        console.log(`   Users: ${userResult.count}`)
-        console.log(`   Samples: ${seededData.counts.samples}`)
-        console.log(`   Metagenomic: ${seededData.counts.metagenomic}`)
-        console.log(`   AMR genes: ${seededData.counts.amrGenes}`)
-        console.log(`   WGS: ${seededData.counts.wgs}`)
-        console.log(`   Virulence genes: ${seededData.counts.virulenceGenes}`)
-        console.log(`   Admin delete audits: ${auditCount}`)
-    } catch (error) {
-        console.error('❌ Error during seed:', error)
-        process.exit(1)
-    } finally {
-        await prisma.$disconnect()
-    }
+    const isolateCount = await seedIsolates(mockData, idMap)
+    console.log(`Isolates seeded: ${isolateCount}`)
+
+    const amrCount = await seedAmrFindings(mockData, idMap)
+    console.log(`AMR findings seeded: ${amrCount}`)
+
+    const phenotypeCount = await seedPredictedPhenotypes(mockData, idMap)
+    console.log(`Predicted phenotypes seeded: ${phenotypeCount}`)
+
+    await seedAuditLog(admin)
+    console.log('Audit log seeded.')
+
+    console.log('Seed completed successfully.')
 }
 
 main()
+    .catch((e) => { console.error('Seed failed:', e); process.exit(1) })
+    .finally(() => prisma.$disconnect())

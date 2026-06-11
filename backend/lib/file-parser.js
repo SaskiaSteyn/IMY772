@@ -1,135 +1,167 @@
-import {parse} from 'csv-parse/sync';
+import xlsx from 'xlsx'
+import Papa from 'papaparse'
 
-export async function parseCSVFile(fileContent) {
-    try {
-        const csvContent = fileContent.toString();
-        const records = parse(csvContent, {
-            columns: true,
-            skip_empty_lines: true,
-            trim: true,
-        });
-        const sampleMap = new Map();
-        for (const record of records) {
-            const sampleID = record.sampleID;
-            if (!sampleID) throw new Error('CSV must contain sampleID column');
-            if (!sampleMap.has(sampleID)) {
-                let sirProfile = record.predicted_sir_profile;
-                if (sirProfile) {
-                    const lower = sirProfile.toLowerCase();
-                    if (lower === 'susceptible') sirProfile = 'Susceptible';
-                    else if (lower === 'intermediate') sirProfile = 'Intermediate';
-                    else if (lower === 'resistant') sirProfile = 'Resistant';
-                    else sirProfile = null;
+/**
+ * Parse a CSV or Excel file buffer and return an object with `samples` array.
+ * Expected columns (case-insensitive matching):
+ *   - sample_id (string, required)
+ *   - latitude (decimal, required)
+ *   - longitude (decimal, required)
+ *   - water_temp (optional decimal)
+ *   - ph (optional decimal)
+ *   - tds (optional decimal)
+ *   - do (optional decimal)
+ *   - isolation_source (optional string)
+ *   - collection_date (optional date string)
+ *   - location_name (optional string)
+ * 
+ * For nested relations, the file should have repeating rows per sample? Alternatively,
+ * we support a simplified approach: each row is one sample, and isolates/amr/phenotypes
+ * are encoded as JSON strings in columns. But more robust: separate sections.
+ * 
+ * For simplicity, this parser assumes each row represents one sample and any related
+ * data (isolates, AMR findings, predicted phenotypes) are provided as JSON arrays
+ * in columns: `isolates_json`, `amr_findings_json`, `predicted_phenotypes_json`.
+ * 
+ * Example JSON formats:
+ *   isolates_json: '[{"organism":"E. coli","mlst_type":"ST131"}]'
+ *   amr_findings_json: '[{"analysis_type":"WGS","gene_symbol":"blaCTX-M-15","drug_class":"Cephalosporin","method":"ResFinder","percent_identity":99.5}]'
+ *   predicted_phenotypes_json: '[{"organism":"E. coli","antibiotic":"Ciprofloxacin","resistant":true}]'
+ */
+export async function parseBulkUploadFile(fileBuffer, mimeType) {
+    let rows = []
+
+    if (mimeType === 'application/json' || mimeType === 'text/plain') {
+        // Parse JSON — supports both an array of samples and the combined object format
+        const json = JSON.parse(fileBuffer.toString('utf-8'))
+
+        if (Array.isArray(json)) {
+            // Plain array of sample rows
+            rows = json
+        } else if (json && typeof json === 'object') {
+            // Combined object: { samples, isolates, predicted_phenotypes, amr_findings }
+            // Merge everything back into flat sample rows with nested JSON columns
+            const { samples = [], isolates = [], predicted_phenotypes = [], amr_findings = [] } = json
+
+            const isolatesBySample = {}
+            const phenotypesBySample = {}
+            const amrBySample = {}
+
+            isolates.forEach(i => {
+                if (!isolatesBySample[i.sample_id]) isolatesBySample[i.sample_id] = []
+                isolatesBySample[i.sample_id].push(i)
+            })
+            predicted_phenotypes.forEach(p => {
+                if (!phenotypesBySample[p.sample_id]) phenotypesBySample[p.sample_id] = []
+                phenotypesBySample[p.sample_id].push(p)
+            })
+            amr_findings.forEach(a => {
+                if (!amrBySample[a.sample_id]) amrBySample[a.sample_id] = []
+                amrBySample[a.sample_id].push(a)
+            })
+
+            rows = samples.map(s => ({
+                ...s,
+                isolates_json: JSON.stringify(isolatesBySample[s.sample_id] || []),
+                predicted_phenotypes_json: JSON.stringify(phenotypesBySample[s.sample_id] || []),
+                amr_findings_json: JSON.stringify(amrBySample[s.sample_id] || []),
+            }))
+        } else {
+            throw new Error('JSON must be an array of samples or a combined object with samples/isolates/predicted_phenotypes/amr_findings')
+        }
+    } else if (mimeType === 'text/csv' || mimeType === 'application/vnd.ms-excel') {
+        // Parse CSV
+        const csvString = fileBuffer.toString('utf-8')
+        const result = Papa.parse(csvString, {header: true, skipEmptyLines: true})
+        if (result.errors.length) {
+            throw new Error(`CSV parsing errors: ${result.errors.map(e => e.message).join(', ')}`)
+        }
+        rows = result.data
+    } else if (mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
+        // Parse Excel
+        const workbook = xlsx.read(fileBuffer, {type: 'buffer'})
+        const sheetName = workbook.SheetNames[0]
+        const sheet = workbook.Sheets[sheetName]
+        rows = xlsx.utils.sheet_to_json(sheet)
+    } else {
+        throw new Error('Unsupported file type. Please upload CSV, JSON, or Excel (.xlsx)')
+    }
+
+    const samples = []
+
+    for (const row of rows) {
+        // Helper to get case-insensitive field
+        const getField = (fieldNames) => {
+            for (const name of fieldNames) {
+                if (row[name] !== undefined) return row[name]
+                const lowerName = name.toLowerCase()
+                for (const key in row) {
+                    if (key.toLowerCase() === lowerName) return row[key]
                 }
-                const sample = {
-                    latitude: parseFloat(record.latitude),
-                    longitude: parseFloat(record.longitude),
-                    water_temperature: record.water_temperature ? parseFloat(record.water_temperature) : null,
-                    ph: record.ph ? parseFloat(record.ph) : null,
-                    tds: record.tds ? parseFloat(record.tds) : null,
-                    do: record.do ? parseFloat(record.do) : null,
-                    sample_analysis_type: record.sample_analysis_type || null,
-                    isolation_source: record.isolation_source || null,
-                    collection_date: record.collection_date || null,
-                    location_name: record.location_name || null,
-                    collected_by: record.collected_by || null,
-                    predicted_sir_profile: sirProfile,
-                    metagenomic: [],
-                };
-                sampleMap.set(sampleID, sample);
             }
-            if (record.sequence_name) {
-                const metagenomicRecord = {
-                    sequence_name: record.sequence_name,
-                    element_type: record.element_type || null,
-                    class: record.class || null,
-                    subclass: record.subclass || null,
-                };
-                if (record.amr_resistance_genes) {
-                    metagenomicRecord.amr_resistance_genes = record.amr_resistance_genes
-                        .split(',')
-                        .map((gene) => gene.trim())
-                        .filter((gene) => gene.length > 0);
-                }
-                sampleMap.get(sampleID).metagenomic.push(metagenomicRecord);
-            }
+            return undefined
         }
-        return Array.from(sampleMap.values());
-    } catch (error) {
-        throw new Error(`CSV parsing error: ${error.message}`);
-    }
-}
 
-export async function parseJSONFile(fileContent) {
-    try {
-        const jsonContent = fileContent.toString();
-        const data = JSON.parse(jsonContent);
-        let samples = Array.isArray(data) ? data : data.samples;
-        if (!Array.isArray(samples)) {
-            throw new Error('JSON must contain an array of samples or { samples: [...] } structure');
+        const sample_id = getField(['sample_id', 'sampleId', 'SampleID'])
+        if (!sample_id) {
+            throw new Error(`Missing sample_id in row: ${JSON.stringify(row)}`)
         }
-        return samples.map((sample, index) => {
-            if (!sample.latitude || !sample.longitude) {
-                throw new Error(`Sample at index ${index} missing required latitude/longitude`);
-            }
-            // Normalize SIR profile to allowed values
-            let sirProfile = sample.predicted_sir_profile;
-            if (sirProfile) {
-                const lower = sirProfile.toLowerCase();
-                if (lower === 'susceptible') sirProfile = 'Susceptible';
-                else if (lower === 'intermediate') sirProfile = 'Intermediate';
-                else if (lower === 'resistant') sirProfile = 'Resistant';
-                else sirProfile = null;
-            }
-            return {
-                latitude: parseFloat(sample.latitude),
-                longitude: parseFloat(sample.longitude),
-                water_temperature: sample.water_temperature ? parseFloat(sample.water_temperature) : null,
-                ph: sample.ph ? parseFloat(sample.ph) : null,
-                tds: sample.tds ? parseFloat(sample.tds) : null,
-                do: sample.do ? parseFloat(sample.do) : null,
-                sample_analysis_type: sample.sample_analysis_type || null,
-                isolation_source: sample.isolation_source || null,
-                collection_date: sample.collection_date || null,
-                location_name: sample.location_name || null,
-                collected_by: sample.collected_by || null,
-                predicted_sir_profile: sirProfile,
-                metagenomic: Array.isArray(sample.metagenomic)
-                    ? sample.metagenomic.map((meta) => ({
-                        sequence_name: meta.sequence_name,
-                        element_type: meta.element_type || null,
-                        class: meta.class || null,
-                        subclass: meta.subclass || null,
-                        amr_resistance_genes: Array.isArray(meta.amr_resistance_genes)
-                            ? meta.amr_resistance_genes
-                            : [],
-                    }))
-                    : [],
-                wgs: sample.wgs, // preserve for later processing
-            };
-        });
-    } catch (error) {
-        throw new Error(`JSON parsing error: ${error.message}`);
-    }
-}
 
-export function validateSamples(samples) {
-    const errors = [];
-    if (!Array.isArray(samples)) {
-        return {isValid: false, errors: ['Data must be an array of samples']};
-    }
-    samples.forEach((sample, index) => {
-        if (!sample.latitude) errors.push(`Sample ${index}: missing latitude`);
-        if (!sample.longitude) errors.push(`Sample ${index}: missing longitude`);
-        if (sample.latitude && isNaN(parseFloat(sample.latitude))) errors.push(`Sample ${index}: latitude must be numeric`);
-        if (sample.longitude && isNaN(parseFloat(sample.longitude))) errors.push(`Sample ${index}: longitude must be numeric`);
-        if (sample.water_temperature && isNaN(parseFloat(sample.water_temperature))) errors.push(`Sample ${index}: water_temperature must be numeric`);
-        if (sample.ph && isNaN(parseFloat(sample.ph))) errors.push(`Sample ${index}: ph must be numeric`);
-        if (sample.tds && isNaN(parseFloat(sample.tds))) errors.push(`Sample ${index}: tds must be numeric`);
-        if (sample.do && isNaN(parseFloat(sample.do))) errors.push(`Sample ${index}: do must be numeric`);
-        if (sample.predicted_sir_profile && !['Susceptible', 'Intermediate', 'Resistant'].includes(sample.predicted_sir_profile)) {
-            errors.push(`Sample ${index}: predicted_sir_profile must be "Susceptible", "Intermediate", or "Resistant" (case-insensitive)`);
+        const latitude = getField(['latitude', 'Latitude'])
+        const longitude = getField(['longitude', 'Longitude'])
+        if (latitude === undefined || longitude === undefined) {
+            throw new Error(`Missing latitude or longitude for sample ${sample_id}`)
         }
-    });
-    return {isValid: errors.length === 0, errors};
+
+        const sample = {
+            sample_id: String(sample_id).trim(),
+            latitude: parseFloat(latitude),
+            longitude: parseFloat(longitude),
+            water_temp: getField(['water_temp', 'waterTemperature', 'water_temperature']) !== undefined ? parseFloat(getField(['water_temp', 'waterTemperature', 'water_temperature'])) : undefined,
+            ph: getField(['ph', 'pH']) !== undefined ? parseFloat(getField(['ph', 'pH'])) : undefined,
+            tds: getField(['tds', 'TDS']) !== undefined ? parseFloat(getField(['tds', 'TDS'])) : undefined,
+            do: getField(['do', 'DO', 'dissolved_oxygen']) !== undefined ? parseFloat(getField(['do', 'DO', 'dissolved_oxygen'])) : undefined,
+            isolation_source: getField(['isolation_source', 'isolationSource', 'source']) || null,
+            collection_date: getField(['collection_date', 'collectionDate', 'date']) ? new Date(getField(['collection_date', 'collectionDate', 'date'])) : null,
+            location_name: getField(['location_name', 'locationName', 'location']) || null,
+        }
+
+        // Parse nested JSON if present
+        const isolatesJson = getField(['isolates_json', 'isolatesJson', 'isolates'])
+        if (isolatesJson) {
+            try {
+                sample.isolates = JSON.parse(isolatesJson)
+            } catch (e) {
+                throw new Error(`Invalid JSON in isolates_json for sample ${sample_id}: ${e.message}`)
+            }
+        } else {
+            sample.isolates = []
+        }
+
+        const amrJson = getField(['amr_findings_json', 'amrFindingsJson', 'amr_findings'])
+        if (amrJson) {
+            try {
+                sample.amrFindings = JSON.parse(amrJson)
+            } catch (e) {
+                throw new Error(`Invalid JSON in amr_findings_json for sample ${sample_id}: ${e.message}`)
+            }
+        } else {
+            sample.amrFindings = []
+        }
+
+        const phenJson = getField(['predicted_phenotypes_json', 'predictedPhenotypesJson', 'predicted_phenotypes'])
+        if (phenJson) {
+            try {
+                sample.predictedPhenotypes = JSON.parse(phenJson)
+            } catch (e) {
+                throw new Error(`Invalid JSON in predicted_phenotypes_json for sample ${sample_id}: ${e.message}`)
+            }
+        } else {
+            sample.predictedPhenotypes = []
+        }
+
+        samples.push(sample)
+    }
+
+    return {samples}
 }

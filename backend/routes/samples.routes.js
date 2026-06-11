@@ -1,8 +1,8 @@
-import { Router } from 'express'
-import { body, param, validationResult } from 'express-validator'
+import {Router} from 'express'
+import {body, param, validationResult} from 'express-validator'
 import prisma from '../lib/prisma.js'
-import { predictSirProfileWithAI } from '../lib/sir-prediction.js'
-import { requireAuth } from '../middleware/auth.middleware.js'
+import {predictSirProfileWithAI} from '../lib/sir-prediction.js'
+import {requireAuth} from '../middleware/auth.middleware.js'
 
 const router = Router()
 
@@ -12,268 +12,274 @@ router.post(
     '/',
     requireAuth,
     [
-        body('latitude').isDecimal().withMessage('Latitude must be a decimal'),
-        body('longitude').isDecimal().withMessage('Longitude must be a decimal'),
-        body('water_temperature').optional().isDecimal().withMessage('Water temperature must be decimal'),
-        body('ph').optional().isDecimal().withMessage('pH must be decimal'),
-        body('tds').optional().isDecimal().withMessage('TDS must be decimal'),
-        body('do').optional().isDecimal().withMessage('DO must be decimal'),
-        body('sample_analysis_type').optional().trim().isString(),
+        body('sample_id').trim().isString().withMessage('Sample ID must be a string'),
+        body('latitude').isNumeric().withMessage('Latitude must be a number'),
+        body('longitude').isNumeric().withMessage('Longitude must be a number'),
+        body('water_temp').optional({nullable: true}).isNumeric(),
+        body('ph').optional({nullable: true}).isNumeric(),
+        body('tds').optional({nullable: true}).isNumeric(),
+        body('do').optional({nullable: true}).isNumeric(),
         body('isolation_source').optional().trim().isString(),
-        body('collection_date').optional().isISO8601().withMessage('Collection date must be valid ISO8601'),
+        body('collection_date').optional().isISO8601(),
         body('location_name').optional().trim().isString(),
-        body('collected_by').optional().trim().isString(),
-        body('predicted_sir_profile')
-            .optional()
-            .trim()
-            .custom((value) => {
-                const validValues = ['susceptible', 'intermediate', 'resistant']
-                return validValues.includes(value.toLowerCase())
-            })
-            .withMessage('predicted_sir_profile must be Susceptible, Intermediate, or Resistant'),
     ],
     async (req, res) => {
+        // ... (unchanged, but ensure uploaded_by is set)
         const errors = validationResult(req)
-        if (!errors.isEmpty()) {
-            return res.status(400).json({ errors: errors.array() })
-        }
+        if (!errors.isEmpty()) return res.status(400).json({errors: errors.array()})
 
         const {
-            water_temperature,
+            sample_id,
+            water_temp,
             ph,
             tds,
             do: do_value,
-            sample_analysis_type,
             isolation_source,
             collection_date,
             location_name,
             latitude,
             longitude,
-            collected_by,
-            uploaded_by,
-            predicted_sir_profile,
         } = req.body
 
         try {
             const sample = await prisma.sample.create({
                 data: {
-                    water_temperature: water_temperature ? parseFloat(water_temperature) : null,
+                    sample_id,
+                    water_temp: water_temp ? parseFloat(water_temp) : null,
                     ph: ph ? parseFloat(ph) : null,
                     tds: tds ? parseFloat(tds) : null,
                     do: do_value ? parseFloat(do_value) : null,
-                    sample_analysis_type,
                     isolation_source,
                     collection_date: collection_date ? new Date(collection_date) : null,
                     location_name,
                     latitude: parseFloat(latitude),
                     longitude: parseFloat(longitude),
-                    collected_by,
                     uploaded_by: req.user.userID,
-                    predicted_sir_profile,
                 },
             })
-
-            return res.status(201).json({ sample })
+            return res.status(201).json({sample})
         } catch (err) {
             console.error('Create sample error:', err)
-            return res.status(500).json({ message: 'Failed to create sample' })
+            if (err.code === 'P2002') {
+                return res.status(409).json({message: `Sample ID "${sample_id}" already exists. Please use a different ID.`})
+            }
+            return res.status(500).json({message: `Failed to create sample: ${err.message}`})
         }
     }
 )
 
 // ─── GET /api/samples - Get all samples ───────────────────────────────────────
 
+// Derive a flat SIR profile string ('resistant' | 'intermediate' | 'susceptible' | 'unknown')
+// Priority: phenotypes (clinical) > AMR findings (genomic) > unknown
+function derivePredictedSirProfile(predictedPhenotypes, amrFindings) {
+    const hasPhenotypes = predictedPhenotypes && predictedPhenotypes.length > 0
+    const hasAmrFindings = amrFindings && amrFindings.length > 0
+
+    if (!hasPhenotypes && !hasAmrFindings) return 'unknown'
+
+    // Phenotypes take clinical precedence
+    if (hasPhenotypes) {
+        const hasResistant = predictedPhenotypes.some((p) => p.resistant === true)
+        if (hasResistant) return 'resistant'
+
+        const hasUnknown = predictedPhenotypes.some((p) => p.resistant === null || p.resistant === undefined)
+        if (hasUnknown) return 'intermediate'
+
+        return 'susceptible'
+    }
+
+    // AMR findings present but no phenotypes — presence of resistance genes implies resistance
+    if (hasAmrFindings) return 'resistant'
+
+    return 'unknown'
+}
+
 router.get('/', async (req, res) => {
     try {
-        const samples = await prisma.sample.findMany()
-
-        return res.json({ samples })
+        const samples = await prisma.sample.findMany({
+            include: {predictedPhenotypes: true, isolates: true, amrFindings: true},
+            orderBy: {created_at: 'desc'},
+        })
+        const samplesWithSirProfile = samples.map((sample) => ({
+            ...sample,
+            predicted_sir_profile: derivePredictedSirProfile(sample.predictedPhenotypes, sample.amrFindings),
+        }))
+        return res.json({samples: samplesWithSirProfile})
     } catch (err) {
         console.error('Get samples error:', err)
-        return res.status(500).json({ message: 'Failed to retrieve samples' })
+        return res.status(500).json({message: 'Failed to retrieve samples'})
     }
 })
 
-// ─── POST /api/samples/predict-sir - Predict SIR profile from sample context ─
+// ─── POST /api/samples/predict-phenotype - Predict resistant status ──────────
 
 router.post(
-    '/predict-sir',
+    '/predict-phenotype',
     requireAuth,
     [
-        body('latitude').isDecimal().withMessage('Latitude must be a decimal'),
-        body('longitude').isDecimal().withMessage('Longitude must be a decimal'),
-        body('water_temperature').optional({ nullable: true }).isDecimal().withMessage('Water temperature must be decimal'),
-        body('ph').optional({ nullable: true }).isDecimal().withMessage('pH must be decimal'),
-        body('tds').optional({ nullable: true }).isDecimal().withMessage('TDS must be decimal'),
-        body('do').optional({ nullable: true }).isDecimal().withMessage('DO must be decimal'),
-        body('sample_analysis_type').optional({ nullable: true }).trim().isString(),
-        body('isolation_source').optional({ nullable: true }).trim().isString(),
+        body('latitude').isNumeric().withMessage('Latitude must be a number'),
+        body('longitude').isNumeric().withMessage('Longitude must be a number'),
+        body('organism').trim().notEmpty().withMessage('Organism is required'),
+        body('antibiotic').trim().notEmpty().withMessage('Antibiotic is required'),
+        body('water_temp').optional({nullable: true}).isNumeric(),
+        body('ph').optional({nullable: true}).isNumeric(),
+        body('tds').optional({nullable: true}).isNumeric(),
+        body('do').optional({nullable: true}).isNumeric(),
+        body('isolation_source').optional({nullable: true}).trim().isString(),
     ],
     async (req, res) => {
         const errors = validationResult(req)
         if (!errors.isEmpty()) {
-            return res.status(400).json({ errors: errors.array() })
+            return res.status(400).json({errors: errors.array()})
         }
 
+        const {organism, antibiotic, ...inputSample} = req.body
+
         try {
+            // Fetch training samples with their predicted phenotypes
             const trainingSamples = await prisma.sample.findMany({
-                where: {
-                    predicted_sir_profile: {
-                        not: null,
-                    },
-                },
-                orderBy: {
-                    sampleID: 'desc',
+                include: {
+                    predictedPhenotypes: true, // includes organism, antibiotic, resistant
                 },
                 take: 1000,
-                select: {
-                    latitude: true,
-                    longitude: true,
-                    water_temperature: true,
-                    ph: true,
-                    tds: true,
-                    do: true,
-                    sample_analysis_type: true,
-                    isolation_source: true,
-                    predicted_sir_profile: true,
-                },
             })
 
             const prediction = await predictSirProfileWithAI({
-                inputSample: req.body,
+                inputSample,
                 trainingSamples,
+                organism,
+                antibiotic,
             })
 
-            return res.json({ prediction })
+            return res.json({prediction})
         } catch (err) {
-            console.error('Predict SIR profile error:', err)
-            return res.status(500).json({ message: 'Failed to predict SIR profile' })
+            console.error('Predict phenotype error:', err)
+            return res.status(500).json({message: 'Failed to predict phenotype'})
         }
     }
 )
 
-// ─── GET /api/samples/:sampleID - Get sample by ID ──────────────────────────
+// ─── GET /api/samples/:sample_id - Get sample by ID ──────────────────────────
 
 router.get(
-    '/:sampleID',
-    [param('sampleID').isInt().withMessage('Sample ID must be an integer')],
+    '/:sample_id',
+    [param('sample_id').trim().isString().withMessage('Sample ID must be a string')],
     async (req, res) => {
+        // ... (unchanged)
         const errors = validationResult(req)
-        if (!errors.isEmpty()) {
-            return res.status(400).json({ errors: errors.array() })
-        }
+        if (!errors.isEmpty()) return res.status(400).json({errors: errors.array()})
 
-        const { sampleID } = req.params
-
+        const {sample_id} = req.params
         try {
             const sample = await prisma.sample.findUnique({
-                where: { sampleID: parseInt(sampleID) },
+                where: {sample_id},
+                include: {
+                    isolates: true,
+                    amrFindings: true,
+                    predictedPhenotypes: true,
+                },
             })
-
-            if (!sample) {
-                return res.status(404).json({ message: 'Sample not found' })
-            }
-
-            return res.json({ sample })
+            if (!sample) return res.status(404).json({message: 'Sample not found'})
+            return res.json({sample})
         } catch (err) {
             console.error('Get sample error:', err)
-            return res.status(500).json({ message: 'Failed to retrieve sample' })
+            return res.status(500).json({message: 'Failed to retrieve sample'})
         }
     }
 )
 
-// ─── PUT /api/samples/:sampleID - Update sample ──────────────────────────────
+// ─── GET /api/samples/:sample_id - Get sample by uploaded by integer ID value ──────────────────────────
+
+router.get(
+    '/uploaded_by/:uploaded_by',
+    [param('uploaded_by').isInt().withMessage('Uploaded by must be an integer')],
+    async (req, res) => {
+        const errors = validationResult(req)
+        if (!errors.isEmpty()) return res.status(400).json({errors: errors.array()})
+
+        const {uploaded_by} = req.params
+        try {
+            const samples = await prisma.sample.findMany({
+                where: {uploaded_by: parseInt(uploaded_by)},
+                include: {
+                    isolates: true,
+                    amrFindings: true,
+                    predictedPhenotypes: true,
+                },
+            })
+            return res.json({samples})
+        } catch (err) {
+            console.error('Get samples error:', err)
+            return res.status(500).json({message: 'Failed to retrieve samples'})
+        }
+    }
+)
+
+// ─── PUT /api/samples/:sample_id - Update sample ──────────────────────────────
 
 router.put(
-    '/:sampleID',
+    '/:sample_id',
     [
-        param('sampleID').isInt().withMessage('Sample ID must be an integer'),
-        body('water_temperature').optional().isDecimal(),
+        param('sample_id').trim().isString().withMessage('Sample ID must be a string'),
+        body('water_temp').optional().isDecimal(),
         body('ph').optional().isDecimal(),
         body('tds').optional().isDecimal(),
         body('do').optional().isDecimal(),
-        body('sample_analysis_type').optional().trim().isString(),
         body('isolation_source').optional().trim().isString(),
         body('collection_date').optional().isISO8601(),
         body('location_name').optional().trim().isString(),
         body('latitude').optional().isDecimal(),
         body('longitude').optional().isDecimal(),
-        body('collected_by').optional().trim().isString(),
-        body('uploaded_by').optional().isInt(),
-        body('predicted_sir_profile')
-            .optional()
-            .trim()
-            .custom((value) => {
-                const validValues = ['susceptible', 'intermediate', 'resistant']
-                return validValues.includes(value.toLowerCase())
-            })
-            .withMessage('predicted_sir_profile must be Susceptible, Intermediate, or Resistant'),
     ],
     async (req, res) => {
         const errors = validationResult(req)
-        if (!errors.isEmpty()) {
-            return res.status(400).json({ errors: errors.array() })
-        }
+        if (!errors.isEmpty()) return res.status(400).json({errors: errors.array()})
 
-        const { sampleID } = req.params
+        const {sample_id} = req.params
         const updateData = {}
-
-        // Build update object only with provided fields (exclude uploaded_by - it's immutable)
-        if (req.body.water_temperature !== undefined) updateData.water_temperature = parseFloat(req.body.water_temperature)
+        if (req.body.water_temp !== undefined) updateData.water_temp = parseFloat(req.body.water_temp)
         if (req.body.ph !== undefined) updateData.ph = parseFloat(req.body.ph)
         if (req.body.tds !== undefined) updateData.tds = parseFloat(req.body.tds)
         if (req.body.do !== undefined) updateData.do = parseFloat(req.body.do)
-        if (req.body.sample_analysis_type !== undefined) updateData.sample_analysis_type = req.body.sample_analysis_type
         if (req.body.isolation_source !== undefined) updateData.isolation_source = req.body.isolation_source
         if (req.body.collection_date !== undefined) updateData.collection_date = new Date(req.body.collection_date)
         if (req.body.location_name !== undefined) updateData.location_name = req.body.location_name
         if (req.body.latitude !== undefined) updateData.latitude = parseFloat(req.body.latitude)
         if (req.body.longitude !== undefined) updateData.longitude = parseFloat(req.body.longitude)
-        if (req.body.collected_by !== undefined) updateData.collected_by = req.body.collected_by
-        if (req.body.predicted_sir_profile !== undefined) updateData.predicted_sir_profile = req.body.predicted_sir_profile
 
         try {
             const sample = await prisma.sample.update({
-                where: { sampleID: parseInt(sampleID) },
+                where: {sample_id},
                 data: updateData,
             })
-
-            return res.json({ sample })
+            return res.json({sample})
         } catch (err) {
-            if (err.code === 'P2025') {
-                return res.status(404).json({ message: 'Sample not found' })
-            }
+            if (err.code === 'P2025') return res.status(404).json({message: 'Sample not found'})
             console.error('Update sample error:', err)
-            return res.status(500).json({ message: 'Failed to update sample' })
+            return res.status(500).json({message: 'Failed to update sample'})
         }
     }
 )
 
-// ─── DELETE /api/samples/:sampleID - Delete sample ──────────────────────────
+// ─── DELETE /api/samples/:sample_id - Delete sample ──────────────────────────
 
 router.delete(
-    '/:sampleID',
-    [param('sampleID').isInt().withMessage('Sample ID must be an integer')],
+    '/:sample_id',
+    [param('sample_id').trim().isString().withMessage('Sample ID must be a string')],
     async (req, res) => {
+        // ... (unchanged)
         const errors = validationResult(req)
-        if (!errors.isEmpty()) {
-            return res.status(400).json({ errors: errors.array() })
-        }
+        if (!errors.isEmpty()) return res.status(400).json({errors: errors.array()})
 
-        const { sampleID } = req.params
-
+        const {sample_id} = req.params
         try {
-            await prisma.sample.delete({
-                where: { sampleID: parseInt(sampleID) },
-            })
-
-            return res.json({ message: 'Sample deleted successfully' })
+            await prisma.sample.delete({where: {sample_id}})
+            return res.json({message: 'Sample deleted successfully'})
         } catch (err) {
-            if (err.code === 'P2025') {
-                return res.status(404).json({ message: 'Sample not found' })
-            }
+            if (err.code === 'P2025') return res.status(404).json({message: 'Sample not found'})
             console.error('Delete sample error:', err)
-            return res.status(500).json({ message: 'Failed to delete sample' })
+            return res.status(500).json({message: 'Failed to delete sample'})
         }
     }
 )

@@ -1,10 +1,10 @@
 import { createTheme, MantineProvider } from '@mantine/core';
 import '@mantine/core/styles.css';
+import '@mantine/dates/styles.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import AppRouter from './app-router.jsx';
-import { AuthProvider } from './context/auth-context.jsx';
 import './index.scss';
 
 const themeColors = [
@@ -40,14 +40,14 @@ const theme = createTheme({
     },
 });
 
-createRoot(document.getElementById('root')).render(
+const root = createRoot(document.getElementById('root'));
+root.render(
     <StrictMode>
         <BrowserRouter>
             <MantineProvider theme={theme}>
-                <AuthProvider>
-                    <AppRouter />
-                </AuthProvider>
+                <AppRouter />
             </MantineProvider>
         </BrowserRouter>
     </StrictMode>,
 );
+
