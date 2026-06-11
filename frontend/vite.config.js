@@ -18,13 +18,13 @@ export default defineConfig({
         start_url: '/',
         icons: [
           {
-            src: '/icon.svg',
+            src: '/microtrack-app-icon.svg',
             sizes: 'any',
             type: 'image/svg+xml',
             purpose: 'any',
           },
           {
-            src: '/icon.svg',
+            src: '/microtrack-app-icon.svg',
             sizes: 'any',
             type: 'image/svg+xml',
             purpose: 'maskable',
