@@ -1,4 +1,5 @@
 import { GoogleOAuthProvider } from '@react-oauth/google';
+import { useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import App from './App.jsx';
 import { AuthProvider, useAuth } from './context/auth-context.jsx';
@@ -27,19 +28,18 @@ function AppRoutes() {
         return <AdminLayout />;
     }
 
+    useEffect(() => {
+        if (!loading) {
+            const splash = document.getElementById('splash-screen');
+            if (splash) {
+                splash.classList.add('hidden');
+                splash.addEventListener('transitionend', () => splash.remove(), { once: true });
+            }
+        }
+    }, [loading]);
+
     if (loading) {
-        return (
-            <div
-                style={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    height: '100vh',
-                }}
-            >
-                Loading...
-            </div>
-        );
+        return null;
     }
 
     return (
