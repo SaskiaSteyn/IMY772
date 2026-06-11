@@ -6,6 +6,18 @@ async function main() {
     console.log('Prisma Migration Recovery Tool')
     console.log('================================')
 
+    // On a fresh database the migrations table won't exist yet — nothing to fix
+    const tableExists = await prisma.$queryRaw`
+        SELECT EXISTS (
+            SELECT 1 FROM information_schema.tables
+            WHERE table_name = '_prisma_migrations'
+        ) AS exists
+    `
+    if (!tableExists[0]?.exists) {
+        console.log('No migrations table yet (fresh database) — skipping.')
+        return
+    }
+
     const incomplete = await prisma.$queryRaw`
         SELECT migration_name
         FROM _prisma_migrations
@@ -34,7 +46,8 @@ async function main() {
 
 main()
     .catch((e) => {
+        // Non-fatal — log and continue so the container doesn't restart-loop
         console.error('Error:', e.message)
-        process.exit(1)
+        process.exit(0)
     })
     .finally(() => prisma.$disconnect())

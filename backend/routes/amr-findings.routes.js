@@ -19,7 +19,7 @@ router.post(
         body('gene_symbol').optional().trim().isString(),
         body('drug_class').optional().trim().isString(),
         body('method').optional().trim().isString(),
-        body('percent_identity').optional().isDecimal(),
+        body('percent_identity').optional({nullable: true}).isNumeric(),
     ],
     async (req, res) => {
         const errors = validationResult(req)
@@ -48,7 +48,10 @@ router.post(
             return res.status(201).json({amrFinding})
         } catch (err) {
             console.error('Create AMR finding error:', err)
-            return res.status(500).json({message: 'Failed to create AMR finding'})
+            if (err.code === 'P2003') {
+                return res.status(400).json({message: `Sample ID "${sample_id}" does not exist. Create the sample first.`})
+            }
+            return res.status(500).json({message: `Failed to create AMR finding: ${err.message}`})
         }
     }
 )
@@ -56,7 +59,7 @@ router.post(
 // ─── GET /api/amr-findings - Get all AMR findings ────────────────────────────
 router.get('/', async (req, res) => {
     try {
-        const amrFindings = await prisma.amrFinding.findMany({include: {sample: true}})
+        const amrFindings = await prisma.amrFinding.findMany({include: {sample: true}, orderBy: {finding_id: 'desc'}})
         return res.json({amrFindings})
     } catch (err) {
         console.error('Get AMR findings error:', err)
@@ -137,7 +140,7 @@ router.put(
         body('gene_symbol').optional().trim().isString(),
         body('drug_class').optional().trim().isString(),
         body('method').optional().trim().isString(),
-        body('percent_identity').optional().isDecimal(),
+        body('percent_identity').optional({nullable: true}).isNumeric(),
     ],
     async (req, res) => {
         const errors = validationResult(req)

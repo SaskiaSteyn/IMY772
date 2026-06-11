@@ -11,6 +11,7 @@ const AmrFindingFormStep = forwardRef(({formData, setFormData, onAddMore, onVali
         percent_identity: '',
     });
     const [touched, setTouched] = useState({});
+    const [customMethod, setCustomMethod] = useState('');
 
     const analysisTypes = ['WGS', 'Metagenomic'];
     const methods = ['BLAST', 'ResFinder', 'ARG-ANNOT', 'CARD', 'AMRFinder', 'Other'];
@@ -20,18 +21,24 @@ const AmrFindingFormStep = forwardRef(({formData, setFormData, onAddMore, onVali
         setTouched((prev) => ({...prev, [field]: true}));
     };
 
+    const effectiveMethod = findingData.method === 'Other' ? customMethod : findingData.method;
+
     const isValid =
-        findingData.finding_id &&
         findingData.gene_symbol &&
         findingData.drug_class &&
-        findingData.method &&
+        effectiveMethod.trim() !== '' &&
         findingData.percent_identity !== '';
+
+    const getEffectiveData = () => ({
+        ...findingData,
+        method: effectiveMethod,
+        percent_identity: parseFloat(findingData.percent_identity) || 0,
+    });
 
     useImperativeHandle(ref, () => ({
         validate: () => {
             if (!isValid) {
                 setTouched({
-                    finding_id: true,
                     gene_symbol: true,
                     drug_class: true,
                     method: true,
@@ -43,11 +50,7 @@ const AmrFindingFormStep = forwardRef(({formData, setFormData, onAddMore, onVali
             if (onValidationChange) onValidationChange(true);
             return true;
         },
-        getData: () => ({
-            ...findingData,
-            finding_id: parseInt(findingData.finding_id) || 0,
-            percent_identity: parseFloat(findingData.percent_identity) || 0,
-        }),
+        getData: getEffectiveData,
         reset: () => {
             setFindingData({
                 finding_id: '',
@@ -57,6 +60,7 @@ const AmrFindingFormStep = forwardRef(({formData, setFormData, onAddMore, onVali
                 method: '',
                 percent_identity: '',
             });
+            setCustomMethod('');
             setTouched({});
         },
     }));
@@ -67,14 +71,6 @@ const AmrFindingFormStep = forwardRef(({formData, setFormData, onAddMore, onVali
                 <Text fw={600} mb="sm">Add AMR Finding</Text>
                 <Text size="sm" c="dimmed" mb="md">Enter antibiotic resistance gene finding information</Text>
             </div>
-
-            <TextInput
-                label="Finding ID"
-                placeholder="e.g., 1, 2, 3"
-                value={findingData.finding_id}
-                onChange={(e) => handleChange('finding_id', e.currentTarget.value)}
-                error={touched.finding_id && !findingData.finding_id ? 'Finding ID is required' : ''}
-            />
 
             <TextInput
                 label="Gene Symbol"
@@ -97,6 +93,7 @@ const AmrFindingFormStep = forwardRef(({formData, setFormData, onAddMore, onVali
                 data={analysisTypes}
                 value={findingData.analysis_type}
                 onChange={(value) => handleChange('analysis_type', value || 'WGS')}
+                searchable
             />
 
             <Select
@@ -104,12 +101,26 @@ const AmrFindingFormStep = forwardRef(({formData, setFormData, onAddMore, onVali
                 placeholder="Select detection method"
                 data={methods}
                 value={findingData.method}
-                onChange={(value) => handleChange('method', value || '')}
-                error={touched.method && !findingData.method ? 'Method is required' : ''}
+                onChange={(value) => {
+                    handleChange('method', value || '');
+                    if (value !== 'Other') setCustomMethod('');
+                }}
+                error={touched.method && !effectiveMethod ? 'Method is required' : ''}
                 searchable
                 creatable
                 getCreateLabel={(query) => `+ Create "${query}"`}
             />
+
+            {findingData.method === 'Other' && (
+                <TextInput
+                    label="Specify method"
+                    placeholder="Enter method name"
+                    value={customMethod}
+                    onChange={(e) => setCustomMethod(e.currentTarget.value)}
+                    error={touched.method && !customMethod.trim() ? 'Please specify the method' : ''}
+                    autoFocus
+                />
+            )}
 
             <NumberInput
                 label="Percent Identity (%)"
@@ -128,11 +139,7 @@ const AmrFindingFormStep = forwardRef(({formData, setFormData, onAddMore, onVali
                         variant="light"
                         onClick={() => {
                             if (isValid) {
-                                onAddMore({
-                                    ...findingData,
-                                    finding_id: parseInt(findingData.finding_id),
-                                    percent_identity: parseFloat(findingData.percent_identity),
-                                });
+                                onAddMore(getEffectiveData());
                                 setFindingData({
                                     finding_id: '',
                                     gene_symbol: '',
@@ -141,10 +148,10 @@ const AmrFindingFormStep = forwardRef(({formData, setFormData, onAddMore, onVali
                                     method: '',
                                     percent_identity: '',
                                 });
+                                setCustomMethod('');
                                 setTouched({});
                             } else {
                                 setTouched({
-                                    finding_id: true,
                                     gene_symbol: true,
                                     drug_class: true,
                                     method: true,

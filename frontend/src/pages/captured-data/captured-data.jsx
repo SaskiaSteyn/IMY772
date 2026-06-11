@@ -175,25 +175,46 @@ const CapturedData = () => {
     const filteredPhenotypes = phenotypes.filter((p) => userSampleIds.has(p.sample_id));
     const filteredAmrFindings = amrFindings.filter((a) => userSampleIds.has(a.sample_id));
 
-    const handleAddEntry = async (newEntry) => {
+    const handleAddEntry = async (createdSample) => {
         try {
-            const createdSample = await createSample(newEntry);
-            setSamples((prev) => [createdSample, ...prev]);
-            setHighlightedSampleIds(new Set([createdSample.sample_id]));
+            const [newSamples, newIsolates, newPhenotypes, newAmr] = await Promise.all([
+                fetchAllSamples(),
+                fetchAllIsolates(),
+                fetchAllPredictedPhenotypes(),
+                fetchAllAmrFindings(),
+            ]);
+            setSamples(newSamples);
+            setIsolates(newIsolates);
+            setPhenotypes(newPhenotypes);
+            setAmrFindings(newAmr);
+            if (createdSample?.sample_id) {
+                setHighlightedSampleIds(new Set([createdSample.sample_id]));
+            }
             setActiveTab('samples');
             window.scrollTo({top: 0, behavior: 'smooth'});
         } catch (err) {
-            console.error('Error creating sample:', err);
+            console.error('Error refreshing data after add:', err);
         }
     };
 
-    const handleUploadSuccess = async () => {
+    const handleUploadSuccess = async (uploadedIds = []) => {
         try {
-            const data = await fetchAllSamples();
-            setSamples(data);
+            const [newSamples, newIsolates, newPhenotypes, newAmr] = await Promise.all([
+                fetchAllSamples(),
+                fetchAllIsolates(),
+                fetchAllPredictedPhenotypes(),
+                fetchAllAmrFindings(),
+            ]);
+            setSamples(newSamples);
+            setIsolates(newIsolates);
+            setPhenotypes(newPhenotypes);
+            setAmrFindings(newAmr);
+            if (uploadedIds.length > 0) {
+                setHighlightedSampleIds(new Set(uploadedIds));
+            }
             setActiveTab('samples');
         } catch (error) {
-            console.error('Failed to refresh samples:', error);
+            console.error('Failed to refresh data after bulk upload:', error);
         }
     };
 
@@ -310,14 +331,7 @@ const CapturedData = () => {
                             >
                                 Upload Bulk Data
                             </Button>
-                            <Button
-                                leftSection={<Pencil size={18} />}
-                                variant='outline'
-                                onClick={() => setUpdateSearchOpened(true)}
-                            >
-                                Update Existing Sample
-                            </Button>
-                            <Button
+<Button
                                 leftSection={<Plus size={18} />}
                                 onClick={() => setModalOpened(true)}
                             >

@@ -53,7 +53,10 @@ router.post(
             return res.status(201).json({phenotype})
         } catch (err) {
             console.error('Create predicted phenotype error:', err)
-            return res.status(500).json({message: 'Failed to create predicted phenotype'})
+            if (err.code === 'P2003') {
+                return res.status(400).json({message: `Sample ID "${sample_id}" does not exist. Create the sample first.`})
+            }
+            return res.status(500).json({message: `Failed to create predicted phenotype: ${err.message}`})
         }
     }
 )
@@ -61,7 +64,7 @@ router.post(
 // ─── GET /api/predicted-phenotypes - Get all predicted phenotypes ────────────
 router.get('/', async (req, res) => {
     try {
-        const phenotypes = await prisma.predictedPhenotype.findMany({include: {sample: true}})
+        const phenotypes = await prisma.predictedPhenotype.findMany({include: {sample: true}, orderBy: {phenotype_id: 'desc'}})
         return res.json({phenotypes})
     } catch (err) {
         console.error('Get predicted phenotypes error:', err)

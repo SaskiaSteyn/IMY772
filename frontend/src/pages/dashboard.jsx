@@ -9,15 +9,16 @@ import { AskAiBar } from '../components/dashboard/ask-ai-bar.jsx';
 import { useAiFilter } from '../hooks/useAiFilter.js';
 import { useAuth } from '../context/auth-context.jsx';
 import { useComparisonState } from '../hooks/useComparisonState.js';
+import { fetchAllSamples } from '../api/sample-data-management.js';
 import './dashboard.scss';
 
 // Map SIR profile to color
 const getSIRProfileColor = (sirProfile) => {
     const profile = (sirProfile || '').toLowerCase();
     const colorMap = {
-        resistant: '#7db344',
+        resistant: '#e03131',
         intermediate: '#f08c00',
-        susceptible: '#e03131',
+        susceptible: '#7db344',
     };
     return colorMap[profile] || '#999999';
 };
@@ -107,41 +108,20 @@ export default function Dashboard() {
 
     // Fetch samples from the API
     useEffect(() => {
-        const fetchSamples = async () => {
-            try {
-                setLoading(true);
-                const response = await fetch(
-                    'http://localhost:3000/api/samples',
-                    {
-                        method: 'GET',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        credentials: 'include',
-                    },
-                );
-
-                if (!response.ok) {
-                    const errorData = await response.text();
-                    console.error(
-                        'Server response:',
-                        response.status,
-                        errorData,
-                    );
-                    throw new Error(`HTTP ${response.status}: ${errorData}`);
+        const controller = new AbortController();
+        setLoading(true);
+        fetchAllSamples(controller.signal)
+            .then((data) => setSamples(data))
+            .catch((err) => {
+                if (!controller.signal.aborted) {
+                    console.error('Error fetching samples:', err);
+                    setError(err.message);
                 }
-
-                const data = await response.json();
-                setSamples(data.samples || []);
-            } catch (err) {
-                console.error('Error fetching samples:', err);
-                setError(err.message);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchSamples();
+            })
+            .finally(() => {
+                if (!controller.signal.aborted) setLoading(false);
+            });
+        return () => controller.abort();
     }, []);
 
     // Center coordinates for South Africa

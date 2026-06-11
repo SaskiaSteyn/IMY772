@@ -32,18 +32,18 @@ services:
         command: >
             sh -c "
             echo 'Installing dependencies...' &&
-            yarn install --silent &&
+            npm install --prefer-offline --no-audit --no-fund &&
             echo 'Generating Prisma client...' &&
             npx prisma generate &&
             echo 'Fixing any stuck migrations...' &&
             node scripts/fix-migration.js &&
             echo 'Running migrations...' &&
-            npx prisma migrate deploy &&
+            npx prisma migrate deploy 2>&1 || (echo '--- MIGRATION FAILED (see above) ---' && exit 1) &&
             echo 'Migrations completed successfully' &&
             echo 'Running seed script (skips if data already exists)...' &&
-            node prisma/seed.js &&
-            npm run seed:admin &&
-            yarn start
+            node prisma/seed.js 2>&1 || true &&
+            npm run seed:admin 2>&1 || true &&
+            npm start
             "
         depends_on:
             db:

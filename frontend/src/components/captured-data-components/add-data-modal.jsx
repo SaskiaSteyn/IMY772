@@ -79,10 +79,12 @@ const AddDataModal = ({opened, onClose, onAddEntry, samples = []}) => {
         }
         if (method === 'manual') {
             if (entryType === 'new-sample') {
-                return 3; // Method, Entry Type, Sample Info, Optional data types, then dynamic based on selections
+                // Steps 0-3 (Method, Entry Type, Sample Info, Related Data) + one per selected type
+                const selectedTypes = formData.selectedRelatedDataTypes || [];
+                return 4 + selectedTypes.length;
             }
             if (entryType === 'add-to-existing') {
-                return 4; // Method, Entry Type, Sample Selection, Data Type Selection, Form
+                return 5; // Method, Entry Type, Sample Selection, Data Type Selection, Form
             }
         }
         return 2; // At least method and entry type
@@ -176,6 +178,37 @@ const AddDataModal = ({opened, onClose, onAddEntry, samples = []}) => {
         setLoading(true);
         setError('');
         try {
+            // Flush any unsaved data from the current form step into the arrays
+            // (user may click Complete without clicking "+ Add Another")
+            const currentIsolates = [...isolates];
+            const currentPhenotypes = [...phenotypes];
+            const currentAmrFindings = [...amrFindings];
+            if (entryType === 'add-to-existing') {
+                if (dataType === 'isolates' && isolateFormRef.current) {
+                    const d = isolateFormRef.current.getData();
+                    if (d?.organism || d?.mlst_type) currentIsolates.push(d);
+                } else if (dataType === 'phenotypes' && phenotypeFormRef.current) {
+                    const d = phenotypeFormRef.current.getData();
+                    if (d?.organism && d?.antibiotic) currentPhenotypes.push(d);
+                } else if (dataType === 'amr_findings' && amrFindingFormRef.current) {
+                    const d = amrFindingFormRef.current.getData();
+                    if (d?.gene_symbol || d?.drug_class) currentAmrFindings.push(d);
+                }
+            } else if (entryType === 'new-sample') {
+                const selectedTypes = formData.selectedRelatedDataTypes || [];
+                const lastType = selectedTypes[selectedTypes.length - 1];
+                if (lastType === 'isolates' && isolateFormRef.current) {
+                    const d = isolateFormRef.current.getData();
+                    if (d?.organism || d?.mlst_type) currentIsolates.push(d);
+                } else if (lastType === 'phenotypes' && phenotypeFormRef.current) {
+                    const d = phenotypeFormRef.current.getData();
+                    if (d?.organism && d?.antibiotic) currentPhenotypes.push(d);
+                } else if (lastType === 'amr_findings' && amrFindingFormRef.current) {
+                    const d = amrFindingFormRef.current.getData();
+                    if (d?.gene_symbol || d?.drug_class) currentAmrFindings.push(d);
+                }
+            }
+
             // First, create the sample
             const samplePayload = {
                 sample_id: formData.sample_id,
@@ -199,32 +232,17 @@ const AddDataModal = ({opened, onClose, onAddEntry, samples = []}) => {
                 createdSample = {sample_id: formData.sample_id};
             }
 
-            // Create related records
-            if (isolates.length > 0) {
-                for (const isolate of isolates) {
-                    await createIsolate({
-                        ...isolate,
-                        sample_id: createdSample.sample_id,
-                    });
-                }
+            // Create related records (use flushed arrays to include any unsaved current form data)
+            for (const isolate of currentIsolates) {
+                await createIsolate({...isolate, sample_id: createdSample.sample_id});
             }
 
-            if (phenotypes.length > 0) {
-                for (const phenotype of phenotypes) {
-                    await createPredictedPhenotype({
-                        ...phenotype,
-                        sample_id: createdSample.sample_id,
-                    });
-                }
+            for (const phenotype of currentPhenotypes) {
+                await createPredictedPhenotype({...phenotype, sample_id: createdSample.sample_id});
             }
 
-            if (amrFindings.length > 0) {
-                for (const finding of amrFindings) {
-                    await createAmrFinding({
-                        ...finding,
-                        sample_id: createdSample.sample_id,
-                    });
-                }
+            for (const finding of currentAmrFindings) {
+                await createAmrFinding({...finding, sample_id: createdSample.sample_id});
             }
 
             // Reset and close
@@ -362,10 +380,11 @@ const AddDataModal = ({opened, onClose, onAddEntry, samples = []}) => {
                 );
             }
 
-            // Step 4+: Dynamic form steps for each selected type
+            // Step 4+: Dynamic form steps for each selected type (in selection order)
             const selectedTypes = formData.selectedRelatedDataTypes || [];
-            if (selectedTypes.length > 0) {
-                if (stepIndex === 4 && selectedTypes.includes('isolates')) {
+            if (selectedTypes.length > 0 && stepIndex >= 4) {
+                const typeAtStep = selectedTypes[stepIndex - 4];
+                if (typeAtStep === 'isolates') {
                     return (
                         <IsolateFormStep
                             ref={isolateFormRef}
@@ -376,7 +395,7 @@ const AddDataModal = ({opened, onClose, onAddEntry, samples = []}) => {
                         />
                     );
                 }
-                if ((stepIndex === 4 || stepIndex === 5) && selectedTypes.includes('phenotypes')) {
+                if (typeAtStep === 'phenotypes') {
                     return (
                         <PhenotypeFormStep
                             ref={phenotypeFormRef}
@@ -387,7 +406,7 @@ const AddDataModal = ({opened, onClose, onAddEntry, samples = []}) => {
                         />
                     );
                 }
-                if (stepIndex >= 5 && selectedTypes.includes('amr_findings')) {
+                if (typeAtStep === 'amr_findings') {
                     return (
                         <AmrFindingFormStep
                             ref={amrFindingFormRef}

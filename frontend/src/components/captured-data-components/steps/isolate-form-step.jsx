@@ -4,6 +4,7 @@ import {forwardRef, useImperativeHandle, useState} from 'react';
 const IsolateFormStep = forwardRef(({formData, setFormData, onAddMore, onValidationChange}, ref) => {
     const [isolateData, setIsolateData] = useState({organism: '', mlst_type: ''});
     const [touched, setTouched] = useState({});
+    const [customOrganism, setCustomOrganism] = useState('');
 
     const organisms = [
         'Escherichia coli',
@@ -14,6 +15,7 @@ const IsolateFormStep = forwardRef(({formData, setFormData, onAddMore, onValidat
         'Vibrio parahaemolyticus',
         'Clostridium difficile',
         'Enterococcus faecalis',
+        'Other',
     ];
 
     const handleChange = (field, value) => {
@@ -21,21 +23,23 @@ const IsolateFormStep = forwardRef(({formData, setFormData, onAddMore, onValidat
         setTouched((prev) => ({...prev, [field]: true}));
     };
 
-    const isValid = isolateData.organism && isolateData.organism.trim() !== '';
+    const effectiveOrganism = isolateData.organism === 'Other' ? customOrganism : isolateData.organism;
+    const isValid = effectiveOrganism.trim() !== '';
 
     useImperativeHandle(ref, () => ({
         validate: () => {
             if (!isValid) {
-                setTouched({organism: true, mlst_type: true});
+                setTouched({organism: true});
                 if (onValidationChange) onValidationChange(false);
                 return false;
             }
             if (onValidationChange) onValidationChange(true);
             return true;
         },
-        getData: () => isolateData,
+        getData: () => ({...isolateData, organism: effectiveOrganism}),
         reset: () => {
             setIsolateData({organism: '', mlst_type: ''});
+            setCustomOrganism('');
             setTouched({});
         },
     }));
@@ -52,12 +56,26 @@ const IsolateFormStep = forwardRef(({formData, setFormData, onAddMore, onValidat
                 placeholder="Select or type organism"
                 data={organisms}
                 value={isolateData.organism}
-                onChange={(value) => handleChange('organism', value || '')}
-                error={touched.organism && !isolateData.organism ? 'Organism is required' : ''}
+                onChange={(value) => {
+                    handleChange('organism', value || '');
+                    if (value !== 'Other') setCustomOrganism('');
+                }}
+                error={touched.organism && !effectiveOrganism ? 'Organism is required' : ''}
                 searchable
                 creatable
                 getCreateLabel={(query) => `+ Create "${query}"`}
             />
+
+            {isolateData.organism === 'Other' && (
+                <TextInput
+                    label="Specify organism"
+                    placeholder="Enter organism name"
+                    value={customOrganism}
+                    onChange={(e) => setCustomOrganism(e.currentTarget.value)}
+                    error={touched.organism && !customOrganism.trim() ? 'Please specify the organism' : ''}
+                    autoFocus
+                />
+            )}
 
             <TextInput
                 label="MLST Type (Optional)"
@@ -72,8 +90,9 @@ const IsolateFormStep = forwardRef(({formData, setFormData, onAddMore, onValidat
                         variant="light"
                         onClick={() => {
                             if (isValid) {
-                                onAddMore(isolateData);
+                                onAddMore({...isolateData, organism: effectiveOrganism});
                                 setIsolateData({organism: '', mlst_type: ''});
+                                setCustomOrganism('');
                                 setTouched({});
                             } else {
                                 setTouched({organism: true});

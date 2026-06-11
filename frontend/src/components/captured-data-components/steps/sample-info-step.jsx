@@ -1,9 +1,13 @@
-import {Stack, SimpleGrid, NumberInput, TextInput, Text, Group} from '@mantine/core';
+import {Stack, SimpleGrid, NumberInput, TextInput, Text, Group, Loader} from '@mantine/core';
 import {DatePickerInput} from '@mantine/dates';
-import {forwardRef, useImperativeHandle, useState, useEffect} from 'react';
+import {forwardRef, useImperativeHandle, useState, useEffect, useRef} from 'react';
+import {fetchSampleById} from '../../../api/sample-data-management';
 
 const SampleInfoStep = forwardRef(({formData, setFormData, onValidationChange}, ref) => {
     const [touched, setTouched] = useState({});
+    const [sampleIdTaken, setSampleIdTaken] = useState(false);
+    const [sampleIdChecking, setSampleIdChecking] = useState(false);
+    const checkAbortRef = useRef(null);
 
     const requiredFields = {
         sample_id: formData.sample_id,
@@ -18,19 +22,52 @@ const SampleInfoStep = forwardRef(({formData, setFormData, onValidationChange}, 
         .filter(([, v]) => !v || v === '')
         .map(([k]) => k);
 
+    const isValid = missingFields.length === 0 && !sampleIdTaken && !sampleIdChecking;
+
     useEffect(() => {
         if (onValidationChange) {
-            onValidationChange(missingFields.length === 0);
+            onValidationChange(isValid);
         }
-    }, [missingFields.length, onValidationChange]);
+    }, [isValid, onValidationChange]);
+
+    // Check sample_id uniqueness when it changes (debounced)
+    useEffect(() => {
+        const id = formData.sample_id?.trim();
+        if (!id) {
+            setSampleIdTaken(false);
+            return;
+        }
+
+        setSampleIdChecking(true);
+        if (checkAbortRef.current) checkAbortRef.current.abort();
+        const controller = new AbortController();
+        checkAbortRef.current = controller;
+
+        const timer = setTimeout(() => {
+            fetchSampleById(id, controller.signal)
+                .then(() => {
+                    if (!controller.signal.aborted) setSampleIdTaken(true);
+                })
+                .catch(() => {
+                    if (!controller.signal.aborted) setSampleIdTaken(false);
+                })
+                .finally(() => {
+                    if (!controller.signal.aborted) setSampleIdChecking(false);
+                });
+        }, 400);
+
+        return () => {
+            clearTimeout(timer);
+            controller.abort();
+            setSampleIdChecking(false);
+        };
+    }, [formData.sample_id]);
 
     useImperativeHandle(ref, () => ({
         validate: () => {
-            if (missingFields.length > 0) {
+            if (missingFields.length > 0 || sampleIdTaken) {
                 const newTouched = {};
-                missingFields.forEach((f) => {
-                    newTouched[f] = true;
-                });
+                missingFields.forEach((f) => { newTouched[f] = true; });
                 setTouched((prev) => ({...prev, ...newTouched}));
                 if (onValidationChange) onValidationChange(false);
                 return false;
@@ -59,7 +96,14 @@ const SampleInfoStep = forwardRef(({formData, setFormData, onValidationChange}, 
                     placeholder="e.g., SA-2026-001"
                     value={formData.sample_id || ''}
                     onChange={(e) => handleChange('sample_id', e.currentTarget.value)}
-                    error={touched.sample_id && !formData.sample_id ? 'Sample ID is required' : ''}
+                    error={
+                        (touched.sample_id && !formData.sample_id)
+                            ? 'Sample ID is required'
+                            : sampleIdTaken
+                            ? 'This Sample ID already exists — please choose a different one'
+                            : ''
+                    }
+                    rightSection={sampleIdChecking ? <Loader size="xs" /> : null}
                     required
                 />
 
