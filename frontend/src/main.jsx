@@ -41,7 +41,8 @@ const theme = createTheme({
     },
 });
 
-createRoot(document.getElementById('root')).render(
+const root = createRoot(document.getElementById('root'));
+root.render(
     <StrictMode>
         <BrowserRouter>
             <MantineProvider theme={theme}>
@@ -52,3 +53,9 @@ createRoot(document.getElementById('root')).render(
         </BrowserRouter>
     </StrictMode>,
 );
+
+const splash = document.getElementById('splash-screen');
+if (splash) {
+    splash.classList.add('hidden');
+    splash.addEventListener('transitionend', () => splash.remove(), { once: true });
+}
