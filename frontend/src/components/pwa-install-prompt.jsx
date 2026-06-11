@@ -32,9 +32,9 @@ export default function PwaInstallPrompt() {
             radius="md"
             style={{
                 position: 'fixed',
-                bottom: 24,
+                top: '50%',
                 left: '50%',
-                transform: 'translateX(-50%)',
+                transform: 'translate(-50%, -50%)',
                 zIndex: 1000,
                 width: 'min(360px, calc(100vw - 32px))',
             }}
