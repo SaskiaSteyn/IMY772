@@ -5,7 +5,6 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import AppRouter from './app-router.jsx';
-import { AuthProvider } from './context/auth-context.jsx';
 import './index.scss';
 
 const themeColors = [
@@ -46,16 +45,9 @@ root.render(
     <StrictMode>
         <BrowserRouter>
             <MantineProvider theme={theme}>
-                <AuthProvider>
-                    <AppRouter />
-                </AuthProvider>
+                <AppRouter />
             </MantineProvider>
         </BrowserRouter>
     </StrictMode>,
 );
 
-const splash = document.getElementById('splash-screen');
-if (splash) {
-    splash.classList.add('hidden');
-    splash.addEventListener('transitionend', () => splash.remove(), { once: true });
-}
