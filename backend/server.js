@@ -24,10 +24,41 @@ dotenv.config({path: '../.env'})
 const app = express()
 const port = process.env.PORT || 3000
 
+function normalizeOrigin(origin) {
+    return String(origin || '').replace(/\/+$/, '')
+}
+
+function parseAllowedOrigins(rawOrigins) {
+    return String(rawOrigins || '')
+        .split(',')
+        .map((origin) => normalizeOrigin(origin.trim()))
+        .filter(Boolean)
+}
+
 // Middleware
+const configuredOrigins = parseAllowedOrigins(process.env.FRONTEND_URL)
+
 const corsOptions =
     process.env.NODE_ENV === 'production'
-        ? {origin: process.env.FRONTEND_URL, credentials: true}
+        ? {
+              origin(origin, callback) {
+                  // Allow non-browser clients (no Origin header).
+                  if (!origin) {
+                      callback(null, true)
+                      return
+                  }
+
+                  if (configuredOrigins.length === 0) {
+                      callback(null, true)
+                      return
+                  }
+
+                  const normalizedOrigin = normalizeOrigin(origin)
+                  const isAllowed = configuredOrigins.includes(normalizedOrigin)
+                  callback(null, isAllowed)
+              },
+              credentials: true,
+          }
         : {origin: true, credentials: true} // Allow all origins in development
 
 app.use(cors(corsOptions))

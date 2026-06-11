@@ -1,6 +1,5 @@
 import { useState } from 'react'
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+import { buildApiUrl } from '../api/api-client.js'
 
 function applyFiltersToSamples(samples, filters) {
     if (!filters || filters.length === 0) return samples
@@ -45,7 +44,7 @@ export function useAiFilter() {
         setLoading(true)
         setError(null)
         try {
-            const res = await fetch(`${API_URL}/api/ai/filter`, {
+            const res = await fetch(buildApiUrl('/api/ai/filter'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',

@@ -40,13 +40,6 @@ export default function DashboardNavbar() {
     const isAuthenticated = Boolean(user);
     const isAdmin = user?.role === 'admin';
 
-    // Debug logging
-    useEffect(() => {
-        console.log('User:', user);
-        console.log('isAuthenticated:', isAuthenticated);
-        console.log('isAdmin:', isAdmin);
-        console.log('user?.role:', user?.role);
-    }, [user, isAuthenticated, isAdmin]);
     const avatarSrc = user?.profileImage || null;
     const avatarName = `${user?.name || ''} ${user?.surname || ''}`.trim();
 

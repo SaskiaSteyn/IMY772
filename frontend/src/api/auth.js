@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+import { buildApiUrl } from './api-client.js';
 
 const fallbackMessageByStatus = {
     400: 'Invalid request',
@@ -27,7 +27,7 @@ async function request(path, options = {}) {
         headers['Content-Type'] = 'application/json';
     }
 
-    const res = await fetch(`${API_URL}${path}`, {
+    const res = await fetch(buildApiUrl(path), {
         credentials: 'include', // send/receive the httpOnly cookie
         ...rest,
         headers,
