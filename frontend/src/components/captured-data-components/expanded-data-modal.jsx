@@ -11,9 +11,9 @@ function RecordPreview({title, record, columns}) {
                     <Group key={col.accessor} gap={8}>
                         <strong style={{minWidth: 140}}>{col.title}:</strong>
                         <span>
-                            {col.accessor === 'resistant' && record[col.accessor] !== undefined ? (
-                                <Badge color={record[col.accessor] ? 'red' : 'green'} variant='light' size='sm'>
-                                    {record[col.accessor] ? 'Resistant' : 'Susceptible'}
+                            {col.accessor === 'predicted_sir_profile' && record[col.accessor] ? (
+                                <Badge color={record[col.accessor] === 'Resistant' ? 'red' : record[col.accessor] === 'Intermediate' ? 'orange' : 'green'} variant='light' size='sm'>
+                                    {record[col.accessor]}
                                 </Badge>
                             ) : (
                                 record[col.accessor] ?? '-'
@@ -30,6 +30,8 @@ export default function ExpandedDataModal({opened, onClose, sample, isolates, ph
     // Table column configs (match DataTable columns)
     const sampleColumns = [
         {accessor: 'sample_id', title: 'Sample ID'},
+        {accessor: 'sample_name', title: 'Sample Name'},
+        {accessor: 'collected_by', title: 'Collected By'},
         {accessor: 'collection_date', title: 'Collection Date'},
         {accessor: 'location_name', title: 'Location'},
         {accessor: 'latitude', title: 'Latitude'},
@@ -51,13 +53,13 @@ export default function ExpandedDataModal({opened, onClose, sample, isolates, ph
         {accessor: 'sample_id', title: 'Sample ID'},
         {accessor: 'organism', title: 'Organism'},
         {accessor: 'antibiotic', title: 'Antibiotic'},
-        {accessor: 'resistant', title: 'Resistance'},
+        {accessor: 'predicted_sir_profile', title: 'Resistance Status'},
     ];
     const amrColumns = [
         {accessor: 'finding_id', title: 'Finding ID'},
         {accessor: 'sample_id', title: 'Sample ID'},
         {accessor: 'gene_symbol', title: 'Gene Symbol'},
-        {accessor: 'drug_class', title: 'Drug Class'},
+        {accessor: 'amr_class', title: 'AMR Class'},
         {accessor: 'analysis_type', title: 'Analysis Type'},
         {accessor: 'method', title: 'Method'},
         {accessor: 'percent_identity', title: 'Identity %'},

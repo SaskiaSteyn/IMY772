@@ -14,10 +14,14 @@ import {useEffect, useState} from 'react';
 const EditAmrFindingModal = ({opened, onClose, record, onSave}) => {
     const [formData, setFormData] = useState({
         gene_symbol: '',
-        drug_class: '',
+        amr_class: '',
         analysis_type: 'WGS',
         method: '',
         percent_identity: '',
+        sequence_name: '',
+        element_type: '',
+        subclass: '',
+        percentage_coverage: '',
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -29,10 +33,14 @@ const EditAmrFindingModal = ({opened, onClose, record, onSave}) => {
         if (record && opened) {
             setFormData({
                 gene_symbol: record.gene_symbol ?? '',
-                drug_class: record.drug_class ?? '',
+                amr_class: record.amr_class ?? '',
                 analysis_type: record.analysis_type ?? 'WGS',
                 method: record.method ?? '',
                 percent_identity: record.percent_identity ?? '',
+                sequence_name: record.sequence_name ?? '',
+                element_type: record.element_type ?? '',
+                subclass: record.subclass ?? '',
+                percentage_coverage: record.percentage_coverage ?? '',
             });
             setError('');
         }
@@ -41,8 +49,8 @@ const EditAmrFindingModal = ({opened, onClose, record, onSave}) => {
     const handleSubmit = async () => {
         if (!record) return;
 
-        if (!formData.gene_symbol || !formData.drug_class || !formData.method) {
-            setError('Gene symbol, drug class, and method are required');
+        if (!formData.gene_symbol || !formData.amr_class || !formData.method) {
+            setError('Gene symbol, AMR class, and method are required');
             return;
         }
 
@@ -52,13 +60,15 @@ const EditAmrFindingModal = ({opened, onClose, record, onSave}) => {
         try {
             const updateData = {
                 gene_symbol: formData.gene_symbol,
-                drug_class: formData.drug_class,
+                amr_class: formData.amr_class,
                 analysis_type: formData.analysis_type,
                 method: formData.method,
             };
-            if (formData.percent_identity !== '') {
-                updateData.percent_identity = parseFloat(formData.percent_identity);
-            }
+            if (formData.percent_identity !== '') updateData.percent_identity = parseFloat(formData.percent_identity);
+            if (formData.sequence_name) updateData.sequence_name = formData.sequence_name;
+            if (formData.element_type) updateData.element_type = formData.element_type;
+            if (formData.subclass) updateData.subclass = formData.subclass;
+            if (formData.percentage_coverage !== '') updateData.percentage_coverage = parseFloat(formData.percentage_coverage);
 
             await onSave(record.finding_id, updateData);
             onClose();
@@ -98,10 +108,10 @@ const EditAmrFindingModal = ({opened, onClose, record, onSave}) => {
                 />
 
                 <TextInput
-                    label="Drug Class"
+                    label="AMR Class"
                     placeholder="e.g., Beta-lactams, Tetracyclines"
-                    value={formData.drug_class}
-                    onChange={(e) => setFormData({...formData, drug_class: e.currentTarget.value})}
+                    value={formData.amr_class}
+                    onChange={(e) => setFormData({...formData, amr_class: e.currentTarget.value})}
                 />
 
                 <Select
@@ -127,6 +137,37 @@ const EditAmrFindingModal = ({opened, onClose, record, onSave}) => {
                     placeholder="0-100"
                     value={formData.percent_identity ? parseFloat(formData.percent_identity) : ''}
                     onChange={(value) => setFormData({...formData, percent_identity: value?.toString() || ''})}
+                    min={0}
+                    max={100}
+                    step={0.1}
+                />
+
+                <TextInput
+                    label="Sequence Name"
+                    placeholder="Enter sequence name"
+                    value={formData.sequence_name}
+                    onChange={(e) => setFormData({...formData, sequence_name: e.currentTarget.value})}
+                />
+
+                <TextInput
+                    label="Element Type"
+                    placeholder="e.g., AMR"
+                    value={formData.element_type}
+                    onChange={(e) => setFormData({...formData, element_type: e.currentTarget.value})}
+                />
+
+                <TextInput
+                    label="Subclass"
+                    placeholder="e.g., BETA-LACTAM"
+                    value={formData.subclass}
+                    onChange={(e) => setFormData({...formData, subclass: e.currentTarget.value})}
+                />
+
+                <NumberInput
+                    label="Percentage Coverage (%)"
+                    placeholder="0-100"
+                    value={formData.percentage_coverage ? parseFloat(formData.percentage_coverage) : ''}
+                    onChange={(value) => setFormData({...formData, percentage_coverage: value?.toString() || ''})}
                     min={0}
                     max={100}
                     step={0.1}

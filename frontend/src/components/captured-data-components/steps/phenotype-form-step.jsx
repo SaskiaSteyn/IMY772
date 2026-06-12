@@ -3,7 +3,7 @@ import {forwardRef, useImperativeHandle, useState, useEffect, useRef} from 'reac
 import {predictPhenotype} from '../../../api/sample-data-management';
 
 const PhenotypeFormStep = forwardRef(({formData, setFormData, onAddMore, onValidationChange}, ref) => {
-    const [phenotypeData, setPhenotypeData] = useState({organism: '', antibiotic: '', resistant: null});
+    const [phenotypeData, setPhenotypeData] = useState({organism: '', antibiotic: '', predicted_sir_profile: null});
     const [touched, setTouched] = useState({});
     const [customOrganism, setCustomOrganism] = useState('');
     const [customAntibiotic, setCustomAntibiotic] = useState('');
@@ -82,7 +82,7 @@ const PhenotypeFormStep = forwardRef(({formData, setFormData, onAddMore, onValid
                     setAiPrediction(predicted);
                     setPhenotypeData((prev) => ({
                         ...prev,
-                        resistant: predicted === 'resistant',
+                        predicted_sir_profile: predicted,
                     }));
                 }
             })
@@ -102,7 +102,6 @@ const PhenotypeFormStep = forwardRef(({formData, setFormData, onAddMore, onValid
         ...phenotypeData,
         organism: effectiveOrganism,
         antibiotic: effectiveAntibiotic,
-        resistant: phenotypeData.resistant === true,
     });
 
     useImperativeHandle(ref, () => ({
@@ -117,7 +116,7 @@ const PhenotypeFormStep = forwardRef(({formData, setFormData, onAddMore, onValid
         },
         getData: getEffectiveData,
         reset: () => {
-            setPhenotypeData({organism: '', antibiotic: '', resistant: null});
+            setPhenotypeData({organism: '', antibiotic: '', predicted_sir_profile: null});
             setCustomOrganism('');
             setCustomAntibiotic('');
             setAiPrediction(null);
@@ -191,7 +190,7 @@ const PhenotypeFormStep = forwardRef(({formData, setFormData, onAddMore, onValid
                     <Text size="sm" fw={500}>AI Prediction:</Text>
                     {predictionLoading && <Loader size="xs" />}
                     {!predictionLoading && aiPrediction && (
-                        <Badge color={aiPrediction === 'resistant' ? 'red' : aiPrediction === 'susceptible' ? 'green' : 'yellow'}>
+                        <Badge color={aiPrediction === 'Resistant' ? 'red' : aiPrediction === 'Susceptible' ? 'green' : 'orange'}>
                             {aiPrediction}
                         </Badge>
                     )}
@@ -202,15 +201,12 @@ const PhenotypeFormStep = forwardRef(({formData, setFormData, onAddMore, onValid
             )}
 
             <Select
-                label="Resistant Status"
+                label="Resistance Status"
                 description={aiPrediction ? 'Pre-filled by AI — override if needed' : 'Select resistance status'}
                 placeholder="Select status"
-                data={[
-                    {value: 'true', label: 'Resistant'},
-                    {value: 'false', label: 'Susceptible'},
-                ]}
-                value={phenotypeData.resistant === null ? null : String(phenotypeData.resistant)}
-                onChange={(value) => handleChange('resistant', value === 'true')}
+                data={['Susceptible', 'Intermediate', 'Resistant']}
+                value={phenotypeData.predicted_sir_profile}
+                onChange={(value) => handleChange('predicted_sir_profile', value)}
             />
 
             {onAddMore && (
@@ -220,7 +216,7 @@ const PhenotypeFormStep = forwardRef(({formData, setFormData, onAddMore, onValid
                         onClick={() => {
                             if (isValid) {
                                 onAddMore(getEffectiveData());
-                                setPhenotypeData({organism: '', antibiotic: '', resistant: null});
+                                setPhenotypeData({organism: '', antibiotic: '', predicted_sir_profile: null});
                                 setCustomOrganism('');
                                 setCustomAntibiotic('');
                                 setAiPrediction(null);

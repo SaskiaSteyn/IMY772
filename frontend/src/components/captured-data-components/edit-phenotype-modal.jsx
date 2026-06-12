@@ -14,7 +14,7 @@ const EditPhenotypeModal = ({opened, onClose, record, onSave}) => {
     const [formData, setFormData] = useState({
         organism: '',
         antibiotic: '',
-        resistant: false,
+        predicted_sir_profile: null,
         manualOverride: false,
     });
     const [loading, setLoading] = useState(false);
@@ -51,7 +51,7 @@ const EditPhenotypeModal = ({opened, onClose, record, onSave}) => {
             setFormData({
                 organism: record.organism ?? '',
                 antibiotic: record.antibiotic ?? '',
-                resistant: record.resistant ?? false,
+                predicted_sir_profile: record.predicted_sir_profile ?? null,
                 manualOverride: Boolean(record.is_manual_override),
             });
             setError('');
@@ -76,7 +76,7 @@ const EditPhenotypeModal = ({opened, onClose, record, onSave}) => {
             };
 
             if (formData.manualOverride) {
-                updateData.resistant = formData.resistant;
+                updateData.predicted_sir_profile = formData.predicted_sir_profile;
             } else if (record?.is_manual_override) {
                 updateData.clear_manual_override = true;
             }
@@ -145,12 +145,10 @@ const EditPhenotypeModal = ({opened, onClose, record, onSave}) => {
 
                 <Select
                     label="Resistance Status"
-                    data={[
-                        {value: 'susceptible', label: 'Susceptible'},
-                        {value: 'resistant', label: 'Resistant'},
-                    ]}
-                    value={formData.resistant ? 'resistant' : 'susceptible'}
-                    onChange={(value) => setFormData({...formData, resistant: value === 'resistant'})}
+                    placeholder="Select status"
+                    data={['Susceptible', 'Intermediate', 'Resistant']}
+                    value={formData.predicted_sir_profile}
+                    onChange={(value) => setFormData({...formData, predicted_sir_profile: value})}
                     disabled={!formData.manualOverride}
                 />
 

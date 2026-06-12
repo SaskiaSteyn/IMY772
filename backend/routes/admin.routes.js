@@ -245,7 +245,7 @@ router.get('/water/samples', async (_req, res) => {
 })
 
 router.post('/water/samples', async (req, res) => {
-    const {sample_id, latitude, longitude, water_temp, ph, tds, do: doVal, isolation_source, collection_date, location_name, isolates, amrFindings, predictedPhenotypes} = req.body
+    const {sample_id, sample_name, collected_by, latitude, longitude, water_temp, ph, tds, do: doVal, isolation_source, collection_date, location_name, isolates, amrFindings, predictedPhenotypes} = req.body
 
     if (!sample_id || !latitude || !longitude) {
         return res.status(400).json({message: 'sample_id, latitude, longitude are required'})
@@ -255,6 +255,8 @@ router.post('/water/samples', async (req, res) => {
         const createdSample = await prisma.sample.create({
             data: {
                 sample_id,
+                sample_name: sample_name || sample_id,
+                collected_by: collected_by || null,
                 latitude: parseFloat(latitude),
                 longitude: parseFloat(longitude),
                 water_temp: water_temp !== undefined ? parseFloat(water_temp) : null,
@@ -284,7 +286,7 @@ router.post('/water/samples', async (req, res) => {
                         sample_id: createdSample.sample_id,
                         analysis_type: amr.analysis_type,
                         gene_symbol: amr.gene_symbol,
-                        drug_class: amr.drug_class,
+                        amr_class: amr.amr_class,
                         method: amr.method,
                         percent_identity: amr.percent_identity ? parseFloat(amr.percent_identity) : null,
                     },
@@ -298,7 +300,7 @@ router.post('/water/samples', async (req, res) => {
                         sample_id: createdSample.sample_id,
                         organism: phen.organism,
                         antibiotic: phen.antibiotic,
-                        resistant: phen.resistant === undefined ? null : Boolean(phen.resistant),
+                        predicted_sir_profile: phen.predicted_sir_profile || null,
                     },
                 })
             }
@@ -397,6 +399,8 @@ const entityConfig = {
         delegate: () => prisma.sample,
         fields: {
             sample_id: {type: 'string', nullable: false},
+            sample_name: {type: 'string', nullable: false},
+            collected_by: {type: 'string'},
             water_temp: {type: 'number'},
             ph: {type: 'number'},
             tds: {type: 'number'},
@@ -435,7 +439,7 @@ const entityConfig = {
             sample_id: {type: 'string', nullable: false},
             analysis_type: {type: 'string'},
             gene_symbol: {type: 'string'},
-            drug_class: {type: 'string'},
+            amr_class: {type: 'string'},
             method: {type: 'string'},
             percent_identity: {type: 'number'},
         },
@@ -452,7 +456,7 @@ const entityConfig = {
             sample_id: {type: 'string', nullable: false},
             organism: {type: 'string'},
             antibiotic: {type: 'string'},
-            resistant: {type: 'boolean'},
+            predicted_sir_profile: {type: 'string'},
         },
         list: () => prisma.predictedPhenotype.findMany({orderBy: {phenotype_id: 'asc'}}),
         create: (data) => prisma.predictedPhenotype.create({data}),

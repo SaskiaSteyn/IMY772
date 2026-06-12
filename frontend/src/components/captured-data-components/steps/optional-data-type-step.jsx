@@ -1,5 +1,5 @@
 import {Stack, Text, SimpleGrid, Card, Center, Group, Checkbox} from '@mantine/core';
-import {Microscope, Beaker, Dna} from 'lucide-react';
+import {Microscope, Beaker, Dna, ShieldAlert} from 'lucide-react';
 import {useState, useImperativeHandle, forwardRef} from 'react';
 
 const OptionalDataTypeStep = forwardRef(({formData, setFormData, onValidationChange}, ref) => {
@@ -9,6 +9,7 @@ const OptionalDataTypeStep = forwardRef(({formData, setFormData, onValidationCha
         {id: 'isolates', label: 'Isolates', icon: Microscope, description: 'Microbial isolates'},
         {id: 'phenotypes', label: 'Phenotypes', icon: Beaker, description: 'Predicted phenotypes'},
         {id: 'amr_findings', label: 'AMR Findings', icon: Dna, description: 'Antimicrobial resistance genes'},
+        {id: 'virulence_genes', label: 'Virulence Genes', icon: ShieldAlert, description: 'Virulence gene findings'},
     ];
 
     const toggleDataType = (dataTypeId) => {

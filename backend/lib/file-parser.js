@@ -1,51 +1,21 @@
 import xlsx from 'xlsx'
 import Papa from 'papaparse'
 
-/**
- * Parse a CSV or Excel file buffer and return an object with `samples` array.
- * Expected columns (case-insensitive matching):
- *   - sample_id (string, required)
- *   - latitude (decimal, required)
- *   - longitude (decimal, required)
- *   - water_temp (optional decimal)
- *   - ph (optional decimal)
- *   - tds (optional decimal)
- *   - do (optional decimal)
- *   - isolation_source (optional string)
- *   - collection_date (optional date string)
- *   - location_name (optional string)
- * 
- * For nested relations, the file should have repeating rows per sample? Alternatively,
- * we support a simplified approach: each row is one sample, and isolates/amr/phenotypes
- * are encoded as JSON strings in columns. But more robust: separate sections.
- * 
- * For simplicity, this parser assumes each row represents one sample and any related
- * data (isolates, AMR findings, predicted phenotypes) are provided as JSON arrays
- * in columns: `isolates_json`, `amr_findings_json`, `predicted_phenotypes_json`.
- * 
- * Example JSON formats:
- *   isolates_json: '[{"organism":"E. coli","mlst_type":"ST131"}]'
- *   amr_findings_json: '[{"analysis_type":"WGS","gene_symbol":"blaCTX-M-15","drug_class":"Cephalosporin","method":"ResFinder","percent_identity":99.5}]'
- *   predicted_phenotypes_json: '[{"organism":"E. coli","antibiotic":"Ciprofloxacin","resistant":true}]'
- */
 export async function parseBulkUploadFile(fileBuffer, mimeType) {
     let rows = []
 
     if (mimeType === 'application/json' || mimeType === 'text/plain') {
-        // Parse JSON — supports both an array of samples and the combined object format
         const json = JSON.parse(fileBuffer.toString('utf-8'))
 
         if (Array.isArray(json)) {
-            // Plain array of sample rows
             rows = json
         } else if (json && typeof json === 'object') {
-            // Combined object: { samples, isolates, predicted_phenotypes, amr_findings }
-            // Merge everything back into flat sample rows with nested JSON columns
-            const { samples = [], isolates = [], predicted_phenotypes = [], amr_findings = [] } = json
+            const { samples = [], isolates = [], predicted_phenotypes = [], amr_findings = [], virulence_genes = [] } = json
 
             const isolatesBySample = {}
             const phenotypesBySample = {}
             const amrBySample = {}
+            const vgBySample = {}
 
             isolates.forEach(i => {
                 if (!isolatesBySample[i.sample_id]) isolatesBySample[i.sample_id] = []
@@ -59,18 +29,22 @@ export async function parseBulkUploadFile(fileBuffer, mimeType) {
                 if (!amrBySample[a.sample_id]) amrBySample[a.sample_id] = []
                 amrBySample[a.sample_id].push(a)
             })
+            virulence_genes.forEach(v => {
+                if (!vgBySample[v.sample_id]) vgBySample[v.sample_id] = []
+                vgBySample[v.sample_id].push(v)
+            })
 
             rows = samples.map(s => ({
                 ...s,
                 isolates_json: JSON.stringify(isolatesBySample[s.sample_id] || []),
                 predicted_phenotypes_json: JSON.stringify(phenotypesBySample[s.sample_id] || []),
                 amr_findings_json: JSON.stringify(amrBySample[s.sample_id] || []),
+                virulence_genes_json: JSON.stringify(vgBySample[s.sample_id] || []),
             }))
         } else {
             throw new Error('JSON must be an array of samples or a combined object with samples/isolates/predicted_phenotypes/amr_findings')
         }
     } else if (mimeType === 'text/csv' || mimeType === 'application/vnd.ms-excel') {
-        // Parse CSV
         const csvString = fileBuffer.toString('utf-8')
         const result = Papa.parse(csvString, {header: true, skipEmptyLines: true})
         if (result.errors.length) {
@@ -78,7 +52,6 @@ export async function parseBulkUploadFile(fileBuffer, mimeType) {
         }
         rows = result.data
     } else if (mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
-        // Parse Excel
         const workbook = xlsx.read(fileBuffer, {type: 'buffer'})
         const sheetName = workbook.SheetNames[0]
         const sheet = workbook.Sheets[sheetName]
@@ -90,7 +63,6 @@ export async function parseBulkUploadFile(fileBuffer, mimeType) {
     const samples = []
 
     for (const row of rows) {
-        // Helper to get case-insensitive field
         const getField = (fieldNames) => {
             for (const name of fieldNames) {
                 if (row[name] !== undefined) return row[name]
@@ -115,6 +87,8 @@ export async function parseBulkUploadFile(fileBuffer, mimeType) {
 
         const sample = {
             sample_id: String(sample_id).trim(),
+            sample_name: getField(['sample_name', 'Sample_name']) ? String(getField(['sample_name', 'Sample_name'])).trim() : null,
+            collected_by: getField(['collected_by', 'Collected_by']) || null,
             latitude: parseFloat(latitude),
             longitude: parseFloat(longitude),
             water_temp: getField(['water_temp', 'waterTemperature', 'water_temperature']) !== undefined ? parseFloat(getField(['water_temp', 'waterTemperature', 'water_temperature'])) : undefined,
@@ -126,39 +100,33 @@ export async function parseBulkUploadFile(fileBuffer, mimeType) {
             location_name: getField(['location_name', 'locationName', 'location']) || null,
         }
 
-        // Parse nested JSON if present
         const isolatesJson = getField(['isolates_json', 'isolatesJson', 'isolates'])
         if (isolatesJson) {
-            try {
-                sample.isolates = JSON.parse(isolatesJson)
-            } catch (e) {
+            try { sample.isolates = JSON.parse(isolatesJson) } catch (e) {
                 throw new Error(`Invalid JSON in isolates_json for sample ${sample_id}: ${e.message}`)
             }
-        } else {
-            sample.isolates = []
-        }
+        } else { sample.isolates = [] }
 
         const amrJson = getField(['amr_findings_json', 'amrFindingsJson', 'amr_findings'])
         if (amrJson) {
-            try {
-                sample.amrFindings = JSON.parse(amrJson)
-            } catch (e) {
+            try { sample.amrFindings = JSON.parse(amrJson) } catch (e) {
                 throw new Error(`Invalid JSON in amr_findings_json for sample ${sample_id}: ${e.message}`)
             }
-        } else {
-            sample.amrFindings = []
-        }
+        } else { sample.amrFindings = [] }
 
         const phenJson = getField(['predicted_phenotypes_json', 'predictedPhenotypesJson', 'predicted_phenotypes'])
         if (phenJson) {
-            try {
-                sample.predictedPhenotypes = JSON.parse(phenJson)
-            } catch (e) {
+            try { sample.predictedPhenotypes = JSON.parse(phenJson) } catch (e) {
                 throw new Error(`Invalid JSON in predicted_phenotypes_json for sample ${sample_id}: ${e.message}`)
             }
-        } else {
-            sample.predictedPhenotypes = []
-        }
+        } else { sample.predictedPhenotypes = [] }
+
+        const vgJson = getField(['virulence_genes_json', 'virulenceGenesJson', 'virulence_genes'])
+        if (vgJson) {
+            try { sample.virulenceGenes = JSON.parse(vgJson) } catch (e) {
+                throw new Error(`Invalid JSON in virulence_genes_json for sample ${sample_id}: ${e.message}`)
+            }
+        } else { sample.virulenceGenes = [] }
 
         samples.push(sample)
     }

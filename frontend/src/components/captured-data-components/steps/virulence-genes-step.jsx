@@ -1,117 +1,191 @@
-import {useImperativeHandle, forwardRef, useState, useEffect} from 'react';
-import {Button, Stack, TextInput, Paper, Group, Text} from '@mantine/core';
-import {Trash2, Plus} from 'lucide-react';
-import styles from './sample-info-step.module.scss';
+import {Stack, TextInput, Select, NumberInput, Button, Group, Text} from '@mantine/core';
+import {forwardRef, useImperativeHandle, useState} from 'react';
 
-const VirulenceGenesStep = forwardRef(({formData, setFormData, onValidationChange}, ref) => {
-    const [touched, setTouched] = useState([]);
-    const [shake, setShake] = useState([]);
-    const [error, setError] = useState(false);
-    const [showError, setShowError] = useState(false);
+const methods = ['ABRicate', 'BLAST', 'VirulenceFinder', 'Other'];
 
-    // Guard against missing formData or virulenceGenes
-    if (!formData || !Array.isArray(formData.virulenceGenes)) {
-        return <Stack>Loading...</Stack>;
-    }
+const emptyGene = () => ({
+    gene_symbol: '',
+    method: '',
+    customMethod: '',
+    percent_identity: '',
+    coverage_percent: '',
+    alignment_length: '',
+    target_length: '',
+    ref_seq_length: '',
+    accession: '',
+    sequence_name: '',
+    element_type: '',
+});
 
-    const genes = formData.virulenceGenes;
+const VirulenceGenesStep = forwardRef(({formData, setFormData, onAddMore, onValidationChange}, ref) => {
+    const [geneData, setGeneData] = useState(emptyGene());
+    const [touched, setTouched] = useState({});
+    const [customMethod, setCustomMethod] = useState('');
 
-    const updateGene = (index, value) => {
-        const updated = [...genes];
-        updated[index] = value;
-        setFormData({...formData, virulenceGenes: updated});
-        setTouched((prev) => {
-            const arr = [...prev];
-            arr[index] = true;
-            return arr;
-        });
+    const handleChange = (field, value) => {
+        setGeneData((prev) => ({...prev, [field]: value}));
+        setTouched((prev) => ({...prev, [field]: true}));
     };
 
-    const addGene = () => {
-        setFormData({...formData, virulenceGenes: [...genes, '']});
-        setTouched((prev) => [...prev, false]);
-        setShake((prev) => [...prev, false]);
-    };
+    const effectiveMethod = geneData.method === 'Other' ? customMethod : geneData.method;
 
-    const removeGene = (index) => {
-        const updated = genes.filter((_, i) => i !== index);
-        setFormData({...formData, virulenceGenes: updated});
-        setTouched((prev) => prev.filter((_, i) => i !== index));
-        setShake((prev) => prev.filter((_, i) => i !== index));
-    };
+    const isValid = geneData.gene_symbol && geneData.gene_symbol.trim() !== '';
 
-    // Validation logic
-    const missing = genes.map((g) => !g || g.trim() === '');
-    const anyMissing = missing.some(Boolean);
+    const getEffectiveData = () => ({
+        ...geneData,
+        method: effectiveMethod,
+        customMethod: undefined,
+        percent_identity: geneData.percent_identity !== '' ? parseFloat(geneData.percent_identity) : undefined,
+        coverage_percent: geneData.coverage_percent !== '' ? parseFloat(geneData.coverage_percent) : undefined,
+        alignment_length: geneData.alignment_length !== '' ? parseInt(geneData.alignment_length, 10) : undefined,
+        target_length: geneData.target_length !== '' ? parseInt(geneData.target_length, 10) : undefined,
+        ref_seq_length: geneData.ref_seq_length !== '' ? parseInt(geneData.ref_seq_length, 10) : undefined,
+    });
 
-    // Expose validation to parent
     useImperativeHandle(ref, () => ({
         validate: () => {
-            setTouched(missing.map(() => true));
-            setShake(missing);
-            setError(anyMissing);
-            setShowError(true);
-            setTimeout(() => setShake(missing.map(() => false)), 400);
-            return !anyMissing;
-        }
+            if (!isValid) {
+                setTouched({gene_symbol: true});
+                if (onValidationChange) onValidationChange(false);
+                return false;
+            }
+            if (onValidationChange) onValidationChange(true);
+            return true;
+        },
+        getData: getEffectiveData,
+        reset: () => {
+            setGeneData(emptyGene());
+            setCustomMethod('');
+            setTouched({});
+        },
     }));
 
-    // Hide error if all valid
-    useEffect(() => {
-        if (!anyMissing && showError) setShowError(false);
-    }, [anyMissing, showError]);
-
-    // Notify parent of validation state
-    useEffect(() => {
-        if (onValidationChange) onValidationChange(!anyMissing);
-    }, [anyMissing, onValidationChange]);
-
     return (
-        <Stack gap="md">
-            {showError && error && (
-                <div style={{color: 'red', marginBottom: 8, fontWeight: 500}}>
-                    Please fill in all gene symbols.
-                </div>
+        <Stack gap="md" py="md">
+            <div>
+                <Text fw={600} mb="sm">Add Virulence Gene</Text>
+                <Text size="sm" c="dimmed" mb="md">Enter virulence gene finding information</Text>
+            </div>
+
+            <TextInput
+                label="Gene Symbol"
+                placeholder="e.g., hlyA, stx1, invA"
+                value={geneData.gene_symbol}
+                onChange={(e) => handleChange('gene_symbol', e.currentTarget.value)}
+                error={touched.gene_symbol && !geneData.gene_symbol ? 'Gene symbol is required' : ''}
+            />
+
+            <Select
+                label="Method"
+                placeholder="Select tool/pipeline"
+                data={methods}
+                value={geneData.method || null}
+                onChange={(value) => {
+                    handleChange('method', value || '');
+                    if (value !== 'Other') setCustomMethod('');
+                }}
+                searchable
+                clearable
+            />
+
+            {geneData.method === 'Other' && (
+                <TextInput
+                    label="Specify method"
+                    placeholder="Enter method name"
+                    value={customMethod}
+                    onChange={(e) => setCustomMethod(e.currentTarget.value)}
+                    autoFocus
+                />
             )}
-            {genes.map((gene, idx) => (
-                <Paper key={idx} withBorder p="md" radius="md" style={{backgroundColor: '#f8f9fa'}}>
-                    <Group gap="md" align="flex-end">
-                        <div style={{flex: 1}}>
-                            <Text size="sm" fw={500} mb="xs">Gene {idx + 1}</Text>
-                            <TextInput
-                                label="Gene Symbol"
-                                value={gene || ''}
-                                onChange={(e) => updateGene(idx, e.target.value)}
-                                placeholder="e.g., invA"
-                                required
-                                className={shake[idx] ? styles.shake : ''}
-                                error={touched[idx] && (!gene || gene.trim() === '') ? 'Required' : undefined}
-                            />
-                        </div>
-                        {genes.length > 1 && (
-                            <Button
-                                variant="light"
-                                color="red"
-                                onClick={() => removeGene(idx)}
-                                leftSection={<Trash2 size={16} />}
-                                size="sm"
-                            >
-                                Remove
-                            </Button>
-                        )}
-                    </Group>
-                </Paper>
-            ))}
-            <Button
-                leftSection={<Plus size={16} />}
-                onClick={addGene}
-                variant="outline"
-                disabled={anyMissing}
-            >
-                Add Virulence Gene
-            </Button>
+
+            <Group grow>
+                <NumberInput
+                    label="Percent Identity (%)"
+                    placeholder="0-100"
+                    value={geneData.percent_identity !== '' ? parseFloat(geneData.percent_identity) || '' : ''}
+                    onChange={(value) => handleChange('percent_identity', value?.toString() || '')}
+                    min={0}
+                    max={100}
+                    step={0.1}
+                />
+                <NumberInput
+                    label="Coverage (%)"
+                    placeholder="0-100"
+                    value={geneData.coverage_percent !== '' ? parseFloat(geneData.coverage_percent) || '' : ''}
+                    onChange={(value) => handleChange('coverage_percent', value?.toString() || '')}
+                    min={0}
+                    max={100}
+                    step={0.1}
+                />
+            </Group>
+
+            <Group grow>
+                <NumberInput
+                    label="Alignment Length"
+                    placeholder="e.g., 792"
+                    value={geneData.alignment_length !== '' ? parseInt(geneData.alignment_length, 10) || '' : ''}
+                    onChange={(value) => handleChange('alignment_length', value?.toString() || '')}
+                    min={0}
+                />
+                <NumberInput
+                    label="Target Length"
+                    placeholder="e.g., 792"
+                    value={geneData.target_length !== '' ? parseInt(geneData.target_length, 10) || '' : ''}
+                    onChange={(value) => handleChange('target_length', value?.toString() || '')}
+                    min={0}
+                />
+                <NumberInput
+                    label="Reference Sequence Length"
+                    placeholder="e.g., 792"
+                    value={geneData.ref_seq_length !== '' ? parseInt(geneData.ref_seq_length, 10) || '' : ''}
+                    onChange={(value) => handleChange('ref_seq_length', value?.toString() || '')}
+                    min={0}
+                />
+            </Group>
+
+            <TextInput
+                label="Sequence Name"
+                placeholder="e.g., contig_001"
+                value={geneData.sequence_name}
+                onChange={(e) => handleChange('sequence_name', e.currentTarget.value)}
+            />
+
+            <TextInput
+                label="Element Type"
+                placeholder="e.g., virulence_factor"
+                value={geneData.element_type}
+                onChange={(e) => handleChange('element_type', e.currentTarget.value)}
+            />
+
+            <TextInput
+                label="Accession"
+                placeholder="e.g., AF000000"
+                value={geneData.accession}
+                onChange={(e) => handleChange('accession', e.currentTarget.value)}
+            />
+
+            {onAddMore && (
+                <Group justify="flex-end" mt="lg">
+                    <Button
+                        variant="light"
+                        onClick={() => {
+                            if (isValid) {
+                                onAddMore(getEffectiveData());
+                                setGeneData(emptyGene());
+                                setCustomMethod('');
+                                setTouched({});
+                            } else {
+                                setTouched({gene_symbol: true});
+                            }
+                        }}
+                    >
+                        + Add Another Gene
+                    </Button>
+                </Group>
+            )}
         </Stack>
     );
 });
 
+VirulenceGenesStep.displayName = 'VirulenceGenesStep';
 export default VirulenceGenesStep;

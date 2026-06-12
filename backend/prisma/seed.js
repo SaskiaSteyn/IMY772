@@ -24,13 +24,6 @@ function toNullableDate(value) {
     return Number.isNaN(date.getTime()) ? null : date
 }
 
-// Map old predicted_sir_profile string to the boolean used by PredictedPhenotype.resistant
-function sirProfileToResistant(profile) {
-    if (profile === 'resistant') return true
-    if (profile === 'susceptible') return false
-    return null // intermediate or unknown
-}
-
 async function isAlreadySeeded() {
     const count = await prisma.sample.count()
     const phenotypeCount = await prisma.predictedPhenotype.count()
@@ -47,6 +40,7 @@ async function isAlreadySeeded() {
 
 async function clearData() {
     console.log('Clearing existing data...')
+    await prisma.virulenceGene.deleteMany({})
     await prisma.predictedPhenotype.deleteMany({})
     await prisma.amrFinding.deleteMany({})
     await prisma.isolate.deleteMany({})
@@ -98,6 +92,8 @@ async function seedSamples(mockData, adminUserID) {
         await prisma.sample.create({
             data: {
                 sample_id,
+                sample_name: s.sample_name || sample_id,
+                collected_by: s.collected_by || null,
                 collection_date: toNullableDate(s.collection_date),
                 location_name: s.location_name || null,
                 latitude: Number(s.latitude),
@@ -153,13 +149,13 @@ async function seedAmrFindings(mockData, idMap) {
         const sample_id = idMap.get(Number(row.sampleID))
         if (!sample_id) continue
 
-        const drug_class = deriveDrugClass(row.geneSymbol)
+        const amr_class = row.amr_class !== undefined ? row.amr_class : deriveAmrClass(row.geneSymbol)
 
         await prisma.amrFinding.create({
             data: {
                 sample_id,
                 gene_symbol: row.geneSymbol || null,
-                drug_class,
+                amr_class,
                 analysis_type: 'metagenomic',
                 method: 'ResFinder',
                 percent_identity: derivePercentIdentity(row.geneSymbol),
@@ -178,7 +174,7 @@ function derivePercentIdentity(geneSymbol) {
     return 100.0
 }
 
-function deriveDrugClass(geneSymbol) {
+function deriveAmrClass(geneSymbol) {
     if (!geneSymbol) return null
     const g = geneSymbol.toLowerCase()
     if (g.startsWith('bla')) return 'BETA-LACTAM'
@@ -200,12 +196,51 @@ async function seedPredictedPhenotypes(mockData, idMap) {
         const sample_id = idMap.get(Number(s.sampleID))
         if (!sample_id) continue
 
+        // Normalise profile to title-case (handles old lowercase values gracefully)
+        const rawProfile = s.predicted_sir_profile
+        let predicted_sir_profile = null
+        if (rawProfile) {
+            const lower = rawProfile.toLowerCase()
+            if (lower === 'resistant') predicted_sir_profile = 'Resistant'
+            else if (lower === 'susceptible') predicted_sir_profile = 'Susceptible'
+            else if (lower === 'intermediate') predicted_sir_profile = 'Intermediate'
+        }
+
         await prisma.predictedPhenotype.create({
             data: {
                 sample_id,
                 organism: 'E. coli',
                 antibiotic: 'ampicillin',
-                resistant: sirProfileToResistant(s.predicted_sir_profile),
+                predicted_sir_profile,
+            },
+        })
+        count++
+    }
+
+    return count
+}
+
+async function seedVirulenceGenes(mockData, idMap) {
+    const genes = Array.isArray(mockData.virulenceGenes) ? mockData.virulenceGenes : []
+    let count = 0
+
+    for (const row of genes) {
+        const sample_id = idMap.get(Number(row.sampleID))
+        if (!sample_id) continue
+
+        await prisma.virulenceGene.create({
+            data: {
+                sample_id,
+                gene_symbol: row.gene_symbol,
+                method: row.method || null,
+                percent_identity: row.percent_identity !== undefined ? Number(row.percent_identity) : null,
+                coverage_percent: row.coverage_percent !== undefined ? Number(row.coverage_percent) : null,
+                alignment_length: row.alignment_length !== undefined && row.alignment_length !== null ? parseInt(row.alignment_length) : null,
+                target_length: row.target_length !== undefined && row.target_length !== null ? parseInt(row.target_length) : null,
+                ref_seq_length: row.ref_seq_length !== undefined && row.ref_seq_length !== null ? parseInt(row.ref_seq_length) : null,
+                accession: row.accession || null,
+                sequence_name: row.sequence_name || null,
+                element_type: row.element_type || null,
             },
         })
         count++
@@ -258,6 +293,9 @@ async function main() {
 
     const phenotypeCount = await seedPredictedPhenotypes(mockData, idMap)
     console.log(`Predicted phenotypes seeded: ${phenotypeCount}`)
+
+    const virulenceGeneCount = await seedVirulenceGenes(mockData, idMap)
+    console.log(`Virulence genes seeded: ${virulenceGeneCount}`)
 
     await seedAuditLog(admin)
     console.log('Audit log seeded.')

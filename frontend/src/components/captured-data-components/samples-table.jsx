@@ -23,6 +23,16 @@ const SamplesTable = ({records, highlightedSampleIds, onEditClick, onExpandClick
                     textAlignment: 'center',
                 },
                 {
+                    accessor: 'sample_name',
+                    title: 'Sample Name',
+                    width: 160,
+                },
+                {
+                    accessor: 'collected_by',
+                    title: 'Collected By',
+                    width: 140,
+                },
+                {
                     accessor: 'collection_date',
                     title: 'Collection Date',
                     width: 130,
