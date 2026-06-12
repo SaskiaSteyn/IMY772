@@ -118,7 +118,7 @@ export default function Login() {
 
         setGoogleLoading(true);
         googleLogin({ accessToken })
-            .then(() => navigate('/app'))
+            .then(() => navigate('/dashboard'))
             .catch((err) => setError(getLoginErrorMessage(err)))
             .finally(() => setGoogleLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -138,7 +138,7 @@ export default function Login() {
         setError('');
         try {
             await login(values.email, values.password);
-            navigate('/app');
+            navigate('/dashboard');
         } catch (err) {
             setError(getLoginErrorMessage(err));
         } finally {
@@ -151,7 +151,7 @@ export default function Login() {
         setError('');
         try {
             await googleLogin({ accessToken: tokenResponse.access_token });
-            navigate('/app');
+            navigate('/dashboard');
         } catch (err) {
             setError(getLoginErrorMessage(err));
         } finally {
@@ -216,12 +216,6 @@ export default function Login() {
                         >
                             Sign In
                         </Button>
-
-                        <div className='auth-forgot'>
-                            <Anchor size='xs' href='/forgot-password'>
-                                Forgot your password?
-                            </Anchor>
-                        </div>
 
                         {isGoogleAuthEnabled && (
                             <>
