@@ -109,7 +109,7 @@ export default function SignUp() {
                 values.email,
                 values.password,
             );
-            navigate('/app');
+            navigate('/dashboard');
         } catch (err) {
             setError(err.message);
         } finally {
@@ -122,7 +122,7 @@ export default function SignUp() {
         setError('');
         try {
             await googleLogin({ accessToken: tokenResponse.access_token });
-            navigate('/app');
+            navigate('/dashboard');
         } catch (err) {
             setError(err.message);
         } finally {
