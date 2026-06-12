@@ -97,6 +97,10 @@ afterAll(() => {
     delete global.fetch
 })
 
+afterEach(() => {
+    process.env.NODE_ENV = 'test'
+})
+
 describe('POST /api/auth/register', () => {
     test('returns 400 when required fields are missing', async () => {
         const res = await api().post('/api/auth/register').send({})
@@ -141,6 +145,23 @@ describe('POST /api/auth/register', () => {
         expect(res.status).toBe(201)
         expect(res.body.user.email).toBe('newuser@example.com')
         expect(res.headers['set-cookie']).toBeDefined()
+    })
+
+    test('uses cross-site cookie attributes in production registration responses', async () => {
+        process.env.NODE_ENV = 'production'
+        mockPrismaUser.findUnique.mockResolvedValue(null)
+        mockPrismaUser.create.mockResolvedValue(makeUser({ email: 'produser@example.com' }))
+
+        const res = await api().post('/api/auth/register').send({
+            name: 'Prod',
+            surname: 'User',
+            email: 'produser@example.com',
+            password: 'securepass123',
+        })
+
+        expect(res.status).toBe(201)
+        expect(res.headers['set-cookie'][0]).toContain('SameSite=None')
+        expect(res.headers['set-cookie'][0]).toContain('Secure')
     })
 
     test('returns 500 when registration fails unexpectedly', async () => {
@@ -229,6 +250,16 @@ describe('POST /api/auth/logout', () => {
         const res = await api().post('/api/auth/logout')
         expect(res.status).toBe(200)
         expect(res.body.message).toMatch(/logged out/i)
+    })
+
+    test('uses matching cross-site cookie attributes in production logout responses', async () => {
+        process.env.NODE_ENV = 'production'
+
+        const res = await api().post('/api/auth/logout')
+
+        expect(res.status).toBe(200)
+        expect(res.headers['set-cookie'][0]).toContain('SameSite=None')
+        expect(res.headers['set-cookie'][0]).toContain('Secure')
     })
 })
 

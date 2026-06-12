@@ -209,12 +209,6 @@ export default function SignUp() {
                             Sign Up
                         </Button>
 
-                        <div className='auth-forgot'>
-                            <Anchor size='xs' href='/forgot-password'>
-                                Forgot your password?
-                            </Anchor>
-                        </div>
-
                         {isGoogleAuthEnabled && (
                             <>
                                 <Divider label='or' labelPosition='center' />

@@ -67,15 +67,23 @@ const profileImageUpload = multer({
 
 // ─── Cookie helper ───────────────────────────────────────────────────────────
 
+function getTokenCookieOptions() {
+    const isProduction = process.env.NODE_ENV === 'production'
+
+    return {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? 'none' : 'lax',
+    }
+}
+
 function issueTokenCookie(res, payload) {
     const token = jwt.sign(payload, jwtSecret, {
         expiresIn: process.env.JWT_EXPIRES_IN || '7d',
     })
 
     res.cookie('token', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        ...getTokenCookieOptions(),
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     })
 
@@ -360,7 +368,7 @@ router.post(
 // ─── POST /api/auth/logout ───────────────────────────────────────────────────
 
 router.post('/logout', (req, res) => {
-    res.clearCookie('token', { httpOnly: true, sameSite: 'lax' })
+    res.clearCookie('token', getTokenCookieOptions())
     return res.json({ message: 'Logged out' })
 })
 
