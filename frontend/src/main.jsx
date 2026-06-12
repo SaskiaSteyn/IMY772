@@ -4,8 +4,11 @@ import '@mantine/dates/styles.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
+import { registerSW } from 'virtual:pwa-register';
 import AppRouter from './app-router.jsx';
 import './index.scss';
+
+registerSW({ immediate: true });
 
 const themeColors = [
     '#f2fbe8',

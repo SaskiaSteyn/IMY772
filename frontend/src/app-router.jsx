@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import App from './App.jsx';
 import { AuthProvider, useAuth } from './context/auth-context.jsx';
+import PwaInstallPrompt from './components/pwa-install-prompt.jsx';
 import AdminLayout from './pages/admin/admin-layout.jsx';
 import Statistics from './pages/admin/statistics.jsx';
 import Users from './pages/admin/users.jsx';
@@ -100,6 +101,7 @@ export default function AppRouter() {
     const app = (
         <AuthProvider>
             <AppRoutes />
+            <PwaInstallPrompt />
         </AuthProvider>
     );
 
