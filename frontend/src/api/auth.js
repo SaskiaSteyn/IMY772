@@ -29,6 +29,7 @@ async function request(path, options = {}) {
 
     const res = await fetch(buildApiUrl(path), {
         credentials: 'include', // send/receive the httpOnly cookie
+        cache: 'no-store',
         ...rest,
         headers,
         body,

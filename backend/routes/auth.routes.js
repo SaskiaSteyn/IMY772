@@ -68,12 +68,15 @@ const profileImageUpload = multer({
 // ─── Cookie helper ───────────────────────────────────────────────────────────
 
 function getTokenCookieOptions() {
-    const isProduction = process.env.NODE_ENV === 'production'
+    const frontendUrl = String(process.env.FRONTEND_URL || '').trim().toLowerCase()
+    const isHttpsFrontend = frontendUrl.startsWith('https://')
+    const isLocalFrontend = frontendUrl.includes('localhost') || frontendUrl.includes('127.0.0.1')
+    const useCrossSiteCookie = process.env.NODE_ENV === 'production' || (isHttpsFrontend && !isLocalFrontend)
 
     return {
         httpOnly: true,
-        secure: isProduction,
-        sameSite: isProduction ? 'none' : 'lax',
+        secure: useCrossSiteCookie,
+        sameSite: useCrossSiteCookie ? 'none' : 'lax',
     }
 }
 
@@ -375,6 +378,9 @@ router.post('/logout', (req, res) => {
 // ─── GET /api/auth/me ────────────────────────────────────────────────────────
 
 router.get('/me', async (req, res) => {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private')
+    res.set('Pragma', 'no-cache')
+
     const token = req.cookies?.token
 
     if (!token) {
