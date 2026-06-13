@@ -154,6 +154,25 @@ describe('POST /api/samples', () => {
         expect(mockPrismaSample.create.mock.calls[0][0].data.collection_date).toBeInstanceOf(Date)
     })
 
+    test('returns 409 when sample_id already exists (P2002)', async () => {
+        const err = new Error('unique')
+        err.code = 'P2002'
+        mockPrismaSample.create.mockRejectedValue(err)
+
+        const res = await api()
+            .post('/api/samples')
+            .set('Cookie', authCookie())
+            .send({
+                sample_id: 'DUP-001',
+                sample_name: 'DupSite_2024-01-01',
+                latitude: '25.12',
+                longitude: '28.45',
+            })
+
+        expect(res.status).toBe(409)
+        expect(res.body.message).toMatch(/already exists/i)
+    })
+
     test('returns 500 when sample creation fails', async () => {
         mockPrismaSample.create.mockRejectedValue(new Error('db down'))
 

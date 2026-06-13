@@ -96,6 +96,18 @@ describe('POST /api/amr-findings', () => {
         expect(res.body.amrFinding).toEqual(amrFixture)
     })
 
+    test('returns 400 on P2003 foreign key error', async () => {
+        mockPrismaSample.findUnique.mockResolvedValue(sampleFixture)
+        const err = new Error('fk')
+        err.code = 'P2003'
+        mockPrismaAmrFinding.create.mockRejectedValue(err)
+        const res = await api()
+            .post('/api/amr-findings')
+            .set('Cookie', authCookie())
+            .send({ sample_id: 'sample-1', gene_symbol: 'bla' })
+        expect(res.status).toBe(400)
+    })
+
     test('returns 500 on error', async () => {
         mockPrismaSample.findUnique.mockRejectedValue(new Error('db down'))
         const res = await api()
@@ -180,6 +192,14 @@ describe('PUT /api/amr-findings/:amr_id', () => {
     test('returns 401 without auth', async () => {
         const res = await api().put('/api/amr-findings/1').send({ percent_identity: 99.0 })
         expect(res.status).toBe(401)
+    })
+
+    test('returns 400 when amr_id is not an integer', async () => {
+        const res = await api()
+            .put('/api/amr-findings/abc')
+            .set('Cookie', authCookie())
+            .send({ gene_symbol: 'bla' })
+        expect(res.status).toBe(400)
     })
 
     test('updates analysis_type', async () => {
@@ -290,6 +310,13 @@ describe('DELETE /api/amr-findings/:amr_id', () => {
     test('returns 401 without auth', async () => {
         const res = await api().delete('/api/amr-findings/1')
         expect(res.status).toBe(401)
+    })
+
+    test('returns 400 when amr_id is not an integer', async () => {
+        const res = await api()
+            .delete('/api/amr-findings/abc')
+            .set('Cookie', authCookie())
+        expect(res.status).toBe(400)
     })
 
     test('deletes successfully', async () => {
