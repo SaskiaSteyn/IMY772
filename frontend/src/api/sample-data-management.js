@@ -239,3 +239,45 @@ export const deleteAmrFinding = async (amrId, signal) => {
         signal,
     })
 }
+
+// ─── VIRULENCE GENES API ─────────────────────────────────────────────────────
+
+export const fetchAllVirulenceGenes = async (signal) => {
+    const response = await request('/api/virulence-genes', {signal})
+    return response.virulenceGenes || []
+}
+
+export const fetchVirulenceGeneById = async (id, signal) => {
+    const response = await request(`/api/virulence-genes/${id}`, {signal})
+    return response.virulenceGene
+}
+
+export const fetchVirulenceGenesBySample = async (sampleId, signal) => {
+    const response = await request(`/api/virulence-genes/sample/${sampleId}`, {signal})
+    return response.virulenceGenes || []
+}
+
+export const createVirulenceGene = async (data, signal) => {
+    const response = await request('/api/virulence-genes', {
+        method: 'POST',
+        body: JSON.stringify(data),
+        signal,
+    })
+    return response.virulenceGene
+}
+
+export const updateVirulenceGene = async (id, data, signal) => {
+    const response = await request(`/api/virulence-genes/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+        signal,
+    })
+    return response.virulenceGene
+}
+
+export const deleteVirulenceGene = async (id, signal) => {
+    await request(`/api/virulence-genes/${id}`, {
+        method: 'DELETE',
+        signal,
+    })
+}

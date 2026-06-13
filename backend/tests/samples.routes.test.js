@@ -60,6 +60,7 @@ function authCookie(payload) {
 
 const sampleFixture = {
     sample_id: 'SAMPLE-001',
+    sample_name: 'TestRiver_SiteA_2024-01-15',
     latitude: 25.12,
     longitude: 28.45,
     water_temp: 22.5,
@@ -105,6 +106,7 @@ describe('POST /api/samples', () => {
             .set('Cookie', authCookie())
             .send({
                 sample_id: 'SAMPLE-001',
+                sample_name: 'TestRiver_SiteA_2024-01-15',
                 latitude: '25.12',
                 longitude: '28.45',
             })
@@ -122,6 +124,7 @@ describe('POST /api/samples', () => {
             .set('Cookie', authCookie())
             .send({
                 sample_id: 'SAMP-OPT',
+                sample_name: 'TestDam_SiteA_2024-02-20',
                 latitude: '25.12',
                 longitude: '28.45',
                 water_temp: '18.5',
@@ -151,6 +154,25 @@ describe('POST /api/samples', () => {
         expect(mockPrismaSample.create.mock.calls[0][0].data.collection_date).toBeInstanceOf(Date)
     })
 
+    test('returns 409 when sample_id already exists (P2002)', async () => {
+        const err = new Error('unique')
+        err.code = 'P2002'
+        mockPrismaSample.create.mockRejectedValue(err)
+
+        const res = await api()
+            .post('/api/samples')
+            .set('Cookie', authCookie())
+            .send({
+                sample_id: 'DUP-001',
+                sample_name: 'DupSite_2024-01-01',
+                latitude: '25.12',
+                longitude: '28.45',
+            })
+
+        expect(res.status).toBe(409)
+        expect(res.body.message).toMatch(/already exists/i)
+    })
+
     test('returns 500 when sample creation fails', async () => {
         mockPrismaSample.create.mockRejectedValue(new Error('db down'))
 
@@ -159,6 +181,7 @@ describe('POST /api/samples', () => {
             .set('Cookie', authCookie())
             .send({
                 sample_id: 'FAIL',
+                sample_name: 'FailSite_2024-01-01',
                 latitude: '25.12',
                 longitude: '28.45',
             })
@@ -193,8 +216,8 @@ describe('POST /api/samples/predict-phenotype', () => {
                 do: 8.2,
                 isolation_source: 'River',
                 predictedPhenotypes: [
-                    {organism: 'E. coli', antibiotic: 'Ciprofloxacin', resistant: true},
-                    {organism: 'E. coli', antibiotic: 'Ampicillin', resistant: false},
+                    {organism: 'E. coli', antibiotic: 'Ciprofloxacin', predicted_sir_profile: 'Resistant'},
+                    {organism: 'E. coli', antibiotic: 'Ampicillin', predicted_sir_profile: 'Susceptible'},
                 ],
             },
         ])
@@ -281,9 +304,9 @@ describe('GET /api/samples', () => {
         expect(res.body.message).toMatch(/failed to retrieve samples/i)
     })
 
-    test('derives predicted_sir_profile as "resistant" when any phenotype has resistant=true', async () => {
+    test('derives predicted_sir_profile as "resistant" when any phenotype has predicted_sir_profile="Resistant"', async () => {
         mockPrismaSample.findMany.mockResolvedValue([
-            {...sampleFixture, predictedPhenotypes: [{resistant: true}]},
+            {...sampleFixture, predictedPhenotypes: [{predicted_sir_profile: 'Resistant'}]},
         ])
 
         const res = await api().get('/api/samples')
@@ -292,9 +315,9 @@ describe('GET /api/samples', () => {
         expect(res.body.samples[0].predicted_sir_profile).toBe('resistant')
     })
 
-    test('derives predicted_sir_profile as "intermediate" when a phenotype has resistant=null', async () => {
+    test('derives predicted_sir_profile as "intermediate" when a phenotype has predicted_sir_profile="Intermediate"', async () => {
         mockPrismaSample.findMany.mockResolvedValue([
-            {...sampleFixture, predictedPhenotypes: [{resistant: null}]},
+            {...sampleFixture, predictedPhenotypes: [{predicted_sir_profile: 'Intermediate'}]},
         ])
 
         const res = await api().get('/api/samples')
@@ -303,9 +326,9 @@ describe('GET /api/samples', () => {
         expect(res.body.samples[0].predicted_sir_profile).toBe('intermediate')
     })
 
-    test('derives predicted_sir_profile as "susceptible" when all phenotypes have resistant=false', async () => {
+    test('derives predicted_sir_profile as "susceptible" when all phenotypes have predicted_sir_profile="Susceptible"', async () => {
         mockPrismaSample.findMany.mockResolvedValue([
-            {...sampleFixture, predictedPhenotypes: [{resistant: false}]},
+            {...sampleFixture, predictedPhenotypes: [{predicted_sir_profile: 'Susceptible'}]},
         ])
 
         const res = await api().get('/api/samples')

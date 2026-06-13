@@ -34,8 +34,8 @@ const AmrFindingsTable = ({records, highlightedSampleIds, onExpandClick, onEditC
                     width: 140,
                 },
                 {
-                    accessor: 'drug_class',
-                    title: 'Drug Class',
+                    accessor: 'amr_class',
+                    title: 'AMR Class',
                     width: 150,
                 },
                 {
@@ -56,6 +56,31 @@ const AmrFindingsTable = ({records, highlightedSampleIds, onExpandClick, onEditC
                     textAlignment: 'center',
                     render: (record) => {
                         const value = parseFloat(record.percent_identity);
+                        return isNaN(value) ? '-' : `${value.toFixed(1)}%`;
+                    },
+                },
+                {
+                    accessor: 'sequence_name',
+                    title: 'Sequence Name',
+                    width: 160,
+                },
+                {
+                    accessor: 'element_type',
+                    title: 'Element Type',
+                    width: 130,
+                },
+                {
+                    accessor: 'subclass',
+                    title: 'Subclass',
+                    width: 120,
+                },
+                {
+                    accessor: 'percentage_coverage',
+                    title: 'Coverage %',
+                    width: 110,
+                    textAlignment: 'center',
+                    render: (record) => {
+                        const value = parseFloat(record.percentage_coverage);
                         return isNaN(value) ? '-' : `${value.toFixed(1)}%`;
                     },
                 },

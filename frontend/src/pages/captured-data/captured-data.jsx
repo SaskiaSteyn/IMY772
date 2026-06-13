@@ -6,12 +6,14 @@ import SamplesTable from '../../components/captured-data-components/samples-tabl
 import IsolatesTable from '../../components/captured-data-components/isolates-table';
 import PredictedPhenotypesTable from '../../components/captured-data-components/predicted-phenotypes-table';
 import AmrFindingsTable from '../../components/captured-data-components/amr-findings-table';
+import VirulenceGenesTable from '../../components/captured-data-components/virulence-genes-table';
 import AddDataModal from '../../components/captured-data-components/add-data-modal';
 import BulkUploadModal from '../../components/captured-data-components/bulk-upload-modal';
 import EditSampleModal from '../../components/captured-data-components/edit-sample-modal';
 import EditIsolateModal from '../../components/captured-data-components/edit-isolate-modal';
 import EditPhenotypeModal from '../../components/captured-data-components/edit-phenotype-modal';
 import EditAmrFindingModal from '../../components/captured-data-components/edit-amr-finding-modal';
+import EditVirulenceGenesModal from '../../components/captured-data-components/edit-virulence-genes-modal';
 import ExpandedDataModal from '../../components/captured-data-components/expanded-data-modal.jsx';
 import UpdateSampleSearchModal from '../../components/captured-data-components/update-sample-search-modal';
 import UpdateDataModal from '../../components/captured-data-components/update-data-modal';
@@ -20,11 +22,13 @@ import {
     fetchAllIsolates,
     fetchAllPredictedPhenotypes,
     fetchAllAmrFindings,
+    fetchAllVirulenceGenes,
     createSample,
     updateSample,
     updateIsolate,
     updatePredictedPhenotype,
     updateAmrFinding,
+    updateVirulenceGene,
 } from '../../api/sample-data-management.js';
 import {useAuth} from '../../context/auth-context.jsx';
 import './captured-data.scss';
@@ -38,6 +42,7 @@ const CapturedData = () => {
     const [isolates, setIsolates] = useState([]);
     const [phenotypes, setPhenotypes] = useState([]);
     const [amrFindings, setAmrFindings] = useState([]);
+    const [virulenceGenes, setVirulenceGenes] = useState([]);
     const [highlightedSampleIds, setHighlightedSampleIds] = useState(new Set());
     const [loading, setLoading] = useState(true);
 
@@ -53,6 +58,9 @@ const CapturedData = () => {
 
     const [editAmrFindingModalOpened, setEditAmrFindingModalOpened] = useState(false);
     const [amrFindingToEdit, setAmrFindingToEdit] = useState(null);
+
+    const [editVirulenceGeneModalOpened, setEditVirulenceGeneModalOpened] = useState(false);
+    const [virulenceGeneToEdit, setVirulenceGeneToEdit] = useState(null);
 
     // Expanded modal state
     const [expandedModalOpened, setExpandedModalOpened] = useState(false);
@@ -100,7 +108,13 @@ const CapturedData = () => {
             {value: 'finding_id', label: 'Finding ID'},
             {value: 'sample_id', label: 'Sample ID'},
             {value: 'gene_symbol', label: 'Gene Symbol'},
-            {value: 'drug_class', label: 'Drug Class'},
+            {value: 'amr_class', label: 'AMR Class'},
+        ],
+        virulence: [
+            {value: 'virulence_gene_id', label: 'Gene ID'},
+            {value: 'sample_id', label: 'Sample ID'},
+            {value: 'gene_symbol', label: 'Gene Symbol'},
+            {value: 'element_type', label: 'Element Type'},
         ],
     };
 
@@ -118,16 +132,18 @@ const CapturedData = () => {
     // Load all data (with abort signal for cleanup)
     const loadAllData = async (signal) => {
         try {
-            const [samplesData, isolatesData, phenotypesData, amrFindingsData] = await Promise.all([
+            const [samplesData, isolatesData, phenotypesData, amrFindingsData, virulenceGenesData] = await Promise.all([
                 fetchAllSamples(signal),
                 fetchAllIsolates(signal),
                 fetchAllPredictedPhenotypes(signal),
                 fetchAllAmrFindings(signal),
+                fetchAllVirulenceGenes(signal),
             ]);
             setSamples(samplesData);
             setIsolates(isolatesData);
             setPhenotypes(phenotypesData);
             setAmrFindings(amrFindingsData);
+            setVirulenceGenes(virulenceGenesData);
         } catch (error) {
             if (error.name !== 'AbortError') {
                 console.error('Failed to fetch data:', error);
@@ -149,6 +165,7 @@ const CapturedData = () => {
             setIsolates([]);
             setPhenotypes([]);
             setAmrFindings([]);
+            setVirulenceGenes([]);
             setLoading(false);
         }
         return () => abortController.abort();
@@ -174,19 +191,22 @@ const CapturedData = () => {
     const filteredIsolates = isolates.filter((i) => userSampleIds.has(i.sample_id));
     const filteredPhenotypes = phenotypes.filter((p) => userSampleIds.has(p.sample_id));
     const filteredAmrFindings = amrFindings.filter((a) => userSampleIds.has(a.sample_id));
+    const filteredVirulenceGenes = virulenceGenes.filter((v) => userSampleIds.has(v.sample_id));
 
     const handleAddEntry = async (createdSample) => {
         try {
-            const [newSamples, newIsolates, newPhenotypes, newAmr] = await Promise.all([
+            const [newSamples, newIsolates, newPhenotypes, newAmr, newVirulenceGenes] = await Promise.all([
                 fetchAllSamples(),
                 fetchAllIsolates(),
                 fetchAllPredictedPhenotypes(),
                 fetchAllAmrFindings(),
+                fetchAllVirulenceGenes(),
             ]);
             setSamples(newSamples);
             setIsolates(newIsolates);
             setPhenotypes(newPhenotypes);
             setAmrFindings(newAmr);
+            setVirulenceGenes(newVirulenceGenes);
             if (createdSample?.sample_id) {
                 setHighlightedSampleIds(new Set([createdSample.sample_id]));
             }
@@ -199,16 +219,18 @@ const CapturedData = () => {
 
     const handleUploadSuccess = async (uploadedIds = []) => {
         try {
-            const [newSamples, newIsolates, newPhenotypes, newAmr] = await Promise.all([
+            const [newSamples, newIsolates, newPhenotypes, newAmr, newVirulenceGenes] = await Promise.all([
                 fetchAllSamples(),
                 fetchAllIsolates(),
                 fetchAllPredictedPhenotypes(),
                 fetchAllAmrFindings(),
+                fetchAllVirulenceGenes(),
             ]);
             setSamples(newSamples);
             setIsolates(newIsolates);
             setPhenotypes(newPhenotypes);
             setAmrFindings(newAmr);
+            setVirulenceGenes(newVirulenceGenes);
             if (uploadedIds.length > 0) {
                 setHighlightedSampleIds(new Set(uploadedIds));
             }
@@ -281,6 +303,22 @@ const CapturedData = () => {
             setEditAmrFindingModalOpened(false);
         } catch (error) {
             console.error('Error updating AMR finding:', error);
+        }
+    };
+
+    const handleEditVirulenceGeneClick = (record) => {
+        setVirulenceGeneToEdit(record);
+        setEditVirulenceGeneModalOpened(true);
+    };
+
+    const handleEditVirulenceGeneSave = async (geneId, updateData) => {
+        try {
+            await updateVirulenceGene(geneId, updateData);
+            const data = await fetchAllVirulenceGenes();
+            setVirulenceGenes(data);
+            setEditVirulenceGeneModalOpened(false);
+        } catch (error) {
+            console.error('Error updating virulence gene:', error);
         }
     };
 
@@ -366,6 +404,7 @@ const CapturedData = () => {
                                         <Tabs.Tab value='isolates'>Isolates</Tabs.Tab>
                                         <Tabs.Tab value='phenotypes'>Predicted Phenotypes</Tabs.Tab>
                                         <Tabs.Tab value='amr'>AMR Findings</Tabs.Tab>
+                                        <Tabs.Tab value='virulence'>Virulence Genes</Tabs.Tab>
                                     </Tabs.List>
 
                                     <Tabs.Panel value='samples' pt='md'>
@@ -400,6 +439,14 @@ const CapturedData = () => {
                                             onExpandClick={handleExpandClick}
                                         />
                                     </Tabs.Panel>
+                                    <Tabs.Panel value='virulence' pt='md'>
+                                        <VirulenceGenesTable
+                                            records={filteredVirulenceGenes}
+                                            highlightedSampleIds={highlightedSampleIds}
+                                            onEditClick={handleEditVirulenceGeneClick}
+                                            onExpandClick={handleExpandClick}
+                                        />
+                                    </Tabs.Panel>
                                 </Tabs>
                             ) : (
                                 /* Dual Table View */
@@ -420,6 +467,7 @@ const CapturedData = () => {
                                                         {label: 'Isolates', value: 'isolates'},
                                                         {label: 'Predicted Phenotypes', value: 'phenotypes'},
                                                         {label: 'AMR Findings', value: 'amr'},
+                                                        {label: 'Virulence Genes', value: 'virulence'},
                                                     ]}
                                                 />
                                                 <Select
@@ -471,6 +519,14 @@ const CapturedData = () => {
                                                     onExpandClick={handleExpandClick}
                                                 />
                                             )}
+                                            {primaryTable === 'virulence' && (
+                                                <VirulenceGenesTable
+                                                    records={filterRecords(filteredVirulenceGenes, searchFieldPrimary, searchQueryPrimary)}
+                                                    highlightedSampleIds={highlightedSampleIds}
+                                                    onEditClick={handleEditVirulenceGeneClick}
+                                                    onExpandClick={handleExpandClick}
+                                                />
+                                            )}
                                         </div>
 
                                         {/* Secondary Table Section */}
@@ -487,6 +543,7 @@ const CapturedData = () => {
                                                         {label: 'Isolates', value: 'isolates'},
                                                         {label: 'Predicted Phenotypes', value: 'phenotypes'},
                                                         {label: 'AMR Findings', value: 'amr'},
+                                                        {label: 'Virulence Genes', value: 'virulence'},
                                                     ]}
                                                 />
                                                 <Select
@@ -538,6 +595,14 @@ const CapturedData = () => {
                                                     onExpandClick={handleExpandClick}
                                                 />
                                             )}
+                                            {secondaryTable === 'virulence' && (
+                                                <VirulenceGenesTable
+                                                    records={filterRecords(filteredVirulenceGenes, searchFieldSecondary, searchQuerySecondary)}
+                                                    highlightedSampleIds={highlightedSampleIds}
+                                                    onEditClick={handleEditVirulenceGeneClick}
+                                                    onExpandClick={handleExpandClick}
+                                                />
+                                            )}
                                         </div>
                                     </SimpleGrid>
                                 </Stack>
@@ -553,6 +618,7 @@ const CapturedData = () => {
                 <EditIsolateModal opened={editIsolateModalOpened} onClose={() => setEditIsolateModalOpened(false)} record={isolateToEdit} onSave={handleEditIsolateSave} />
                 <EditPhenotypeModal opened={editPhenotypeModalOpened} onClose={() => setEditPhenotypeModalOpened(false)} record={phenotypeToEdit} onSave={handleEditPhenotypeSave} />
                 <EditAmrFindingModal opened={editAmrFindingModalOpened} onClose={() => setEditAmrFindingModalOpened(false)} record={amrFindingToEdit} onSave={handleEditAmrFindingSave} />
+                <EditVirulenceGenesModal opened={editVirulenceGeneModalOpened} onClose={() => setEditVirulenceGeneModalOpened(false)} record={virulenceGeneToEdit} onSave={handleEditVirulenceGeneSave} />
 
                 <ExpandedDataModal
                     opened={expandedModalOpened}

@@ -4,9 +4,9 @@ import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 export default function SIRProfileChart({ samples }) {
     const profileData = {};
     const colors = {
-        susceptible: '#e03131', // Red for susceptible
+        susceptible: '#7db344', // Green for susceptible
         intermediate: '#f08c00', // Orange for intermediate
-        resistant: '#7db344', // Green for resistant
+        resistant: '#e03131', // Red for resistant
     };
 
     samples.forEach((sample) => {

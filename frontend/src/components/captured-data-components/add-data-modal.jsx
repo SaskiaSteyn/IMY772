@@ -23,6 +23,7 @@ import DataTypeSelectionStep from './steps/data-type-selection-step';
 import IsolateFormStep from './steps/isolate-form-step';
 import PhenotypeFormStep from './steps/phenotype-form-step';
 import AmrFindingFormStep from './steps/amr-finding-form-step';
+import VirulenceGenesStep from './steps/virulence-genes-step';
 import JsonUploadStep from './steps/json-upload-step';
 import ImageUploadStep from './steps/image-upload-step';
 
@@ -32,6 +33,7 @@ import {
     createIsolate,
     createPredictedPhenotype,
     createAmrFinding,
+    createVirulenceGene,
 } from '../../api/sample-data-management';
 import {mapExtractionToFormData} from '../../lib/extraction-mapping';
 
@@ -47,6 +49,8 @@ const AddDataModal = ({opened, onClose, onAddEntry, samples = []}) => {
 
     const [formData, setFormData] = useState({
         sample_id: '',
+        sample_name: '',
+        collected_by: '',
         collection_date: null,
         location_name: '',
         latitude: '',
@@ -57,11 +61,13 @@ const AddDataModal = ({opened, onClose, onAddEntry, samples = []}) => {
         tds: 100.0,
         do: 100.0,
         selectedRelatedDataTypes: [],
+        virulenceGenes: [{gene_symbol: '', method: '', percent_identity: '', coverage_percent: '', element_type: '', accession: '', alignment_length: '', target_length: '', ref_seq_length: '', sequence_name: ''}],
     });
 
     const [isolates, setIsolates] = useState([]);
     const [phenotypes, setPhenotypes] = useState([]);
     const [amrFindings, setAmrFindings] = useState([]);
+    const [virulenceGenesList, setVirulenceGenesList] = useState([]);
 
     // Refs for step validation
     const sampleSelectionRef = useRef();
@@ -70,6 +76,7 @@ const AddDataModal = ({opened, onClose, onAddEntry, samples = []}) => {
     const isolateFormRef = useRef();
     const phenotypeFormRef = useRef();
     const amrFindingFormRef = useRef();
+    const virulenceGenesRef = useRef();
     const jsonUploadRef = useRef();
 
     // Determine total steps
@@ -106,9 +113,11 @@ const AddDataModal = ({opened, onClose, onAddEntry, samples = []}) => {
             if (stepIndex === 3) return 'Related Data';
             if (stepIndex >= 4) {
                 const selectedTypes = formData.selectedRelatedDataTypes || [];
-                if (selectedTypes.includes('isolates') && stepIndex === 4) return 'Add Isolate';
-                if (selectedTypes.includes('phenotypes')) return 'Add Phenotype';
-                if (selectedTypes.includes('amr_findings')) return 'Add AMR Finding';
+                const typeAtStep = selectedTypes[stepIndex - 4];
+                if (typeAtStep === 'isolates') return 'Add Isolate';
+                if (typeAtStep === 'phenotypes') return 'Add Phenotype';
+                if (typeAtStep === 'amr_findings') return 'Add AMR Finding';
+                if (typeAtStep === 'virulence_genes') return 'Add Virulence Genes';
             }
         }
         if (method === 'manual' && entryType === 'add-to-existing') {
@@ -174,6 +183,10 @@ const AddDataModal = ({opened, onClose, onAddEntry, samples = []}) => {
         setAmrFindings((prev) => [...prev, findingData]);
     };
 
+    const handleAddVirulenceGene = (geneData) => {
+        setVirulenceGenesList((prev) => [...prev, geneData]);
+    };
+
     const handleSubmit = async () => {
         setLoading(true);
         setError('');
@@ -183,6 +196,7 @@ const AddDataModal = ({opened, onClose, onAddEntry, samples = []}) => {
             const currentIsolates = [...isolates];
             const currentPhenotypes = [...phenotypes];
             const currentAmrFindings = [...amrFindings];
+            const currentVirulenceGenes = [...virulenceGenesList];
             if (entryType === 'add-to-existing') {
                 if (dataType === 'isolates' && isolateFormRef.current) {
                     const d = isolateFormRef.current.getData();
@@ -192,7 +206,10 @@ const AddDataModal = ({opened, onClose, onAddEntry, samples = []}) => {
                     if (d?.organism && d?.antibiotic) currentPhenotypes.push(d);
                 } else if (dataType === 'amr_findings' && amrFindingFormRef.current) {
                     const d = amrFindingFormRef.current.getData();
-                    if (d?.gene_symbol || d?.drug_class) currentAmrFindings.push(d);
+                    if (d?.gene_symbol || d?.amr_class) currentAmrFindings.push(d);
+                } else if (dataType === 'virulence_genes' && virulenceGenesRef.current) {
+                    const d = virulenceGenesRef.current.getData();
+                    if (d?.gene_symbol) currentVirulenceGenes.push(d);
                 }
             } else if (entryType === 'new-sample') {
                 const selectedTypes = formData.selectedRelatedDataTypes || [];
@@ -205,13 +222,18 @@ const AddDataModal = ({opened, onClose, onAddEntry, samples = []}) => {
                     if (d?.organism && d?.antibiotic) currentPhenotypes.push(d);
                 } else if (lastType === 'amr_findings' && amrFindingFormRef.current) {
                     const d = amrFindingFormRef.current.getData();
-                    if (d?.gene_symbol || d?.drug_class) currentAmrFindings.push(d);
+                    if (d?.gene_symbol || d?.amr_class) currentAmrFindings.push(d);
+                } else if (lastType === 'virulence_genes' && virulenceGenesRef.current) {
+                    const d = virulenceGenesRef.current.getData();
+                    if (d?.gene_symbol) currentVirulenceGenes.push(d);
                 }
             }
 
             // First, create the sample
             const samplePayload = {
                 sample_id: formData.sample_id,
+                sample_name: formData.sample_name,
+                collected_by: formData.collected_by || undefined,
                 collection_date: formData.collection_date,
                 location_name: formData.location_name,
                 latitude: formData.latitude,
@@ -245,6 +267,10 @@ const AddDataModal = ({opened, onClose, onAddEntry, samples = []}) => {
                 await createAmrFinding({...finding, sample_id: createdSample.sample_id});
             }
 
+            for (const gene of currentVirulenceGenes) {
+                await createVirulenceGene({...gene, sample_id: createdSample.sample_id});
+            }
+
             // Reset and close
             resetModal();
             if (onAddEntry) onAddEntry(createdSample);
@@ -263,6 +289,8 @@ const AddDataModal = ({opened, onClose, onAddEntry, samples = []}) => {
             handleAddPhenotype(itemData);
         } else if (type === 'amr_findings') {
             handleAddAmrFinding(itemData);
+        } else if (type === 'virulence_genes') {
+            handleAddVirulenceGene(itemData);
         }
 
         // Reset the form for next entry
@@ -272,6 +300,8 @@ const AddDataModal = ({opened, onClose, onAddEntry, samples = []}) => {
             phenotypeFormRef.current.reset();
         } else if (type === 'amr_findings' && amrFindingFormRef.current) {
             amrFindingFormRef.current.reset();
+        } else if (type === 'virulence_genes' && virulenceGenesRef.current) {
+            virulenceGenesRef.current.reset();
         }
     };
 
@@ -284,6 +314,8 @@ const AddDataModal = ({opened, onClose, onAddEntry, samples = []}) => {
         setError('');
         setFormData({
             sample_id: '',
+            sample_name: '',
+            collected_by: '',
             collection_date: null,
             location_name: '',
             latitude: '',
@@ -298,6 +330,7 @@ const AddDataModal = ({opened, onClose, onAddEntry, samples = []}) => {
         setIsolates([]);
         setPhenotypes([]);
         setAmrFindings([]);
+        setVirulenceGenesList([]);
     };
 
     const renderStep = () => {
@@ -417,6 +450,15 @@ const AddDataModal = ({opened, onClose, onAddEntry, samples = []}) => {
                         />
                     );
                 }
+                if (typeAtStep === 'virulence_genes') {
+                    return (
+                        <VirulenceGenesStep
+                            ref={virulenceGenesRef}
+                            onAddMore={(data) => handleAddMoreItem(data, 'virulence_genes')}
+                            onValidationChange={handleValidationChange}
+                        />
+                    );
+                }
             }
         }
 
@@ -475,6 +517,14 @@ const AddDataModal = ({opened, onClose, onAddEntry, samples = []}) => {
                             ref={amrFindingFormRef}
                             formData={formData}
                             setFormData={setFormData}
+                            onValidationChange={handleValidationChange}
+                        />
+                    );
+                }
+                if (dataType === 'virulence_genes') {
+                    return (
+                        <VirulenceGenesStep
+                            ref={virulenceGenesRef}
                             onValidationChange={handleValidationChange}
                         />
                     );

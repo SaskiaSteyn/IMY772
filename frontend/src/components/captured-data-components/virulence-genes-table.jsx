@@ -8,30 +8,60 @@ const VirulenceGenesTable = ({records, highlightedSampleIds, onEditClick, onExpa
             striped
             highlightOnHover
             records={records}
-            idAccessor='geneID'
+            idAccessor='virulence_gene_id'
             rowStyle={(record) => ({
-                backgroundColor: highlightedSampleIds?.has(record.wgs?.sampleID)
+                backgroundColor: highlightedSampleIds?.has(record.sample_id)
                     ? 'rgba(59, 130, 246, 0.2)'
                     : undefined,
                 transition: 'background-color 0.3s ease',
             })}
             columns={[
                 {
-                    accessor: 'wgs.sampleID',
+                    accessor: 'virulence_gene_id',
+                    title: 'ID',
+                    width: 80,
+                    textAlignment: 'center',
+                },
+                {
+                    accessor: 'sample_id',
                     title: 'Sample ID',
-                    width: 100,
+                    width: 120,
                     textAlignment: 'center',
                 },
                 {
-                    accessor: 'wgs.isolateID',
-                    title: 'Isolate ID',
-                    width: 100,
-                    textAlignment: 'center',
-                },
-                {
-                    accessor: 'geneSymbol',
+                    accessor: 'gene_symbol',
                     title: 'Gene Symbol',
                     width: 150,
+                },
+                {
+                    accessor: 'method',
+                    title: 'Method',
+                    width: 120,
+                },
+                {
+                    accessor: 'percent_identity',
+                    title: 'Identity %',
+                    width: 110,
+                    textAlignment: 'center',
+                    render: (record) => {
+                        const value = parseFloat(record.percent_identity);
+                        return isNaN(value) ? '-' : `${value.toFixed(1)}%`;
+                    },
+                },
+                {
+                    accessor: 'coverage_percent',
+                    title: 'Coverage %',
+                    width: 110,
+                    textAlignment: 'center',
+                    render: (record) => {
+                        const value = parseFloat(record.coverage_percent);
+                        return isNaN(value) ? '-' : `${value.toFixed(1)}%`;
+                    },
+                },
+                {
+                    accessor: 'element_type',
+                    title: 'Element Type',
+                    width: 130,
                 },
                 {
                     accessor: 'actions',

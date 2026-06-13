@@ -39,15 +39,19 @@ const PredictedPhenotypesTable = ({records, highlightedSampleIds, onExpandClick,
                     width: 160,
                 },
                 {
-                    accessor: 'resistant',
+                    accessor: 'predicted_sir_profile',
                     title: 'Resistance Status',
                     width: 140,
                     textAlignment: 'center',
-                    render: (record) => (
-                        <Badge color={record.resistant ? 'red' : 'green'} variant='light'>
-                            {record.resistant ? 'Resistant' : 'Susceptible'}
-                        </Badge>
-                    ),
+                    render: (record) => {
+                        const v = record.predicted_sir_profile;
+                        const colorMap = {Resistant: 'red', Intermediate: 'orange', Susceptible: 'green'};
+                        return (
+                            <Badge color={colorMap[v] || 'gray'} variant='light'>
+                                {v || 'Unknown'}
+                            </Badge>
+                        );
+                    },
                 },
                 {
                     accessor: 'is_manual_override',

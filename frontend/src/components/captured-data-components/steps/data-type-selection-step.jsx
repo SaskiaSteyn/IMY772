@@ -1,11 +1,12 @@
 import {Stack, Text, SimpleGrid, Card, Center} from '@mantine/core';
-import {Microscope, Beaker, Dna} from 'lucide-react';
+import {Microscope, Beaker, Dna, ShieldAlert} from 'lucide-react';
 
 const DataTypeSelectionStep = ({onSelect}) => {
     const dataTypes = [
         {id: 'isolates', label: 'Isolate', icon: Microscope, description: 'Add a microbial isolate'},
         {id: 'phenotypes', label: 'Phenotype', icon: Beaker, description: 'Add a predicted phenotype'},
         {id: 'amr_findings', label: 'AMR Finding', icon: Dna, description: 'Add an AMR gene finding'},
+        {id: 'virulence_genes', label: 'Virulence Gene', icon: ShieldAlert, description: 'Add a virulence gene finding'},
     ];
 
     return (

@@ -14,6 +14,8 @@ import {updateSample} from '../../api/sample-data-management';
 
 const EditSampleModal = ({opened, onClose, record, onSave}) => {
     const [formData, setFormData] = useState({
+        sample_name: '',
+        collected_by: '',
         collection_date: null,
         location_name: '',
         latitude: '',
@@ -30,6 +32,8 @@ const EditSampleModal = ({opened, onClose, record, onSave}) => {
     useEffect(() => {
         if (record && opened) {
             setFormData({
+                sample_name: record.sample_name ?? '',
+                collected_by: record.collected_by ?? '',
                 collection_date: record.collection_date ? new Date(record.collection_date) : null,
                 location_name: record.location_name ?? '',
                 latitude: record.latitude ?? '',
@@ -53,6 +57,8 @@ const EditSampleModal = ({opened, onClose, record, onSave}) => {
         try {
             const updateData = {};
 
+            if (formData.sample_name) updateData.sample_name = formData.sample_name;
+            if (formData.collected_by) updateData.collected_by = formData.collected_by;
             if (formData.water_temp !== '') updateData.water_temp = parseFloat(formData.water_temp);
             if (formData.ph !== '') updateData.ph = parseFloat(formData.ph);
             if (formData.tds !== '') updateData.tds = parseFloat(formData.tds);
@@ -94,6 +100,21 @@ const EditSampleModal = ({opened, onClose, record, onSave}) => {
                         {error}
                     </div>
                 )}
+
+                <TextInput
+                    label="Sample Name"
+                    placeholder="e.g., Vaal River Sample A"
+                    value={formData.sample_name}
+                    onChange={(e) => setFormData({...formData, sample_name: e.currentTarget.value})}
+                    required
+                />
+
+                <TextInput
+                    label="Collected By"
+                    placeholder="e.g., Dr. Smith"
+                    value={formData.collected_by}
+                    onChange={(e) => setFormData({...formData, collected_by: e.currentTarget.value})}
+                />
 
                 <DatePickerInput
                     label="Collection Date"

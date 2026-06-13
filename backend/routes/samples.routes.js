@@ -13,6 +13,8 @@ router.post(
     requireAuth,
     [
         body('sample_id').trim().isString().withMessage('Sample ID must be a string'),
+        body('sample_name').trim().isString().withMessage('Sample name must be a string'),
+        body('collected_by').optional().trim().isString(),
         body('latitude').isNumeric().withMessage('Latitude must be a number'),
         body('longitude').isNumeric().withMessage('Longitude must be a number'),
         body('water_temp').optional({nullable: true}).isNumeric(),
@@ -24,12 +26,13 @@ router.post(
         body('location_name').optional().trim().isString(),
     ],
     async (req, res) => {
-        // ... (unchanged, but ensure uploaded_by is set)
         const errors = validationResult(req)
         if (!errors.isEmpty()) return res.status(400).json({errors: errors.array()})
 
         const {
             sample_id,
+            sample_name,
+            collected_by,
             water_temp,
             ph,
             tds,
@@ -45,6 +48,8 @@ router.post(
             const sample = await prisma.sample.create({
                 data: {
                     sample_id,
+                    sample_name,
+                    collected_by: collected_by || null,
                     water_temp: water_temp ? parseFloat(water_temp) : null,
                     ph: ph ? parseFloat(ph) : null,
                     tds: tds ? parseFloat(tds) : null,
@@ -80,10 +85,10 @@ function derivePredictedSirProfile(predictedPhenotypes, amrFindings) {
 
     // Phenotypes take clinical precedence
     if (hasPhenotypes) {
-        const hasResistant = predictedPhenotypes.some((p) => p.resistant === true)
+        const hasResistant = predictedPhenotypes.some((p) => p.predicted_sir_profile === 'Resistant')
         if (hasResistant) return 'resistant'
 
-        const hasUnknown = predictedPhenotypes.some((p) => p.resistant === null || p.resistant === undefined)
+        const hasUnknown = predictedPhenotypes.some((p) => p.predicted_sir_profile === null || p.predicted_sir_profile === undefined || p.predicted_sir_profile === 'Intermediate')
         if (hasUnknown) return 'intermediate'
 
         return 'susceptible'
@@ -98,7 +103,7 @@ function derivePredictedSirProfile(predictedPhenotypes, amrFindings) {
 router.get('/', async (req, res) => {
     try {
         const samples = await prisma.sample.findMany({
-            include: {predictedPhenotypes: true, isolates: true, amrFindings: true},
+            include: {predictedPhenotypes: true, isolates: true, amrFindings: true, virulenceGenes: true},
             orderBy: {created_at: 'desc'},
         })
         const samplesWithSirProfile = samples.map((sample) => ({
@@ -140,7 +145,7 @@ router.post(
             // Fetch training samples with their predicted phenotypes
             const trainingSamples = await prisma.sample.findMany({
                 include: {
-                    predictedPhenotypes: true, // includes organism, antibiotic, resistant
+                    predictedPhenotypes: true,
                 },
                 take: 1000,
             })
@@ -166,7 +171,6 @@ router.get(
     '/:sample_id',
     [param('sample_id').trim().isString().withMessage('Sample ID must be a string')],
     async (req, res) => {
-        // ... (unchanged)
         const errors = validationResult(req)
         if (!errors.isEmpty()) return res.status(400).json({errors: errors.array()})
 
@@ -178,6 +182,7 @@ router.get(
                     isolates: true,
                     amrFindings: true,
                     predictedPhenotypes: true,
+                    virulenceGenes: true,
                 },
             })
             if (!sample) return res.status(404).json({message: 'Sample not found'})
@@ -189,7 +194,7 @@ router.get(
     }
 )
 
-// ─── GET /api/samples/:sample_id - Get sample by uploaded by integer ID value ──────────────────────────
+// ─── GET /api/samples/uploaded_by/:uploaded_by ───────────────────────────────
 
 router.get(
     '/uploaded_by/:uploaded_by',
@@ -222,6 +227,8 @@ router.put(
     '/:sample_id',
     [
         param('sample_id').trim().isString().withMessage('Sample ID must be a string'),
+        body('sample_name').optional().trim().isString(),
+        body('collected_by').optional().trim().isString(),
         body('water_temp').optional().isDecimal(),
         body('ph').optional().isDecimal(),
         body('tds').optional().isDecimal(),
@@ -238,6 +245,8 @@ router.put(
 
         const {sample_id} = req.params
         const updateData = {}
+        if (req.body.sample_name !== undefined) updateData.sample_name = req.body.sample_name
+        if (req.body.collected_by !== undefined) updateData.collected_by = req.body.collected_by
         if (req.body.water_temp !== undefined) updateData.water_temp = parseFloat(req.body.water_temp)
         if (req.body.ph !== undefined) updateData.ph = parseFloat(req.body.ph)
         if (req.body.tds !== undefined) updateData.tds = parseFloat(req.body.tds)
@@ -268,7 +277,6 @@ router.delete(
     '/:sample_id',
     [param('sample_id').trim().isString().withMessage('Sample ID must be a string')],
     async (req, res) => {
-        // ... (unchanged)
         const errors = validationResult(req)
         if (!errors.isEmpty()) return res.status(400).json({errors: errors.array()})
 

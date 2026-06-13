@@ -5,6 +5,13 @@ import {requireAuth} from '../middleware/auth.middleware.js'
 
 const router = Router()
 
+// Helper: derive ai_resistant boolean from predicted_sir_profile string
+function sirProfileToBoolean(profile) {
+    if (profile === 'Resistant') return true
+    if (profile === 'Susceptible') return false
+    return null // Intermediate or null
+}
+
 // ─── POST /api/predicted-phenotypes - Create a new predicted phenotype ───────
 router.post(
     '/',
@@ -17,7 +24,11 @@ router.post(
             .trim(),
         body('organism').optional().trim().isString(),
         body('antibiotic').optional().trim().isString(),
-        body('resistant').optional().isBoolean(),
+        body('predicted_sir_profile')
+            .optional()
+            .isString()
+            .isIn(['Susceptible', 'Intermediate', 'Resistant'])
+            .withMessage('predicted_sir_profile must be one of: Susceptible, Intermediate, Resistant'),
         body('ai_resistant').optional({nullable: true}).isBoolean(),
         body('is_manual_override').optional().isBoolean(),
     ],
@@ -27,7 +38,7 @@ router.post(
             return res.status(400).json({errors: errors.array()})
         }
 
-        const {sample_id, organism, antibiotic, resistant, ai_resistant, is_manual_override} = req.body
+        const {sample_id, organism, antibiotic, predicted_sir_profile, ai_resistant, is_manual_override} = req.body
 
         try {
             const sample = await prisma.sample.findUnique({where: {sample_id}})
@@ -35,18 +46,19 @@ router.post(
                 return res.status(404).json({message: 'Sample not found'})
             }
 
+            // Derive ai_resistant from predicted_sir_profile if not explicitly provided
+            const derivedAiResistant =
+                ai_resistant !== undefined && ai_resistant !== null
+                    ? Boolean(ai_resistant)
+                    : sirProfileToBoolean(predicted_sir_profile)
+
             const phenotype = await prisma.predictedPhenotype.create({
                 data: {
                     sample_id,
                     organism,
                     antibiotic,
-                    resistant: resistant !== undefined ? Boolean(resistant) : null,
-                    ai_resistant:
-                        ai_resistant !== undefined && ai_resistant !== null
-                            ? Boolean(ai_resistant)
-                            : resistant !== undefined
-                              ? Boolean(resistant)
-                              : null,
+                    predicted_sir_profile: predicted_sir_profile || null,
+                    ai_resistant: derivedAiResistant,
                     is_manual_override: is_manual_override !== undefined ? Boolean(is_manual_override) : false,
                 },
             })
@@ -143,7 +155,11 @@ router.put(
             .withMessage('Phenotype ID must be an integer'),
         body('organism').optional().trim().isString(),
         body('antibiotic').optional().trim().isString(),
-        body('resistant').optional().isBoolean(),
+        body('predicted_sir_profile')
+            .optional()
+            .isString()
+            .isIn(['Susceptible', 'Intermediate', 'Resistant'])
+            .withMessage('predicted_sir_profile must be one of: Susceptible, Intermediate, Resistant'),
         body('clear_manual_override').optional().isBoolean(),
     ],
     async (req, res) => {
@@ -165,16 +181,19 @@ router.put(
         const updateData = {}
         if (req.body.organism !== undefined) updateData.organism = req.body.organism
         if (req.body.antibiotic !== undefined) updateData.antibiotic = req.body.antibiotic
-        if (req.body.resistant !== undefined) {
-            const nextResistant = Boolean(req.body.resistant)
+        if (req.body.predicted_sir_profile !== undefined) {
+            const nextProfile = req.body.predicted_sir_profile
+            const nextResistant = sirProfileToBoolean(nextProfile)
+
+            // Determine what ai_resistant was before this manual change
             const aiResistant =
                 existing.ai_resistant === null || existing.ai_resistant === undefined
-                    ? existing.resistant
+                    ? sirProfileToBoolean(existing.predicted_sir_profile)
                     : existing.ai_resistant
 
-            updateData.resistant = nextResistant
+            updateData.predicted_sir_profile = nextProfile
             if (existing.ai_resistant === null || existing.ai_resistant === undefined) {
-                updateData.ai_resistant = existing.resistant
+                updateData.ai_resistant = sirProfileToBoolean(existing.predicted_sir_profile)
             }
             updateData.is_manual_override =
                 aiResistant === null || aiResistant === undefined ? true : nextResistant !== aiResistant
@@ -182,10 +201,15 @@ router.put(
 
         if (req.body.clear_manual_override === true) {
             if (existing.ai_resistant === null || existing.ai_resistant === undefined) {
-                updateData.ai_resistant = existing.resistant
-                updateData.resistant = existing.resistant
+                // Back-fill ai_resistant from current predicted_sir_profile
+                const current = sirProfileToBoolean(existing.predicted_sir_profile)
+                updateData.ai_resistant = current
+                updateData.predicted_sir_profile = existing.predicted_sir_profile
             } else {
-                updateData.resistant = existing.ai_resistant
+                // Revert predicted_sir_profile to match ai_resistant
+                updateData.predicted_sir_profile =
+                    existing.ai_resistant === true ? 'Resistant' :
+                    existing.ai_resistant === false ? 'Susceptible' : null
             }
             updateData.is_manual_override = false
         }

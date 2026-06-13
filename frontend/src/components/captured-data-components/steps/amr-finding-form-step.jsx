@@ -5,7 +5,7 @@ const AmrFindingFormStep = forwardRef(({formData, setFormData, onAddMore, onVali
     const [findingData, setFindingData] = useState({
         finding_id: '',
         gene_symbol: '',
-        drug_class: '',
+        amr_class: '',
         analysis_type: 'WGS',
         method: '',
         percent_identity: '',
@@ -25,9 +25,8 @@ const AmrFindingFormStep = forwardRef(({formData, setFormData, onAddMore, onVali
 
     const isValid =
         findingData.gene_symbol &&
-        findingData.drug_class &&
-        effectiveMethod.trim() !== '' &&
-        findingData.percent_identity !== '';
+        findingData.amr_class &&
+        effectiveMethod.trim() !== '';
 
     const getEffectiveData = () => ({
         ...findingData,
@@ -40,7 +39,7 @@ const AmrFindingFormStep = forwardRef(({formData, setFormData, onAddMore, onVali
             if (!isValid) {
                 setTouched({
                     gene_symbol: true,
-                    drug_class: true,
+                    amr_class: true,
                     method: true,
                     percent_identity: true,
                 });
@@ -55,7 +54,7 @@ const AmrFindingFormStep = forwardRef(({formData, setFormData, onAddMore, onVali
             setFindingData({
                 finding_id: '',
                 gene_symbol: '',
-                drug_class: '',
+                amr_class: '',
                 analysis_type: 'WGS',
                 method: '',
                 percent_identity: '',
@@ -81,11 +80,11 @@ const AmrFindingFormStep = forwardRef(({formData, setFormData, onAddMore, onVali
             />
 
             <TextInput
-                label="Drug Class"
+                label="AMR Class"
                 placeholder="e.g., Beta-lactams, Tetracyclines, Aminoglycosides"
-                value={findingData.drug_class}
-                onChange={(e) => handleChange('drug_class', e.currentTarget.value)}
-                error={touched.drug_class && !findingData.drug_class ? 'Drug class is required' : ''}
+                value={findingData.amr_class}
+                onChange={(e) => handleChange('amr_class', e.currentTarget.value)}
+                error={touched.amr_class && !findingData.amr_class ? 'AMR class is required' : ''}
             />
 
             <Select
@@ -107,8 +106,6 @@ const AmrFindingFormStep = forwardRef(({formData, setFormData, onAddMore, onVali
                 }}
                 error={touched.method && !effectiveMethod ? 'Method is required' : ''}
                 searchable
-                creatable
-                getCreateLabel={(query) => `+ Create "${query}"`}
             />
 
             {findingData.method === 'Other' && (
@@ -143,7 +140,7 @@ const AmrFindingFormStep = forwardRef(({formData, setFormData, onAddMore, onVali
                                 setFindingData({
                                     finding_id: '',
                                     gene_symbol: '',
-                                    drug_class: '',
+                                    amr_class: '',
                                     analysis_type: 'WGS',
                                     method: '',
                                     percent_identity: '',
@@ -153,9 +150,8 @@ const AmrFindingFormStep = forwardRef(({formData, setFormData, onAddMore, onVali
                             } else {
                                 setTouched({
                                     gene_symbol: true,
-                                    drug_class: true,
+                                    amr_class: true,
                                     method: true,
-                                    percent_identity: true,
                                 });
                             }
                         }}

@@ -420,7 +420,7 @@ describe('Admin – Generic entity CRUD', () => {
 
     test.each(entities)('POST /data/%s – creates record', async (entity) => {
         const payload = entity === 'samples'
-            ? {sample_id: 'NEW', latitude: 10, longitude: 20, uploaded_by: 1}
+            ? {sample_id: 'NEW', sample_name: 'New Sample', latitude: 10, longitude: 20, uploaded_by: 1}
             : entity === 'isolates'
                 ? {sample_id: 'SAMPLE-001', organism: 'Test'}
                 : entity === 'amr_findings'

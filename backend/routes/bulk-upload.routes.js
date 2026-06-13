@@ -54,6 +54,8 @@ router.post(
                 const isNew = !existingIdSet.has(sampleData.sample_id)
 
                 const sampleFields = {
+                    sample_name: sampleData.sample_name || '',
+                    collected_by: sampleData.collected_by || null,
                     water_temp: sampleData.water_temp !== undefined ? parseFloat(sampleData.water_temp) : null,
                     ph: sampleData.ph !== undefined ? parseFloat(sampleData.ph) : null,
                     tds: sampleData.tds !== undefined ? parseFloat(sampleData.tds) : null,
@@ -70,7 +72,7 @@ router.post(
                         // Upsert the sample — create if new, update fields if already exists
                         await tx.sample.upsert({
                             where: {sample_id: sampleData.sample_id},
-                            update: sampleFields,
+                            update: {...sampleFields, uploaded_by: req.user.userID},
                             create: {
                                 sample_id: sampleData.sample_id,
                                 ...sampleFields,
@@ -78,43 +80,65 @@ router.post(
                             },
                         })
 
-                        // Only insert related records for new samples to avoid duplicates on re-upload
-                        if (isNew) {
-                            const sid = sampleData.sample_id
+                        const sid = sampleData.sample_id
 
-                            if (sampleData.isolates?.length) {
-                                await tx.isolate.createMany({
-                                    data: sampleData.isolates.map(iso => ({
-                                        sample_id: sid,
-                                        organism: iso.organism || null,
-                                        mlst_type: iso.mlst_type || null,
-                                    })),
-                                })
-                            }
+                        if (sampleData.isolates?.length && (isNew || await tx.isolate.count({where: {sample_id: sid}}) === 0)) {
+                            await tx.isolate.createMany({
+                                data: sampleData.isolates.map(iso => ({
+                                    sample_id: sid,
+                                    organism: iso.organism || null,
+                                    mlst_type: iso.mlst_type || null,
+                                })),
+                            })
+                        }
 
-                            if (sampleData.amrFindings?.length) {
-                                await tx.amrFinding.createMany({
-                                    data: sampleData.amrFindings.map(amr => ({
-                                        sample_id: sid,
-                                        analysis_type: amr.analysis_type || null,
-                                        gene_symbol: amr.gene_symbol || null,
-                                        drug_class: amr.drug_class || null,
-                                        method: amr.method || null,
-                                        percent_identity: amr.percent_identity !== undefined ? parseFloat(amr.percent_identity) : null,
-                                    })),
-                                })
-                            }
+                        if (sampleData.amrFindings?.length && (isNew || await tx.amrFinding.count({where: {sample_id: sid}}) === 0)) {
+                            await tx.amrFinding.createMany({
+                                data: sampleData.amrFindings.map(amr => ({
+                                    sample_id: sid,
+                                    analysis_type: amr.analysis_type || null,
+                                    gene_symbol: amr.gene_symbol || null,
+                                    amr_class: amr.amr_class || amr.class || null,
+                                    method: amr.method || null,
+                                    percent_identity: amr.percent_identity !== undefined ? parseFloat(amr.percent_identity) : null,
+                                    sequence_name: amr.sequence_name || null,
+                                    element_type: amr.element_type || null,
+                                    subclass: amr.subclass || null,
+                                    target_length: amr.target_length !== undefined && amr.target_length !== null ? parseInt(amr.target_length) : null,
+                                    reference_sequence_length: amr.reference_sequence_length !== undefined && amr.reference_sequence_length !== null ? parseInt(amr.reference_sequence_length) : null,
+                                    percentage_coverage: amr.percentage_coverage !== undefined ? parseFloat(amr.percentage_coverage) : null,
+                                    accession_of_closest_sequence: amr.accession_of_closest_sequence || null,
+                                })),
+                            })
+                        }
 
-                            if (sampleData.predictedPhenotypes?.length) {
-                                await tx.predictedPhenotype.createMany({
-                                    data: sampleData.predictedPhenotypes.map(phen => ({
-                                        sample_id: sid,
-                                        organism: phen.organism || null,
-                                        antibiotic: phen.antibiotic || null,
-                                        resistant: phen.resistant !== undefined ? Boolean(phen.resistant) : null,
-                                    })),
-                                })
-                            }
+                        if (sampleData.predictedPhenotypes?.length && (isNew || await tx.predictedPhenotype.count({where: {sample_id: sid}}) === 0)) {
+                            await tx.predictedPhenotype.createMany({
+                                data: sampleData.predictedPhenotypes.map(phen => ({
+                                    sample_id: sid,
+                                    organism: phen.organism || null,
+                                    antibiotic: phen.antibiotic || null,
+                                    predicted_sir_profile: phen.predicted_sir_profile || null,
+                                })),
+                            })
+                        }
+
+                        if (sampleData.virulenceGenes?.length && (isNew || await tx.virulenceGene.count({where: {sample_id: sid}}) === 0)) {
+                            await tx.virulenceGene.createMany({
+                                data: sampleData.virulenceGenes.map(vg => ({
+                                    sample_id: sid,
+                                    gene_symbol: vg.gene_symbol,
+                                    method: vg.method || null,
+                                    percent_identity: vg.percent_identity !== undefined ? parseFloat(vg.percent_identity) : null,
+                                    coverage_percent: vg.coverage_percent !== undefined ? parseFloat(vg.coverage_percent) : null,
+                                    alignment_length: vg.alignment_length !== undefined && vg.alignment_length !== null ? parseInt(vg.alignment_length) : null,
+                                    target_length: vg.target_length !== undefined && vg.target_length !== null ? parseInt(vg.target_length) : null,
+                                    ref_seq_length: vg.ref_seq_length !== undefined && vg.ref_seq_length !== null ? parseInt(vg.ref_seq_length) : null,
+                                    accession: vg.accession || null,
+                                    sequence_name: vg.sequence_name || null,
+                                    element_type: vg.element_type || null,
+                                })),
+                            })
                         }
                     })
 

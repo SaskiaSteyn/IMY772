@@ -55,7 +55,9 @@ const phenotypeFixture = {
     sample_id: 'sample-1',
     organism: 'E. coli',
     antibiotic: 'Ciprofloxacin',
-    resistant: true,
+    predicted_sir_profile: 'Resistant',
+    ai_resistant: true,
+    is_manual_override: false,
 }
 
 // ─── POST /api/predicted-phenotypes ─────────────────────────────────────────
@@ -90,6 +92,15 @@ describe('POST /api/predicted-phenotypes', () => {
 
         expect(res.status).toBe(201)
         expect(res.body.phenotype).toEqual(phenotypeFixture)
+    })
+
+    test('returns 400 when predicted_sir_profile is invalid', async () => {
+        mockPrismaSample.findUnique.mockResolvedValue(sampleFixture)
+        const res = await api()
+            .post('/api/predicted-phenotypes')
+            .set('Cookie', authCookie())
+            .send({sample_id: 'sample-1', predicted_sir_profile: 'invalid_value'})
+        expect(res.status).toBe(400)
     })
 })
 
@@ -140,31 +151,61 @@ describe('PUT /api/predicted-phenotypes/:phenotype_id', () => {
     beforeEach(() => jest.clearAllMocks())
 
     test('returns 401 without auth', async () => {
-        const res = await api().put('/api/predicted-phenotypes/1').send({resistant: false})
+        const res = await api().put('/api/predicted-phenotypes/1').send({predicted_sir_profile: 'Susceptible'})
         expect(res.status).toBe(401)
     })
 
-    test('updates resistant (last field) successfully', async () => {
+    test('updates predicted_sir_profile successfully', async () => {
         mockPrismaPhenotype.findUnique.mockResolvedValue({
             ...phenotypeFixture,
+            predicted_sir_profile: 'Resistant',
             ai_resistant: true,
             is_manual_override: false,
         })
-        const updated = {...phenotypeFixture, resistant: false}
+        const updated = {...phenotypeFixture, predicted_sir_profile: 'Susceptible'}
         mockPrismaPhenotype.update.mockResolvedValue(updated)
 
         const res = await api()
             .put('/api/predicted-phenotypes/1')
             .set('Cookie', authCookie())
-            .send({resistant: false})
+            .send({predicted_sir_profile: 'Susceptible'})
 
         expect(res.status).toBe(200)
-        expect(res.body.phenotype.resistant).toBe(false)
+        expect(res.body.phenotype.predicted_sir_profile).toBe('Susceptible')
+        expect(mockPrismaPhenotype.update).toHaveBeenCalledWith({
+            where: {phenotype_id: 1},
+            data: expect.objectContaining({
+                predicted_sir_profile: 'Susceptible',
+                is_manual_override: true,
+            }),
+        })
+    })
+
+    test('clears manual override and reverts predicted_sir_profile to ai_resistant value', async () => {
+        mockPrismaPhenotype.findUnique.mockResolvedValue({
+            ...phenotypeFixture,
+            predicted_sir_profile: 'Susceptible',
+            ai_resistant: true,
+            is_manual_override: true,
+        })
+        mockPrismaPhenotype.update.mockResolvedValue({
+            ...phenotypeFixture,
+            predicted_sir_profile: 'Resistant',
+            ai_resistant: true,
+            is_manual_override: false,
+        })
+
+        const res = await api()
+            .put('/api/predicted-phenotypes/1')
+            .set('Cookie', authCookie())
+            .send({clear_manual_override: true})
+
+        expect(res.status).toBe(200)
         expect(mockPrismaPhenotype.update).toHaveBeenCalledWith({
             where: {phenotype_id: 1},
             data: {
-                resistant: false,
-                is_manual_override: true,
+                predicted_sir_profile: 'Resistant',
+                is_manual_override: false,
             },
         })
     })
@@ -172,13 +213,13 @@ describe('PUT /api/predicted-phenotypes/:phenotype_id', () => {
     test('clears manual override and backfills null ai_resistant', async () => {
         mockPrismaPhenotype.findUnique.mockResolvedValue({
             ...phenotypeFixture,
-            resistant: true,
+            predicted_sir_profile: 'Resistant',
             ai_resistant: null,
             is_manual_override: true,
         })
         mockPrismaPhenotype.update.mockResolvedValue({
             ...phenotypeFixture,
-            resistant: true,
+            predicted_sir_profile: 'Resistant',
             ai_resistant: true,
             is_manual_override: false,
         })
@@ -193,7 +234,7 @@ describe('PUT /api/predicted-phenotypes/:phenotype_id', () => {
             where: {phenotype_id: 1},
             data: {
                 ai_resistant: true,
-                resistant: true,
+                predicted_sir_profile: 'Resistant',
                 is_manual_override: false,
             },
         })

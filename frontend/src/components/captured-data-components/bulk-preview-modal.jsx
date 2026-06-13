@@ -12,9 +12,9 @@ function RecordPreview({title, record, columns}) {
                     <Group key={col.accessor} gap={8}>
                         <strong style={{minWidth: 120}}>{col.title}:</strong>
                         <span>
-                            {col.accessor === 'resistant' && record[col.accessor] !== undefined ? (
-                                <Badge color={record[col.accessor] ? 'red' : 'green'} variant='light' size='sm'>
-                                    {record[col.accessor] ? 'Resistant' : 'Susceptible'}
+                            {col.accessor === 'predicted_sir_profile' && record[col.accessor] ? (
+                                <Badge color={record[col.accessor] === 'Resistant' ? 'red' : record[col.accessor] === 'Intermediate' ? 'orange' : 'green'} variant='light' size='sm'>
+                                    {record[col.accessor]}
                                 </Badge>
                             ) : record[col.accessor] === 'true' ? (
                                 <Badge color='red' variant='light' size='sm'>true</Badge>
@@ -37,14 +37,35 @@ export default function BulkPreviewModal({opened, onClose, samples}) {
 
     if (!currentSample) return null;
 
+    // Excel template summary view
+    if (currentSample._xlsxSummary) {
+        return (
+            <Modal opened={opened} onClose={onClose} size='md' centered radius='md' title='Data Preview'>
+                <Stack gap='md'>
+                    <Paper withBorder p='md' radius='md'>
+                        <Text fw={600} mb='xs'>Excel Template File</Text>
+                        <Stack gap={4}>
+                            <Group gap={8}><strong style={{minWidth: 160}}>Total rows:</strong><span>{currentSample.rowCount}</span></Group>
+                            <Group gap={8}><strong style={{minWidth: 160}}>Unique samples:</strong><span>{currentSample.sampleCount}</span></Group>
+                        </Stack>
+                        <Text size='sm' c='dimmed' mt='sm'>Data will be parsed and validated on upload.</Text>
+                    </Paper>
+                    <Button onClick={onClose} variant='outline' color='gray'>Close</Button>
+                </Stack>
+            </Modal>
+        );
+    }
+
     const sampleColumns = [
         {accessor: 'sample_id', title: 'Sample ID'},
+        {accessor: 'sample_name', title: 'Sample Name'},
+        {accessor: 'collected_by', title: 'Collected By'},
         {accessor: 'collection_date', title: 'Collection Date'},
         {accessor: 'location_name', title: 'Location'},
         {accessor: 'latitude', title: 'Latitude'},
         {accessor: 'longitude', title: 'Longitude'},
         {accessor: 'isolation_source', title: 'Source'},
-        {accessor: 'water_temperature', title: 'Temp (°C)'},
+        {accessor: 'water_temp', title: 'Temp (°C)'},
         {accessor: 'ph', title: 'pH'},
         {accessor: 'tds', title: 'TDS'},
         {accessor: 'do', title: 'DO'},
@@ -60,16 +81,23 @@ export default function BulkPreviewModal({opened, onClose, samples}) {
         {accessor: 'sample_id', title: 'Sample ID'},
         {accessor: 'organism', title: 'Organism'},
         {accessor: 'antibiotic', title: 'Antibiotic'},
-        {accessor: 'resistant', title: 'Resistance'},
+        {accessor: 'predicted_sir_profile', title: 'Resistance Status'},
     ];
     const amrColumns = [
         {accessor: 'finding_id', title: 'Finding ID'},
         {accessor: 'sample_id', title: 'Sample ID'},
         {accessor: 'gene_symbol', title: 'Gene Symbol'},
-        {accessor: 'drug_class', title: 'Drug Class'},
+        {accessor: 'amr_class', title: 'AMR Class'},
         {accessor: 'analysis_type', title: 'Analysis Type'},
         {accessor: 'method', title: 'Method'},
         {accessor: 'percent_identity', title: 'Identity %'},
+    ];
+    const virulenceColumns = [
+        {accessor: 'virulence_gene_id', title: 'ID'},
+        {accessor: 'sample_id', title: 'Sample ID'},
+        {accessor: 'gene_symbol', title: 'Gene Symbol'},
+        {accessor: 'method', title: 'Method'},
+        {accessor: 'element_type', title: 'Element Type'},
     ];
 
     const handlePrev = () => {
@@ -84,6 +112,7 @@ export default function BulkPreviewModal({opened, onClose, samples}) {
     const hasIsolates = currentSample.isolates && currentSample.isolates.length > 0;
     const hasPhenotypes = currentSample.phenotypes && currentSample.phenotypes.length > 0;
     const hasAmrFindings = currentSample.amrFindings && currentSample.amrFindings.length > 0;
+    const hasVirulenceGenes = currentSample.virulenceGenes && currentSample.virulenceGenes.length > 0;
 
     // Build title based on what data we have
     const getTitle = () => {
@@ -163,6 +192,16 @@ export default function BulkPreviewModal({opened, onClose, samples}) {
                         {(hasSample || hasIsolates || hasPhenotypes) && <Divider label="AMR Finding Records" labelPosition="center" my="sm" />}
                         {currentSample.amrFindings.map((rec) => (
                             <RecordPreview key={`amr-${rec.finding_id}`} title={`AMR Finding: ${rec.finding_id}`} record={rec} columns={amrColumns} />
+                        ))}
+                    </>
+                )}
+
+                {/* Virulence Gene records */}
+                {hasVirulenceGenes && (
+                    <>
+                        {(hasSample || hasIsolates || hasPhenotypes || hasAmrFindings) && <Divider label="Virulence Gene Records" labelPosition="center" my="sm" />}
+                        {currentSample.virulenceGenes.map((rec, idx) => (
+                            <RecordPreview key={`virulence-${rec.virulence_gene_id || idx}`} title={`Virulence Gene: ${rec.gene_symbol || 'Unknown'}`} record={rec} columns={virulenceColumns} />
                         ))}
                     </>
                 )}
