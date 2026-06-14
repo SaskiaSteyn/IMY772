@@ -12,15 +12,6 @@ import {useAuth} from '../context/auth-context.jsx';
 import './profile.scss';
 import {fetchSamplesByUser, fetchAllIsolates, fetchAllAmrFindings, fetchAllPredictedPhenotypes} from '../api/sample-data-management.js';
 
-// Default interests (restored from commented block)
-const defaultInterests = [
-    'Water Quality',
-    'Microbiology',
-    'Bioinformatics',
-    'Field Work',
-    'Public Health',
-    'GIS',
-];
 
 const PROFILE_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
 const PROFILE_IMAGE_ALLOWED_TYPES = ['image/jpeg', 'image/png'];
@@ -101,9 +92,7 @@ function buildInitialProfile(user, persistedProfile = null) {
         }))
         : experienceDefault;
 
-    const interestArray = Array.isArray(persistedProfile?.interests) && persistedProfile.interests.length > 0
-        ? persistedProfile.interests
-        : defaultInterests;
+    const interestArray = Array.isArray(persistedProfile?.interests) ? persistedProfile.interests : [];
 
     const profileImage = typeof persistedProfile?.profileImage === 'string' && persistedProfile.profileImage.trim().length > 0
         ? persistedProfile.profileImage
