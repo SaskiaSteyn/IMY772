@@ -142,11 +142,14 @@ export default function Dashboard() {
 
     // Get unique locations (one per location_name + coordinates)
     const uniqueLocations = displayedSamples.reduce((acc, sample) => {
+        const lat = parseFloat(sample.latitude)
+        const lon = parseFloat(sample.longitude)
+        if (isNaN(lat) || isNaN(lon)) return acc
         const exists = acc.some(
             (loc) =>
                 loc.location_name === sample.location_name &&
-                parseFloat(loc.latitude) === parseFloat(sample.latitude) &&
-                parseFloat(loc.longitude) === parseFloat(sample.longitude),
+                parseFloat(loc.latitude) === lat &&
+                parseFloat(loc.longitude) === lon,
         );
         if (!exists) {
             acc.push({

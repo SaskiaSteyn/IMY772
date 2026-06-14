@@ -1,11 +1,14 @@
 import xlsx from 'xlsx'
 
+// Strip leading asterisk(s) and whitespace from column header keys before comparing,
+// matching the template's colour-coded mandatory markers (e.g. "* Sample ID" → "sample id")
+const normalizeKey = (k) => k.replace(/^\*+\s*/, '').trim().toLowerCase()
+
 const get = (row, names) => {
     for (const name of names) {
-        if (row[name] !== undefined && row[name] !== null && row[name] !== '') return row[name]
-        const lower = name.toLowerCase()
+        const normalName = normalizeKey(name)
         for (const key in row) {
-            if (key.toLowerCase() === lower && row[key] !== undefined && row[key] !== null && row[key] !== '') return row[key]
+            if (normalizeKey(key) === normalName && row[key] !== undefined && row[key] !== null && row[key] !== '') return row[key]
         }
     }
     return undefined
@@ -15,13 +18,29 @@ const toStr = (v) => (v !== undefined ? String(v).trim() || null : null)
 const toFloat = (v) => (v !== undefined && v !== '' ? parseFloat(v) : null)
 const toInt = (v) => (v !== undefined && v !== '' ? parseInt(v) : null)
 
+// Handles DD/MM/YYYY (template format) as well as ISO strings and JS Date objects
+const toDate = (v) => {
+    if (!v) return null
+    if (v instanceof Date) return isNaN(v.getTime()) ? null : v
+    const s = String(v).trim()
+    const ddmmyyyy = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/)
+    if (ddmmyyyy) {
+        const [, d, m, y] = ddmmyyyy
+        const dt = new Date(`${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`)
+        return isNaN(dt.getTime()) ? null : dt
+    }
+    const dt = new Date(s)
+    return isNaN(dt.getTime()) ? null : dt
+}
+
 // Parses the flat Excel template format where each row = one sample + one AMR gene.
 // Groups rows by Sample ID, aggregating AMR findings and virulence genes per sample.
 export function parseExcelTemplate(fileBuffer) {
     const workbook = xlsx.read(fileBuffer, {type: 'buffer', cellDates: true})
     // Skip the first 3 header/legend rows — actual data starts at row 4
     const sheet = workbook.Sheets[workbook.SheetNames[0]]
-    const rows = xlsx.utils.sheet_to_json(sheet, {defval: null, raw: false})
+    // range: 4 skips the 3 legend rows + 1 blank row; row 5 becomes the header row
+    const rows = xlsx.utils.sheet_to_json(sheet, {defval: null, raw: false, range: 4})
 
     const sampleMap = new Map()
 
@@ -33,10 +52,6 @@ export function parseExcelTemplate(fileBuffer) {
         const lon = toFloat(get(row, ['longitude', 'Longitude']))
 
         if (!sampleMap.has(sample_id)) {
-            if (lat === null || lon === null) {
-                throw new Error(`Missing latitude or longitude for sample ${sample_id}`)
-            }
-
             const organism = toStr(get(row, ['Organism', 'organism']))
             const sirRaw = toStr(get(row, ['Predicted_SIR profile', '*Predicted_SIR profile', 'Predicted SIR profile', 'predicted_sir_profile']))
             const sir = sirRaw ? sirRaw.charAt(0).toUpperCase() + sirRaw.slice(1).toLowerCase() : null
@@ -52,10 +67,8 @@ export function parseExcelTemplate(fileBuffer) {
                 tds: toFloat(get(row, ['TDS (mg/L)', 'tds', 'TDS'])),
                 do: toFloat(get(row, ['Dissolved Oxygen (mg/L)', 'do', 'DO', 'dissolved_oxygen'])),
                 isolation_source: toStr(get(row, ['Isolation source', 'isolation_source', 'isolationSource'])),
-                collection_date: get(row, ['Collection date', 'collection_date', 'collectionDate'])
-                    ? new Date(get(row, ['Collection date', 'collection_date', 'collectionDate']))
-                    : null,
-                location_name: toStr(get(row, ['geo_loc_name', 'location_name', 'locationName', 'location'])),
+                collection_date: toDate(get(row, ['Collection date', 'collection_date', 'collectionDate'])),
+                location_name: toStr(get(row, ['geo_loc_name', 'staged_loc_name', 'location_name', 'locationName', 'location'])),
                 isolates: organism
                     ? [{ organism, mlst_type: toStr(get(row, ['Isolate ID', 'isolate_id'])) }]
                     : [],

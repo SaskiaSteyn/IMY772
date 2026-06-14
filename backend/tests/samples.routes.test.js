@@ -347,6 +347,21 @@ describe('GET /api/samples', () => {
         expect(res.status).toBe(200)
         expect(res.body.samples[0].predicted_sir_profile).toBe('unknown')
     })
+
+    test('derives predicted_sir_profile as "resistant" when no phenotypes but AMR findings exist', async () => {
+        mockPrismaSample.findMany.mockResolvedValue([
+            {
+                ...sampleFixture,
+                predictedPhenotypes: [],
+                amrFindings: [{finding_id: 1, gene_symbol: 'blaNDM', amr_class: 'Carbapenem'}],
+            },
+        ])
+
+        const res = await api().get('/api/samples')
+
+        expect(res.status).toBe(200)
+        expect(res.body.samples[0].predicted_sir_profile).toBe('resistant')
+    })
 })
 
 // ─── GET /api/samples/:sample_id ──────────────────────────────────────────────

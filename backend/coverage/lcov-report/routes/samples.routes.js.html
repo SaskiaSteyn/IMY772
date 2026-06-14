@@ -23,16 +23,16 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">94.06% </span>
+                <span class="strong">95.76% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>111/118</span>
+                <span class='fraction'>113/118</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">89.04% </span>
+                <span class="strong">93.15% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>65/73</span>
+                <span class='fraction'>68/73</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">97.82% </span>
+                <span class="strong">98.91% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>90/92</span>
+                <span class='fraction'>91/92</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line medium'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -438,13 +438,13 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">5x</span>
-<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -455,22 +455,22 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">8x</span>
+<span class="cline-any cline-yes">8x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">7x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">6x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
@@ -734,12 +734,12 @@ router.post(
 // Priority: phenotypes (clinical) &gt; AMR findings (genomic) &gt; unknown
 function derivePredictedSirProfile(predictedPhenotypes, amrFindings) {
     const hasPhenotypes = predictedPhenotypes &amp;&amp; predictedPhenotypes.length &gt; 0
-    const hasAmrFindings = amrFindings &amp;&amp; <span class="branch-1 cbranch-no" title="branch not covered" >amrFindings.length &gt; 0</span>
+    const hasAmrFindings = amrFindings &amp;&amp; amrFindings.length &gt; 0
 &nbsp;
     if (!hasPhenotypes &amp;&amp; !hasAmrFindings) return 'unknown'
 &nbsp;
     // Phenotypes take clinical precedence
-    <span class="missing-if-branch" title="else path not taken" >E</span>if (hasPhenotypes) {
+    if (hasPhenotypes) {
         const hasResistant = predictedPhenotypes.some((p) =&gt; p.predicted_sir_profile === 'Resistant')
         if (hasResistant) return 'resistant'
 &nbsp;
@@ -750,7 +750,7 @@ function derivePredictedSirProfile(predictedPhenotypes, amrFindings) {
     }
 &nbsp;
     // AMR findings present but no phenotypes — presence of resistance genes implies resistance
-<span class="cstat-no" title="statement not covered" >    if (hasAmrFindings) <span class="cstat-no" title="statement not covered" >return 'resistant'</span></span>
+    <span class="missing-if-branch" title="else path not taken" >E</span>if (hasAmrFindings) return 'resistant'
 &nbsp;
 <span class="cstat-no" title="statement not covered" >    return 'unknown'</span>
 }
@@ -955,7 +955,7 @@ export default router
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-06-13T15:40:11.292Z
+                at 2026-06-14T10:40:49.885Z
             </div>
         <script src="../prettify.js"></script>
         <script>
