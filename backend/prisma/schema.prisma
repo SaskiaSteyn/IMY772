@@ -38,8 +38,8 @@ model Sample {
   collected_by     String?    @db.VarChar(255)
   collection_date  DateTime?
   location_name    String?    @db.VarChar(255)
-  latitude         Decimal    @db.Decimal(10, 8)
-  longitude        Decimal    @db.Decimal(11, 8)
+  latitude         Decimal?   @db.Decimal(10, 8)
+  longitude        Decimal?   @db.Decimal(11, 8)
   isolation_source String?    @db.VarChar(255)
   water_temp       Decimal?   @db.Decimal(5, 2)
   ph               Decimal?   @db.Decimal(4, 2)

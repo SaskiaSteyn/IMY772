@@ -6,8 +6,37 @@
 import xlsx from 'xlsx'
 import {parseExcelTemplate} from '../lib/template-parser.js'
 
+// Mirrors the real template structure using aoa_to_sheet so row positions are exact:
+//   Row 1-3: legend text   (skipped by range:4)
+//   Row 4:   blank         (skipped by range:4)
+//   Row 5:   column headers  ← range:4 treats this as the header row
+//   Row 6+:  data rows
 function makeBuffer(rows) {
-    const ws = xlsx.utils.json_to_sheet(rows)
+    if (rows.length === 0) {
+        // Empty data: just write legend + header row with no data rows
+        const aoa = [
+            ['GREEN fields are mandatory.'],
+            ['BLUE fields indicate at least one is mandatory.'],
+            ['YELLOW fields are optional.'],
+            [],
+            [],  // empty header row
+        ]
+        const ws = xlsx.utils.aoa_to_sheet(aoa)
+        const wb = xlsx.utils.book_new()
+        xlsx.utils.book_append_sheet(wb, ws, 'Sheet1')
+        return xlsx.write(wb, {type: 'buffer', bookType: 'xlsx'})
+    }
+
+    const headers = Array.from(new Set(rows.flatMap(r => Object.keys(r))))
+    const aoa = [
+        ['GREEN fields are mandatory.'],
+        ['BLUE fields indicate at least one is mandatory.'],
+        ['YELLOW fields are optional.'],
+        [],
+        headers,
+        ...rows.map(r => headers.map(h => r[h] ?? null)),
+    ]
+    const ws = xlsx.utils.aoa_to_sheet(aoa)
     const wb = xlsx.utils.book_new()
     xlsx.utils.book_append_sheet(wb, ws, 'Sheet1')
     return xlsx.write(wb, {type: 'buffer', bookType: 'xlsx'})
@@ -97,9 +126,13 @@ describe('parseExcelTemplate', () => {
         expect(samples[0].sample_id).toBe('S006')
     })
 
-    test('throws when latitude or longitude is missing for a new sample', () => {
+    test('returns sample with null lat/lon when coordinates are missing', () => {
         const buf = makeBuffer([{'Sample ID': 'S007'}])
-        expect(() => parseExcelTemplate(buf)).toThrow(/missing latitude or longitude/i)
+        const samples = parseExcelTemplate(buf)
+        expect(samples).toHaveLength(1)
+        expect(samples[0].sample_id).toBe('S007')
+        expect(samples[0].latitude).toBeNull()
+        expect(samples[0].longitude).toBeNull()
     })
 
     test('returns empty array when sheet has no valid rows', () => {

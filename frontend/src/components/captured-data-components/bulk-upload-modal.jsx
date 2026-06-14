@@ -247,7 +247,8 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
                 const arrayBuffer = await selectedFile.arrayBuffer();
                 const workbook = XLSX.read(arrayBuffer, {type: 'array'});
                 const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                const rows = XLSX.utils.sheet_to_json(sheet, {defval: null});
+                // range: 4 skips the 3 legend rows + 1 blank row; row 5 becomes the header row
+                const rows = XLSX.utils.sheet_to_json(sheet, {defval: null, range: 4});
                 const getSampleId = (r) => {
                     for (const key of Object.keys(r)) {
                         if (key.replace(/^\*/, '').trim().toLowerCase() === 'sample id') return r[key];
@@ -385,7 +386,7 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
             const data = await response.json();
 
             if (!response.ok) {
-                setError(data.details || data.error || 'Upload failed');
+                setError(data.details || data.error || data.message || 'Upload failed');
                 setUploadResult(null);
             } else {
                 // The /samples endpoint returns `results` as a per-row array
@@ -527,14 +528,10 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
                     {!uploadResult && !file && !imageSamples && (
                         <>
                             <Text size='sm' color='dimmed'>
-                                Upload a CSV, JSON, or Excel (.xlsx) file with sample data.
+                                Choose a file format below. Each format is parsed differently — pick the one that matches your data.
                             </Text>
-                            <ul style={{marginTop: '4px', marginBottom: '8px', fontSize: '0.875rem', color: 'var(--mantine-color-dimmed)'}}>
-                                <li><strong>Template .xlsx</strong> — the standard dashboard template</li>
-                                <li><strong>samples.json</strong> — array of sample records</li>
-                                <li><strong>all_tables_combined.json</strong> — combined object with samples, isolates, predicted_phenotypes, amr_findings</li>
-                                <li><strong>CSV</strong> — same structure in CSV format</li>
-                            </ul>
+
+                            {/* Excel template */}
                             <div className={styles.uploadArea}>
                                 <input
                                     type='file'
@@ -544,12 +541,12 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
                                     style={{display: 'none'}}
                                 />
                                 <label htmlFor='file-input' className={styles.uploadLabel}>
-                                    <FileUp size={32} />
-                                    <Text weight={500}>
-                                        {file ? file.name : 'Click to select a file or drag and drop'}
-                                    </Text>
-                                    <Text size='xs' color='dimmed'>
-                                        CSV or JSON files only
+                                    <FileUp size={28} />
+                                    <Text weight={600} size='sm'>Excel / CSV / JSON</Text>
+                                    <Text size='xs' color='dimmed' style={{textAlign: 'center', maxWidth: 380}}>
+                                        <strong>.xlsx</strong> — standard dashboard template (one row per AMR gene, samples grouped automatically)<br/>
+                                        <strong>.json</strong> — <code>samples.json</code> array, or <code>all_tables_combined.json</code> with samples, isolates, phenotypes &amp; AMR findings<br/>
+                                        <strong>.csv</strong> — same flat structure as JSON
                                     </Text>
                                 </label>
                             </div>
