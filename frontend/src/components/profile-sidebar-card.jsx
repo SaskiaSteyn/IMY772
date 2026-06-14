@@ -161,7 +161,7 @@ export default function ProfileSidebarCard({
                         />
                     ) : (
                         <Group gap={8}>
-                            {interestItems.map((interest) => (
+                            {interestItems.length > 0 ? interestItems.map((interest) => (
                                 <Badge
                                     key={interest}
                                     radius='sm'
@@ -171,7 +171,9 @@ export default function ProfileSidebarCard({
                                 >
                                     {interest}
                                 </Badge>
-                            ))}
+                            )) : (
+                                <Text size='sm' c='dimmed'>No interests yet, edit your profile to add some</Text>
+                            )}
                         </Group>
                     )}
                 </Box>
