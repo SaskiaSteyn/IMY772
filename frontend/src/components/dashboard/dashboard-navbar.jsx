@@ -118,18 +118,29 @@ export default function DashboardNavbar() {
             <div className='sidebar-header'>
                 <div className='logo-section'>
                     {sidebarOpen ? (
-                        <>
-                            <img
-                                src='/microtrack-logo.png'
-                                alt='MicroTrack'
-                                height='28px'
-                            />
-                        </>
+                        <img
+                            src='/microtrack-logo.png'
+                            alt='MicroTrack'
+                            height='28px'
+                        />
                     ) : (
                         <img src='/icon.svg' alt='MicroTrack' height='28px' />
                     )}
                 </div>
             </div>
+
+            {/* Floating edge toggle */}
+            <button
+                className={`sidebar-edge-toggle${sidebarOpen ? '' : ' sidebar-edge-toggle--collapsed'}`}
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+            >
+                {sidebarOpen ? (
+                    <ChevronLeft size={20} />
+                ) : (
+                    <ChevronRight size={20} />
+                )}
+            </button>
 
             {/* Navigation Menu Items */}
             <nav className='sidebar-nav'>
@@ -168,24 +179,6 @@ export default function DashboardNavbar() {
 
             {/* Spacer to push profile section to bottom */}
             <div className='sidebar-spacer' />
-
-            {/* Toggle Button */}
-            <button
-                className='nav-item toggle-button'
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                title={sidebarOpen ? 'Collapse' : 'Expand'}
-            >
-                {sidebarOpen ? (
-                    <ChevronLeft size={20} />
-                ) : (
-                    <ChevronRight size={20} />
-                )}
-                {sidebarOpen && (
-                    <span className='nav-label'>
-                        {sidebarOpen ? 'Collapse' : 'Expand'}
-                    </span>
-                )}
-            </button>
 
             {/* Login Section for Unauthenticated Users */}
             {!isAuthenticated && (
@@ -244,7 +237,7 @@ export default function DashboardNavbar() {
                     {sidebarOpen ? (
                         <Button
                             variant='outline'
-                            size='xs'
+                            size='sm'
                             fullWidth
                             onClick={handleLogout}
                             mt='sm'

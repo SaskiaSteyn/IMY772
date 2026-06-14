@@ -14,7 +14,7 @@ export default function TDSChart({ samples }) {
     return (
         <div>
             <Title order={4} style={{ marginBottom: '16px' }}>
-                TDS (Total Dissolved Solids) Over Time
+                TDS (total dissolved solids) over time
             </Title>
             <ResponsiveContainer width='100%' height={250}>
                 <AreaChart data={samples}>

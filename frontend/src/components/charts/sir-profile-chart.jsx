@@ -37,7 +37,7 @@ export default function SIRProfileChart({ samples }) {
     return (
         <div>
             <Title order={4} style={{ marginBottom: '16px' }}>
-                SIR Profile Distribution
+                SIR profile distribution
             </Title>
             <ResponsiveContainer width='100%' height={250}>
                 <PieChart>

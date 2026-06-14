@@ -60,6 +60,36 @@
         justify-content: center;
     }
 
+    .sidebar-edge-toggle {
+        position: absolute;
+        bottom: 120px;
+        top: auto;
+        right: -14px;
+
+        &--collapsed {
+            right: 50%;
+            transform: translateX(50%);
+        }
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border: none;
+        background: #fff;
+        border: 1px solid var(--mantine-color-themeColors-6);
+        color: var(--mantine-color-themeColors-6);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+        transition: background 0.2s ease, color 0.2s ease;
+        z-index: 101;
+
+        &:hover {
+            background: var(--mantine-color-themeColors-0);
+        }
+    }
+
     .sidebar-nav {
         flex: 0;
         padding: 0;

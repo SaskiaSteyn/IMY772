@@ -61,7 +61,6 @@ export default function Statistics() {
         <Stack gap='md'>
             <div className='admin-section'>
                 <Stack gap='sm'>
-                    <Title order={2}>Statistics</Title>
                     {error && (
                         <Alert color='red' variant='light'>
                             {error}
@@ -94,7 +93,7 @@ export default function Statistics() {
 
             <div className='admin-table-shell'>
                 <Stack gap='sm'>
-                    <Title order={3}>Recent Deletions</Title>
+                    <Title order={3}>Recent deletions</Title>
                     {recentDeletions.length === 0 ? (
                         <Text c='dimmed'>No delete activity recorded yet.</Text>
                     ) : (

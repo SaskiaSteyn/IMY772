@@ -374,11 +374,10 @@ export default function WaterData() {
         <>
             <div className='admin-section'>
                 <Stack gap='sm'>
-                    <Group justify='space-between' align='center' wrap='wrap'>
-                        <Title order={2}>Water Data</Title>
+                    <Group justify='flex-end' align='center' wrap='wrap'>
                         <TextInput
                             leftSection={<Search size={16} />}
-                            placeholder='Search by location or coordinates'
+                            placeholder='Search'
                             value={searchQuery}
                             onChange={(event) =>
                                 setSearchQuery(event.currentTarget.value)

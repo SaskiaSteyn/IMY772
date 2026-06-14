@@ -8,7 +8,7 @@ export default function ProfileBioCard({ bio, isEditing, draftBio, onUpdateBio }
         <Textarea minRows={4} value={draftBio} onChange={(e) => onUpdateBio(e.currentTarget.value)} />
       ) : (
         <Text size="sm" c="dimmed" className="profile-line-entry__description">
-          {bio}
+          {bio || 'No bio added yet. Click edit to tell others about yourself.'}
         </Text>
       )}
     </ProfileSectionCard>
