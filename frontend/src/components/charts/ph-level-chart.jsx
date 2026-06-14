@@ -14,7 +14,7 @@ export default function PHLevelChart({ samples }) {
     return (
         <div>
             <Title order={4} style={{ marginBottom: '16px' }}>
-                pH Level Over Time
+                pH level over time
             </Title>
             <ResponsiveContainer width='100%' height={250}>
                 <LineChart data={samples}>

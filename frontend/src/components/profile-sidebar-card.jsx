@@ -1,8 +1,8 @@
 import {
+    ActionIcon,
     Avatar,
     Badge,
     Box,
-    Button,
     Card,
     FileInput,
     Group,
@@ -12,6 +12,7 @@ import {
     TextInput,
     Title,
 } from '@mantine/core';
+import {Pencil, Trash2} from 'lucide-react';
 
 const AVATAR_COLORS = [
     '#f06418',
@@ -48,16 +49,49 @@ export default function ProfileSidebarCard({
         <Card radius='md' withBorder padding='md' className='profile-card'>
             <Stack gap='lg' align='stretch'>
                 <Stack align='center' gap='md' pt='xs'>
-                    <Avatar
-                        src={avatarSrc || undefined}
-                        name={!avatarSrc ? avatarName : undefined}
-                        radius='999px'
-                        size={164}
-                        className='profile-avatar'
-                        alt='User avatar'
-                        color={!avatarSrc ? 'initials' : undefined}
-                        allowedInitialsColors={AVATAR_COLORS}
-                    />
+                    <Box style={{position: 'relative', display: 'inline-block'}}>
+                        <Avatar
+                            src={avatarSrc || undefined}
+                            name={!avatarSrc ? avatarName : undefined}
+                            radius='999px'
+                            size={164}
+                            className='profile-avatar'
+                            alt='User avatar'
+                            color={!avatarSrc ? 'initials' : undefined}
+                            allowedInitialsColors={AVATAR_COLORS}
+                        />
+                        {isEditing && (
+                            <Group
+                                gap={6}
+                                style={{
+                                    position: 'absolute',
+                                    bottom: 4,
+                                    right: 0,
+                                    left: 0,
+                                    justifyContent: 'center',
+                                }}
+                            >
+                                <ActionIcon
+                                    size='sm'
+                                    variant='subtle'
+                                    title='Change profile image'
+                                    onClick={() => document.getElementById('profile-image-input')?.click()}
+                                >
+                                    <Pencil size={14} />
+                                </ActionIcon>
+                                <ActionIcon
+                                    size='sm'
+                                    variant='subtle'
+                                    color='red'
+                                    title='Remove profile image'
+                                    disabled={!canRemoveProfileImage}
+                                    onClick={onRemoveProfileImage}
+                                >
+                                    <Trash2 size={14} />
+                                </ActionIcon>
+                            </Group>
+                        )}
+                    </Box>
 
                     {isEditing ? (
                         <Stack gap='sm' w='100%' mt={2}>
@@ -96,30 +130,16 @@ export default function ProfileSidebarCard({
                             />
                             <FileInput
                                 key={profileImageInputKey}
-                                label='Profile Image'
+                                id='profile-image-input'
+                                label='Profile image'
                                 placeholder='Upload a JPEG or PNG'
                                 accept='image/jpeg,image/png'
                                 onChange={onSelectProfileImage}
                             />
-                            <Group
-                                justify='space-between'
-                                align='center'
-                                gap='xs'
-                            >
-                                <Text size='xs' c='dimmed'>
-                                    JPEG/PNG up to 2MB. Image is resized
-                                    automatically.
-                                </Text>
-                                <Button
-                                    size='xs'
-                                    variant='subtle'
-                                    color='red'
-                                    onClick={onRemoveProfileImage}
-                                    disabled={!canRemoveProfileImage}
-                                >
-                                    Remove image
-                                </Button>
-                            </Group>
+                            <Text size='xs' c='dimmed'>
+                                JPEG/PNG up to 2MB. Image is resized
+                                automatically.
+                            </Text>
                             {isProfileImageMarkedForRemoval ? (
                                 <Text size='xs' c='dimmed'>
                                     Profile image will be removed when you save
@@ -206,7 +226,7 @@ export default function ProfileSidebarCard({
 
                 <Box>
                     <Text fw={800} size='md' c='dimmed' mb='md'>
-                        Environmental Impact
+                        Environmental impact
                     </Text>
                     <Stack gap={5}>
                         {impactMetrics.map((item) => (

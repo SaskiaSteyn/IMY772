@@ -14,7 +14,7 @@ export default function WaterTemperatureChart({ samples }) {
     return (
         <div>
             <Title order={4} style={{ marginBottom: '16px' }}>
-                Water Temperature Over Time
+                Water temperature over time
             </Title>
             <ResponsiveContainer width='100%' height={250}>
                 <BarChart data={samples}>

@@ -40,7 +40,7 @@ export default function BulkPreviewModal({opened, onClose, samples}) {
     // Excel template summary view
     if (currentSample._xlsxSummary) {
         return (
-            <Modal opened={opened} onClose={onClose} size='md' centered radius='md' title='Data Preview'>
+            <Modal opened={opened} onClose={onClose} size='md' centered radius='md' title='Data preview'>
                 <Stack gap='md'>
                     <Paper withBorder p='md' radius='md'>
                         <Text fw={600} mb='xs'>Excel Template File</Text>
@@ -132,7 +132,7 @@ export default function BulkPreviewModal({opened, onClose, samples}) {
             radius="md"
             title={
                 <Group justify="space-between" style={{width: '100%'}}>
-                    <Title order={3}>Data Preview</Title>
+                    <Title order={3}>Data preview</Title>
                     <Text size="sm" c="dimmed">
                         {currentIndex + 1} of {samples.length}
                     </Text>
