@@ -6,6 +6,7 @@ import multer from 'multer'
 import { OAuth2Client } from 'google-auth-library'
 import sharp from 'sharp'
 import prisma from '../lib/prisma.js'
+import { putObject, getPresignedUrl, deleteObject } from '../lib/s3.js'
 
 const router = Router()
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
@@ -25,7 +26,7 @@ const publicUserSelect = {
 
 const meUserSelect = {
     ...publicUserSelect,
-    profile_image_data: true,
+    profile_image_key: true,
     profile_image_mime_type: true,
 }
 
@@ -44,7 +45,7 @@ const profileUserSelect = {
 
 const profileUserSelectWithImage = {
     ...profileUserSelect,
-    profile_image_data: true,
+    profile_image_key: true,
     profile_image_mime_type: true,
     profile_image_size_bytes: true,
     profile_image_updated_at: true,
@@ -130,8 +131,8 @@ function toPublicUser(user) {
     }
 }
 
-function toAuthenticatedUser(user) {
-    const profileImage = getProfileImageDataUrl(user)
+async function toAuthenticatedUser(user) {
+    const profileImage = await getProfileImageUrl(user)
 
     return {
         ...toPublicUser(user),
@@ -140,18 +141,24 @@ function toAuthenticatedUser(user) {
     }
 }
 
-function getProfileImageDataUrl(user) {
-    if (!user?.profile_image_data || !user?.profile_image_mime_type) {
+// Profile images live in S3 (private bucket). We hand the browser a short-lived
+// presigned GET URL rather than embedding the bytes as a data URL.
+async function getProfileImageUrl(user) {
+    if (!user?.profile_image_key) {
         return null
     }
 
-    const base64Image = Buffer.from(user.profile_image_data).toString('base64')
-    return `data:${user.profile_image_mime_type};base64,${base64Image}`
+    try {
+        return await getPresignedUrl(user.profile_image_key)
+    } catch (err) {
+        console.error('Failed to generate profile image URL:', err)
+        return null
+    }
 }
 
-function buildProfilePayload(user, options = {}) {
+async function buildProfilePayload(user, options = {}) {
     const { includeEmail = true, includeUserId = false } = options
-    const profileImage = getProfileImageDataUrl(user)
+    const profileImage = await getProfileImageUrl(user)
 
     const payload = {
         ...(includeUserId ? { userID: user.userID } : {}),
@@ -411,7 +418,7 @@ router.get('/me', async (req, res) => {
             return res.json({ user: null })
         }
 
-        return res.json({ user: toAuthenticatedUser(user) })
+        return res.json({ user: await toAuthenticatedUser(user) })
     } catch (err) {
         return res.json({ user: null })
     }
@@ -449,7 +456,7 @@ router.get('/profile', async (req, res) => {
         }
 
         return res.json({
-            profile: buildProfilePayload(user),
+            profile: await buildProfilePayload(user),
         })
     } catch (err) {
         console.error('Get profile error:', err)
@@ -550,7 +557,7 @@ router.put('/profile', async (req, res) => {
 
         return res.json({
             user: toPublicUser(updated),
-            profile: buildProfilePayload(updated),
+            profile: await buildProfilePayload(updated),
         })
     } catch (err) {
         console.error('Update profile error:', err)
@@ -595,7 +602,7 @@ router.get('/users/:id/profile', async (req, res) => {
         }
 
         return res.json({
-            profile: buildProfilePayload(user, {
+            profile: await buildProfilePayload(user, {
                 includeEmail: false,
                 includeUserId: true,
             }),
@@ -621,10 +628,15 @@ router.put('/profile-image', handleProfileImageUpload, async (req, res) => {
     try {
         const processedImage = await processProfileImageUpload(req.file)
 
+        // One deterministic key per user — re-uploads overwrite, leaving no
+        // orphaned objects. The mime type is recorded on the object and in the DB.
+        const key = `profile-images/${userID}`
+        await putObject(key, processedImage.data, processedImage.mimeType)
+
         const updated = await prisma.user.update({
             where: { userID },
             data: {
-                profile_image_data: processedImage.data,
+                profile_image_key: key,
                 profile_image_mime_type: processedImage.mimeType,
                 profile_image_size_bytes: processedImage.sizeBytes,
                 profile_image_updated_at: new Date(),
@@ -634,7 +646,7 @@ router.put('/profile-image', handleProfileImageUpload, async (req, res) => {
 
         return res.json({
             message: 'Profile image updated',
-            profile: buildProfilePayload(updated),
+            profile: await buildProfilePayload(updated),
         })
     } catch (error) {
         if (error.code === 'P2022') {
@@ -668,7 +680,7 @@ router.delete('/profile-image', async (req, res) => {
         const updated = await prisma.user.update({
             where: { userID },
             data: {
-                profile_image_data: null,
+                profile_image_key: null,
                 profile_image_mime_type: null,
                 profile_image_size_bytes: null,
                 profile_image_updated_at: null,
@@ -676,9 +688,17 @@ router.delete('/profile-image', async (req, res) => {
             select: profileUserSelectWithImage,
         })
 
+        // The key is deterministic (profile-images/{userID}), so we can delete it
+        // directly without a lookup. Tolerate failures (object may not exist).
+        try {
+            await deleteObject(`profile-images/${userID}`)
+        } catch (err) {
+            console.error('Failed to delete profile image from S3:', err)
+        }
+
         return res.json({
             message: 'Profile image removed',
-            profile: buildProfilePayload(updated),
+            profile: await buildProfilePayload(updated),
         })
     } catch (error) {
         if (error.code === 'P2022') {

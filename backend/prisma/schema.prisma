@@ -20,7 +20,7 @@ model User {
   interests     Json?
   education     Json?
   experience    Json?
-  profile_image_data       Bytes?
+  profile_image_key        String?  @db.VarChar(255)
   profile_image_mime_type  String?  @db.VarChar(50)
   profile_image_size_bytes Int?
   profile_image_updated_at DateTime?

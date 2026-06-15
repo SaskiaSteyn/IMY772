@@ -1,82 +1,114 @@
-import { existsSync } from 'fs'
-import path from 'path'
-import { fileURLToPath } from 'url'
 import sharp from 'sharp'
-import { createWorker } from 'tesseract.js'
+import {
+    TextractClient,
+    DetectDocumentTextCommand,
+} from '@aws-sdk/client-textract'
 import { extractAllFromWords, extractSampleRows } from './sample-field-parser.js'
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 //
-// Tesseract.js downloads the (free, Apache-2.0) English language model on first
-// use and caches it locally, so subsequent runs are fully offline. Point
-// OCR_LANG_PATH at a directory containing a vendored `eng.traineddata(.gz)` to
-// guarantee offline operation from the very first request.
+// OCR is performed by Amazon Textract (serverless, managed). Credentials are
+// resolved by the AWS SDK's default provider chain — in production the EC2
+// instance role (microtrack-ec2-role, AmazonTextractFullAccess) supplies them
+// automatically, so no keys live in code. The image buffer is sent to Textract
+// in-memory and never persisted, preserving the original privacy guarantee.
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const CACHE_DIR = path.resolve(__dirname, '../.tesseract-cache')
-const LANG_PATH = process.env.OCR_LANG_PATH || null
+const REGION = process.env.AWS_REGION || 'us-east-1'
+
+let textractClient = null
+
+function getTextractClient() {
+    if (!textractClient) {
+        textractClient = new TextractClient({ region: REGION })
+    }
+    return textractClient
+}
 
 // ─── Image pre-processing (Sharp) ────────────────────────────────────────────
 //
-// Mirrors the Sharp usage in routes/auth.routes.js (processProfileImageUpload).
-// Greyscale + contrast normalisation + light sharpening, upscaling small images,
-// markedly improves OCR accuracy. Output is lossless PNG fed to Tesseract.
+// Fix EXIF orientation and upscale small images. We also need the pixel
+// dimensions of the buffer we send to Textract so we can de-normalise its
+// bounding boxes (Textract returns coordinates as fractions of the page).
 
 async function preprocessImage(buffer) {
     const image = sharp(buffer, { failOn: 'error' }).rotate()
     const metadata = await image.metadata()
 
-    let pipeline = image.greyscale().normalise()
-
+    let pipeline = image
     const targetWidth = 1600
     if (metadata.width && metadata.width < targetWidth) {
         pipeline = pipeline.resize({ width: targetWidth })
     }
 
-    return pipeline.sharpen().png().toBuffer()
-}
-
-// ─── Tesseract worker (lazy singleton) ───────────────────────────────────────
-
-let workerPromise = null
-
-function getWorker() {
-    if (!workerPromise) {
-        const options = { cachePath: CACHE_DIR, gzip: true, logger: () => {} }
-        if (LANG_PATH && existsSync(LANG_PATH)) options.langPath = LANG_PATH
-        workerPromise = createWorker('eng', 1, options)
+    const processed = await pipeline.png().toBuffer()
+    const processedMeta = await sharp(processed).metadata()
+    return {
+        buffer: processed,
+        width: processedMeta.width || metadata.width || 1,
+        height: processedMeta.height || metadata.height || 1,
     }
-    return workerPromise
 }
 
-/** Flattens Tesseract's block/paragraph/line hierarchy into a flat word list. */
-function collectWords(data) {
-    if (Array.isArray(data.words) && data.words.length) return data.words
-    const words = []
-    for (const block of data.blocks || []) {
-        for (const para of block.paragraphs || []) {
-            for (const line of para.lines || []) {
-                for (const word of line.words || []) words.push(word)
+// ─── Textract → parser word mapping ──────────────────────────────────────────
+//
+// The geometry-based parser (sample-field-parser.js) expects words shaped as
+// { text, confidence, bbox: {x0,y0,x1,y1} } in pixel coordinates. Textract WORD
+// blocks carry a normalised BoundingBox {Left,Top,Width,Height} (0..1) and a
+// 0..100 Confidence — the same confidence scale Tesseract used. We scale the
+// normalised box back to pixels so the parser's cross-axis heuristics (x-gap vs
+// word height) stay valid for non-square images.
+
+function textractWordsToParserWords(blocks, width, height) {
+    return (blocks || [])
+        .filter((b) => b.BlockType === 'WORD' && b.Geometry?.BoundingBox)
+        .map((b) => {
+            const bb = b.Geometry.BoundingBox
+            const x0 = bb.Left * width
+            const y0 = bb.Top * height
+            return {
+                text: b.Text || '',
+                confidence: b.Confidence ?? 0,
+                bbox: {
+                    x0,
+                    y0,
+                    x1: x0 + bb.Width * width,
+                    y1: y0 + bb.Height * height,
+                },
             }
-        }
+        })
+}
+
+/** Joins Textract LINE blocks into the plain-text dump the callers expose as rawText. */
+function rawTextFromBlocks(blocks) {
+    return (blocks || [])
+        .filter((b) => b.BlockType === 'LINE')
+        .map((b) => b.Text || '')
+        .join('\n')
+}
+
+/** Pre-processes the image, runs Textract OCR, and returns parser words + blocks. */
+async function detectWords(buffer) {
+    const { buffer: processed, width, height } = await preprocessImage(buffer)
+    const { Blocks } = await getTextractClient().send(
+        new DetectDocumentTextCommand({ Document: { Bytes: processed } }),
+    )
+    return {
+        words: textractWordsToParserWords(Blocks, width, height),
+        blocks: Blocks,
     }
-    return words
 }
 
 /**
- * Full pipeline: pre-process the image, OCR it, and extract Sample fields plus
- * analysis-detail records (Metagenomic / WGS) and gene lists. The image buffer
- * is never persisted — only the extracted data is returned.
+ * Full pipeline: OCR the image and extract Sample fields plus analysis-detail
+ * records (Metagenomic / WGS) and gene lists. The image buffer is never
+ * persisted — only the extracted data is returned.
  * @returns {Promise<{fields: object, confidence: object, metagenomic: object[],
  *   wgs: object[], amrGenes: string[], virulenceGenes: string[], rawText: string}>}
  */
 export async function extractSampleFromImageBuffer(buffer) {
-    const processed = await preprocessImage(buffer)
-    const worker = await getWorker()
-    const { data } = await worker.recognize(processed, {}, { blocks: true })
-    const words = collectWords(data)
+    const { words, blocks } = await detectWords(buffer)
     const extracted = extractAllFromWords(words)
-    return { ...extracted, rawText: data.text || '' }
+    return { ...extracted, rawText: rawTextFromBlocks(blocks) }
 }
 
 /**
@@ -85,18 +117,12 @@ export async function extractSampleFromImageBuffer(buffer) {
  * @returns {Promise<{samples: object[], rawText: string}>}
  */
 export async function extractSamplesFromImageBuffer(buffer) {
-    const processed = await preprocessImage(buffer)
-    const worker = await getWorker()
-    const { data } = await worker.recognize(processed, {}, { blocks: true })
-    const words = collectWords(data)
-    return { samples: extractSampleRows(words), rawText: data.text || '' }
+    const { words, blocks } = await detectWords(buffer)
+    return { samples: extractSampleRows(words), rawText: rawTextFromBlocks(blocks) }
 }
 
-/** Terminates the shared worker (used in tests for clean teardown). */
-export async function terminateWorker() {
-    if (workerPromise) {
-        const worker = await workerPromise
-        await worker.terminate()
-        workerPromise = null
-    }
-}
+/**
+ * No-op retained for API compatibility with the previous Tesseract worker
+ * (tests called this for teardown). Textract is stateless — nothing to release.
+ */
+export async function terminateWorker() {}
