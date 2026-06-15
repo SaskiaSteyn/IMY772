@@ -1,0 +1,10 @@
+{
+    "name": "microtrack-image-processor",
+    "version": "1.0.0",
+    "description": "S3-triggered Lambda that generates profile-image thumbnails",
+    "main": "index.js",
+    "private": true,
+    "dependencies": {
+        "jimp": "^0.22.12"
+    }
+}
