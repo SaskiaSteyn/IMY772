@@ -50,15 +50,10 @@ export default defineConfig({
               expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
             },
           },
-          {
-            urlPattern: /\/api\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'api-cache',
-              expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 },
-              networkTimeoutSeconds: 10,
-            },
-          },
+          // NOTE: /api/* is intentionally NOT cached by the service worker.
+          // It is live dashboard data; caching it (previously NetworkFirst, 24h)
+          // served stale data and, on any blip, surfaced a false "server is
+          // waking up" state. API requests now always go straight to the network.
         ],
       },
     }),
