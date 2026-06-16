@@ -1,10 +1,18 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import istanbul from 'vite-plugin-istanbul'
 
 export default defineConfig({
   plugins: [
     react(),
+    istanbul({
+      include: 'src/**',
+      exclude: ['node_modules', 'cypress/'],
+      extension: ['.js', '.jsx'],
+      requireEnv: true,          // only instrument when CYPRESS_COVERAGE=true
+      forceBuildInstrument: false,
+    }),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'icon.svg', 'microtrack-logo.png'],
