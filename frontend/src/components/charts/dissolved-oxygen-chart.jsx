@@ -14,7 +14,7 @@ export default function DissolvedOxygenChart({ samples }) {
     return (
         <div>
             <Title order={4} style={{ marginBottom: '16px' }}>
-                Dissolved Oxygen Over Time
+                Dissolved oxygen over time
             </Title>
             <ResponsiveContainer width='100%' height={250}>
                 <LineChart data={samples}>

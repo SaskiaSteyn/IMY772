@@ -17,9 +17,16 @@ router.post(
             .trim(),
         body('analysis_type').optional().trim().isString(),
         body('gene_symbol').optional().trim().isString(),
-        body('drug_class').optional().trim().isString(),
+        body('amr_class').optional().trim().isString(),
         body('method').optional().trim().isString(),
         body('percent_identity').optional({nullable: true}).isNumeric(),
+        body('sequence_name').optional().trim().isString(),
+        body('element_type').optional().trim().isString(),
+        body('subclass').optional().trim().isString(),
+        body('target_length').optional({nullable: true}).isInt(),
+        body('reference_sequence_length').optional({nullable: true}).isInt(),
+        body('percentage_coverage').optional({nullable: true}).isNumeric(),
+        body('accession_of_closest_sequence').optional().trim().isString(),
     ],
     async (req, res) => {
         const errors = validationResult(req)
@@ -27,7 +34,21 @@ router.post(
             return res.status(400).json({errors: errors.array()})
         }
 
-        const {sample_id, analysis_type, gene_symbol, drug_class, method, percent_identity} = req.body
+        const {
+            sample_id,
+            analysis_type,
+            gene_symbol,
+            amr_class,
+            method,
+            percent_identity,
+            sequence_name,
+            element_type,
+            subclass,
+            target_length,
+            reference_sequence_length,
+            percentage_coverage,
+            accession_of_closest_sequence,
+        } = req.body
 
         try {
             const sample = await prisma.sample.findUnique({where: {sample_id}})
@@ -40,9 +61,16 @@ router.post(
                     sample_id,
                     analysis_type,
                     gene_symbol,
-                    drug_class,
+                    amr_class,
                     method,
                     percent_identity: percent_identity ? parseFloat(percent_identity) : null,
+                    sequence_name,
+                    element_type,
+                    subclass,
+                    target_length: target_length !== undefined && target_length !== null ? parseInt(target_length) : null,
+                    reference_sequence_length: reference_sequence_length !== undefined && reference_sequence_length !== null ? parseInt(reference_sequence_length) : null,
+                    percentage_coverage: percentage_coverage ? parseFloat(percentage_coverage) : null,
+                    accession_of_closest_sequence,
                 },
             })
             return res.status(201).json({amrFinding})
@@ -114,7 +142,7 @@ router.get(
         const {amr_id} = req.params
         try {
             const amrFinding = await prisma.amrFinding.findUnique({
-                where: {amr_id: parseInt(amr_id)},
+                where: {finding_id: parseInt(amr_id)},
                 include: {sample: true},
             })
             if (!amrFinding) {
@@ -138,9 +166,16 @@ router.put(
             .withMessage('AMR ID must be an integer'),
         body('analysis_type').optional().trim().isString(),
         body('gene_symbol').optional().trim().isString(),
-        body('drug_class').optional().trim().isString(),
+        body('amr_class').optional().trim().isString(),
         body('method').optional().trim().isString(),
         body('percent_identity').optional({nullable: true}).isNumeric(),
+        body('sequence_name').optional().trim().isString(),
+        body('element_type').optional().trim().isString(),
+        body('subclass').optional().trim().isString(),
+        body('target_length').optional({nullable: true}).isInt(),
+        body('reference_sequence_length').optional({nullable: true}).isInt(),
+        body('percentage_coverage').optional({nullable: true}).isNumeric(),
+        body('accession_of_closest_sequence').optional().trim().isString(),
     ],
     async (req, res) => {
         const errors = validationResult(req)
@@ -152,13 +187,20 @@ router.put(
         const updateData = {}
         if (req.body.analysis_type !== undefined) updateData.analysis_type = req.body.analysis_type
         if (req.body.gene_symbol !== undefined) updateData.gene_symbol = req.body.gene_symbol
-        if (req.body.drug_class !== undefined) updateData.drug_class = req.body.drug_class
+        if (req.body.amr_class !== undefined) updateData.amr_class = req.body.amr_class
         if (req.body.method !== undefined) updateData.method = req.body.method
         if (req.body.percent_identity !== undefined) updateData.percent_identity = parseFloat(req.body.percent_identity)
+        if (req.body.sequence_name !== undefined) updateData.sequence_name = req.body.sequence_name
+        if (req.body.element_type !== undefined) updateData.element_type = req.body.element_type
+        if (req.body.subclass !== undefined) updateData.subclass = req.body.subclass
+        if (req.body.target_length !== undefined) updateData.target_length = req.body.target_length !== null ? parseInt(req.body.target_length) : null
+        if (req.body.reference_sequence_length !== undefined) updateData.reference_sequence_length = req.body.reference_sequence_length !== null ? parseInt(req.body.reference_sequence_length) : null
+        if (req.body.percentage_coverage !== undefined) updateData.percentage_coverage = parseFloat(req.body.percentage_coverage)
+        if (req.body.accession_of_closest_sequence !== undefined) updateData.accession_of_closest_sequence = req.body.accession_of_closest_sequence
 
         try {
             const amrFinding = await prisma.amrFinding.update({
-                where: {amr_id: parseInt(amr_id)},
+                where: {finding_id: parseInt(amr_id)},
                 data: updateData,
             })
             return res.json({amrFinding})
@@ -189,7 +231,7 @@ router.delete(
 
         const {amr_id} = req.params
         try {
-            await prisma.amrFinding.delete({where: {amr_id: parseInt(amr_id)}})
+            await prisma.amrFinding.delete({where: {finding_id: parseInt(amr_id)}})
             return res.json({message: 'AMR finding deleted successfully'})
         } catch (err) {
             if (err.code === 'P2025') {

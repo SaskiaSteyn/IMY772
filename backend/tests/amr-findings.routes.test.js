@@ -57,7 +57,7 @@ const amrFixture = {
     sample_id: 'sample-1',
     analysis_type: 'WGS',
     gene_symbol: 'blaCTX-M',
-    drug_class: 'Cephalosporin',
+    amr_class: 'Cephalosporin',
     method: 'ResFinder',
     percent_identity: 98.5,
 }
@@ -94,6 +94,18 @@ describe('POST /api/amr-findings', () => {
 
         expect(res.status).toBe(201)
         expect(res.body.amrFinding).toEqual(amrFixture)
+    })
+
+    test('returns 400 on P2003 foreign key error', async () => {
+        mockPrismaSample.findUnique.mockResolvedValue(sampleFixture)
+        const err = new Error('fk')
+        err.code = 'P2003'
+        mockPrismaAmrFinding.create.mockRejectedValue(err)
+        const res = await api()
+            .post('/api/amr-findings')
+            .set('Cookie', authCookie())
+            .send({ sample_id: 'sample-1', gene_symbol: 'bla' })
+        expect(res.status).toBe(400)
     })
 
     test('returns 500 on error', async () => {
@@ -182,6 +194,14 @@ describe('PUT /api/amr-findings/:amr_id', () => {
         expect(res.status).toBe(401)
     })
 
+    test('returns 400 when amr_id is not an integer', async () => {
+        const res = await api()
+            .put('/api/amr-findings/abc')
+            .set('Cookie', authCookie())
+            .send({ gene_symbol: 'bla' })
+        expect(res.status).toBe(400)
+    })
+
     test('updates analysis_type', async () => {
         const updated = { ...amrFixture, analysis_type: 'MLST' }
         mockPrismaAmrFinding.update.mockResolvedValue(updated)
@@ -193,7 +213,7 @@ describe('PUT /api/amr-findings/:amr_id', () => {
 
         expect(res.status).toBe(200)
         expect(mockPrismaAmrFinding.update).toHaveBeenCalledWith({
-            where: { amr_id: 1 },
+            where: { finding_id: 1 },
             data: { analysis_type: 'MLST' },
         })
     })
@@ -209,24 +229,24 @@ describe('PUT /api/amr-findings/:amr_id', () => {
 
         expect(res.status).toBe(200)
         expect(mockPrismaAmrFinding.update).toHaveBeenCalledWith({
-            where: { amr_id: 1 },
+            where: { finding_id: 1 },
             data: { gene_symbol: 'blaOXA' },
         })
     })
 
-    test('updates drug_class', async () => {
-        const updated = { ...amrFixture, drug_class: 'Fluoroquinolone' }
+    test('updates amr_class', async () => {
+        const updated = { ...amrFixture, amr_class: 'Fluoroquinolone' }
         mockPrismaAmrFinding.update.mockResolvedValue(updated)
 
         const res = await api()
             .put('/api/amr-findings/1')
             .set('Cookie', authCookie())
-            .send({ drug_class: 'Fluoroquinolone' })
+            .send({ amr_class: 'Fluoroquinolone' })
 
         expect(res.status).toBe(200)
         expect(mockPrismaAmrFinding.update).toHaveBeenCalledWith({
-            where: { amr_id: 1 },
-            data: { drug_class: 'Fluoroquinolone' },
+            where: { finding_id: 1 },
+            data: { amr_class: 'Fluoroquinolone' },
         })
     })
 
@@ -241,12 +261,12 @@ describe('PUT /api/amr-findings/:amr_id', () => {
 
         expect(res.status).toBe(200)
         expect(mockPrismaAmrFinding.update).toHaveBeenCalledWith({
-            where: { amr_id: 1 },
+            where: { finding_id: 1 },
             data: { method: 'BLAST' },
         })
     })
 
-    test('updates percent_identity (last field)', async () => {
+    test('updates percent_identity', async () => {
         const updated = { ...amrFixture, percent_identity: 99.0 }
         mockPrismaAmrFinding.update.mockResolvedValue(updated)
 
@@ -258,7 +278,7 @@ describe('PUT /api/amr-findings/:amr_id', () => {
         expect(res.status).toBe(200)
         expect(res.body.amrFinding.percent_identity).toBe(99.0)
         expect(mockPrismaAmrFinding.update).toHaveBeenCalledWith({
-            where: { amr_id: 1 },
+            where: { finding_id: 1 },
             data: { percent_identity: 99.0 },
         })
     })
@@ -290,6 +310,13 @@ describe('DELETE /api/amr-findings/:amr_id', () => {
     test('returns 401 without auth', async () => {
         const res = await api().delete('/api/amr-findings/1')
         expect(res.status).toBe(401)
+    })
+
+    test('returns 400 when amr_id is not an integer', async () => {
+        const res = await api()
+            .delete('/api/amr-findings/abc')
+            .set('Cookie', authCookie())
+        expect(res.status).toBe(400)
     })
 
     test('deletes successfully', async () => {

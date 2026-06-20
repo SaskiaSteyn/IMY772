@@ -6,12 +6,14 @@ import SamplesTable from '../../components/captured-data-components/samples-tabl
 import IsolatesTable from '../../components/captured-data-components/isolates-table';
 import PredictedPhenotypesTable from '../../components/captured-data-components/predicted-phenotypes-table';
 import AmrFindingsTable from '../../components/captured-data-components/amr-findings-table';
+import VirulenceGenesTable from '../../components/captured-data-components/virulence-genes-table';
 import AddDataModal from '../../components/captured-data-components/add-data-modal';
 import BulkUploadModal from '../../components/captured-data-components/bulk-upload-modal';
 import EditSampleModal from '../../components/captured-data-components/edit-sample-modal';
 import EditIsolateModal from '../../components/captured-data-components/edit-isolate-modal';
 import EditPhenotypeModal from '../../components/captured-data-components/edit-phenotype-modal';
 import EditAmrFindingModal from '../../components/captured-data-components/edit-amr-finding-modal';
+import EditVirulenceGenesModal from '../../components/captured-data-components/edit-virulence-genes-modal';
 import ExpandedDataModal from '../../components/captured-data-components/expanded-data-modal.jsx';
 import UpdateSampleSearchModal from '../../components/captured-data-components/update-sample-search-modal';
 import UpdateDataModal from '../../components/captured-data-components/update-data-modal';
@@ -20,11 +22,18 @@ import {
     fetchAllIsolates,
     fetchAllPredictedPhenotypes,
     fetchAllAmrFindings,
+    fetchAllVirulenceGenes,
     createSample,
     updateSample,
     updateIsolate,
     updatePredictedPhenotype,
     updateAmrFinding,
+    updateVirulenceGene,
+    deleteSample,
+    deleteIsolate,
+    deletePredictedPhenotype,
+    deleteAmrFinding,
+    deleteVirulenceGene,
 } from '../../api/sample-data-management.js';
 import {useAuth} from '../../context/auth-context.jsx';
 import './captured-data.scss';
@@ -38,6 +47,7 @@ const CapturedData = () => {
     const [isolates, setIsolates] = useState([]);
     const [phenotypes, setPhenotypes] = useState([]);
     const [amrFindings, setAmrFindings] = useState([]);
+    const [virulenceGenes, setVirulenceGenes] = useState([]);
     const [highlightedSampleIds, setHighlightedSampleIds] = useState(new Set());
     const [loading, setLoading] = useState(true);
 
@@ -54,6 +64,9 @@ const CapturedData = () => {
     const [editAmrFindingModalOpened, setEditAmrFindingModalOpened] = useState(false);
     const [amrFindingToEdit, setAmrFindingToEdit] = useState(null);
 
+    const [editVirulenceGeneModalOpened, setEditVirulenceGeneModalOpened] = useState(false);
+    const [virulenceGeneToEdit, setVirulenceGeneToEdit] = useState(null);
+
     // Expanded modal state
     const [expandedModalOpened, setExpandedModalOpened] = useState(false);
     const [expandedData, setExpandedData] = useState({
@@ -66,6 +79,9 @@ const CapturedData = () => {
     const [updateSearchOpened, setUpdateSearchOpened] = useState(false);
     const [selectedUpdateSampleId, setSelectedUpdateSampleId] = useState(null);
     const [updateDataOpened, setUpdateDataOpened] = useState(false);
+
+    // Single view search state
+    const [singleSearchQuery, setSingleSearchQuery] = useState('');
 
     // Dual view state
     const [viewMode, setViewMode] = useState('single'); // 'single' or 'dual'
@@ -100,7 +116,13 @@ const CapturedData = () => {
             {value: 'finding_id', label: 'Finding ID'},
             {value: 'sample_id', label: 'Sample ID'},
             {value: 'gene_symbol', label: 'Gene Symbol'},
-            {value: 'drug_class', label: 'Drug Class'},
+            {value: 'amr_class', label: 'AMR Class'},
+        ],
+        virulence: [
+            {value: 'virulence_gene_id', label: 'Gene ID'},
+            {value: 'sample_id', label: 'Sample ID'},
+            {value: 'gene_symbol', label: 'Gene Symbol'},
+            {value: 'element_type', label: 'Element Type'},
         ],
     };
 
@@ -118,16 +140,18 @@ const CapturedData = () => {
     // Load all data (with abort signal for cleanup)
     const loadAllData = async (signal) => {
         try {
-            const [samplesData, isolatesData, phenotypesData, amrFindingsData] = await Promise.all([
+            const [samplesData, isolatesData, phenotypesData, amrFindingsData, virulenceGenesData] = await Promise.all([
                 fetchAllSamples(signal),
                 fetchAllIsolates(signal),
                 fetchAllPredictedPhenotypes(signal),
                 fetchAllAmrFindings(signal),
+                fetchAllVirulenceGenes(signal),
             ]);
             setSamples(samplesData);
             setIsolates(isolatesData);
             setPhenotypes(phenotypesData);
             setAmrFindings(amrFindingsData);
+            setVirulenceGenes(virulenceGenesData);
         } catch (error) {
             if (error.name !== 'AbortError') {
                 console.error('Failed to fetch data:', error);
@@ -149,6 +173,7 @@ const CapturedData = () => {
             setIsolates([]);
             setPhenotypes([]);
             setAmrFindings([]);
+            setVirulenceGenes([]);
             setLoading(false);
         }
         return () => abortController.abort();
@@ -174,19 +199,22 @@ const CapturedData = () => {
     const filteredIsolates = isolates.filter((i) => userSampleIds.has(i.sample_id));
     const filteredPhenotypes = phenotypes.filter((p) => userSampleIds.has(p.sample_id));
     const filteredAmrFindings = amrFindings.filter((a) => userSampleIds.has(a.sample_id));
+    const filteredVirulenceGenes = virulenceGenes.filter((v) => userSampleIds.has(v.sample_id));
 
     const handleAddEntry = async (createdSample) => {
         try {
-            const [newSamples, newIsolates, newPhenotypes, newAmr] = await Promise.all([
+            const [newSamples, newIsolates, newPhenotypes, newAmr, newVirulenceGenes] = await Promise.all([
                 fetchAllSamples(),
                 fetchAllIsolates(),
                 fetchAllPredictedPhenotypes(),
                 fetchAllAmrFindings(),
+                fetchAllVirulenceGenes(),
             ]);
             setSamples(newSamples);
             setIsolates(newIsolates);
             setPhenotypes(newPhenotypes);
             setAmrFindings(newAmr);
+            setVirulenceGenes(newVirulenceGenes);
             if (createdSample?.sample_id) {
                 setHighlightedSampleIds(new Set([createdSample.sample_id]));
             }
@@ -199,16 +227,18 @@ const CapturedData = () => {
 
     const handleUploadSuccess = async (uploadedIds = []) => {
         try {
-            const [newSamples, newIsolates, newPhenotypes, newAmr] = await Promise.all([
+            const [newSamples, newIsolates, newPhenotypes, newAmr, newVirulenceGenes] = await Promise.all([
                 fetchAllSamples(),
                 fetchAllIsolates(),
                 fetchAllPredictedPhenotypes(),
                 fetchAllAmrFindings(),
+                fetchAllVirulenceGenes(),
             ]);
             setSamples(newSamples);
             setIsolates(newIsolates);
             setPhenotypes(newPhenotypes);
             setAmrFindings(newAmr);
+            setVirulenceGenes(newVirulenceGenes);
             if (uploadedIds.length > 0) {
                 setHighlightedSampleIds(new Set(uploadedIds));
             }
@@ -284,6 +314,22 @@ const CapturedData = () => {
         }
     };
 
+    const handleEditVirulenceGeneClick = (record) => {
+        setVirulenceGeneToEdit(record);
+        setEditVirulenceGeneModalOpened(true);
+    };
+
+    const handleEditVirulenceGeneSave = async (geneId, updateData) => {
+        try {
+            await updateVirulenceGene(geneId, updateData);
+            const data = await fetchAllVirulenceGenes();
+            setVirulenceGenes(data);
+            setEditVirulenceGeneModalOpened(false);
+        } catch (error) {
+            console.error('Error updating virulence gene:', error);
+        }
+    };
+
     const handleExpandClick = (record) => {
         const sampleId = record.sample_id;
         if (!sampleId) return;
@@ -302,6 +348,57 @@ const CapturedData = () => {
         setExpandedModalOpened(true);
     };
 
+    // Delete handlers
+    const handleDeleteSampleClick = async (record) => {
+        if (!window.confirm(`Delete sample ${record.sample_id}? This cannot be undone.`)) return;
+        try {
+            await deleteSample(record.sample_id);
+            setSamples((prev) => prev.filter((s) => s.sample_id !== record.sample_id));
+        } catch (err) {
+            console.error('Error deleting sample:', err);
+        }
+    };
+
+    const handleDeleteIsolateClick = async (record) => {
+        if (!window.confirm(`Delete isolate ${record.isolate_id}? This cannot be undone.`)) return;
+        try {
+            await deleteIsolate(record.isolate_id);
+            setIsolates((prev) => prev.filter((i) => i.isolate_id !== record.isolate_id));
+        } catch (err) {
+            console.error('Error deleting isolate:', err);
+        }
+    };
+
+    const handleDeletePhenotypeClick = async (record) => {
+        if (!window.confirm(`Delete phenotype ${record.phenotype_id}? This cannot be undone.`)) return;
+        try {
+            await deletePredictedPhenotype(record.phenotype_id);
+            setPhenotypes((prev) => prev.filter((p) => p.phenotype_id !== record.phenotype_id));
+        } catch (err) {
+            console.error('Error deleting phenotype:', err);
+        }
+    };
+
+    const handleDeleteAmrFindingClick = async (record) => {
+        if (!window.confirm(`Delete AMR finding ${record.finding_id}? This cannot be undone.`)) return;
+        try {
+            await deleteAmrFinding(record.finding_id);
+            setAmrFindings((prev) => prev.filter((a) => a.finding_id !== record.finding_id));
+        } catch (err) {
+            console.error('Error deleting AMR finding:', err);
+        }
+    };
+
+    const handleDeleteVirulenceGeneClick = async (record) => {
+        if (!window.confirm(`Delete virulence gene ${record.virulence_gene_id}? This cannot be undone.`)) return;
+        try {
+            await deleteVirulenceGene(record.virulence_gene_id);
+            setVirulenceGenes((prev) => prev.filter((v) => v.virulence_gene_id !== record.virulence_gene_id));
+        } catch (err) {
+            console.error('Error deleting virulence gene:', err);
+        }
+    };
+
     const handleSelectSampleForUpdate = (sampleId) => {
         setSelectedUpdateSampleId(sampleId);
         setUpdateDataOpened(true);
@@ -317,7 +414,7 @@ const CapturedData = () => {
     return (
         <div className='captured-data-page'>
             <DashboardNavbar />
-            <Container size='xl' py='xl' className='captured-data-container'>
+            <Container size='full' pt='xl' className='captured-data-container'>
                 <Stack gap='lg'>
                     <Group justify='space-between' align='flex-start'>
                         <Stack gap={0}>
@@ -325,17 +422,19 @@ const CapturedData = () => {
                         </Stack>
                         <Group gap='md'>
                             <Button
-                                leftSection={<Upload size={18} />}
+                                leftSection={<Upload size={16} />}
                                 variant='outline'
+                                size='sm'
                                 onClick={() => setBulkUploadModalOpened(true)}
                             >
-                                Upload Bulk Data
+                                Upload bulk data
                             </Button>
-<Button
-                                leftSection={<Plus size={18} />}
+                            <Button
+                                leftSection={<Plus size={16} />}
+                                size='sm'
                                 onClick={() => setModalOpened(true)}
                             >
-                                Add New Entry
+                                Add new entry
                             </Button>
                         </Group>
                     </Group>
@@ -360,44 +459,69 @@ const CapturedData = () => {
 
                             {/* Single Table View */}
                             {viewMode === 'single' ? (
-                                <Tabs value={activeTab} onChange={setActiveTab} className='data-tabs'>
+                                <Tabs value={activeTab} onChange={(val) => { setActiveTab(val); setSingleSearchQuery(''); }} className='data-tabs'>
                                     <Tabs.List>
                                         <Tabs.Tab value='samples'>Samples</Tabs.Tab>
                                         <Tabs.Tab value='isolates'>Isolates</Tabs.Tab>
-                                        <Tabs.Tab value='phenotypes'>Predicted Phenotypes</Tabs.Tab>
-                                        <Tabs.Tab value='amr'>AMR Findings</Tabs.Tab>
+                                        <Tabs.Tab value='phenotypes'>Predicted phenotypes</Tabs.Tab>
+                                        <Tabs.Tab value='amr'>AMR findings</Tabs.Tab>
+                                        <Tabs.Tab value='virulence'>Virulence genes</Tabs.Tab>
                                     </Tabs.List>
+
+                                    <Group justify='flex-end' mt='sm'>
+                                        <TextInput
+                                            placeholder='Search'
+                                            value={singleSearchQuery}
+                                            onChange={(e) => setSingleSearchQuery(e.currentTarget.value)}
+                                            leftSection={<Search size={16} />}
+                                            style={{width: 280}}
+                                            classNames={{input: 'admin-search-input'}}
+                                        />
+                                    </Group>
 
                                     <Tabs.Panel value='samples' pt='md'>
                                         <SamplesTable
-                                            records={userSamples}
+                                            records={filterRecords(userSamples, tableFieldsMap.samples[0].value, singleSearchQuery)}
                                             highlightedSampleIds={highlightedSampleIds}
                                             onEditClick={handleEditSampleClick}
                                             onExpandClick={handleExpandClick}
+                                            onDeleteClick={handleDeleteSampleClick}
                                         />
                                     </Tabs.Panel>
                                     <Tabs.Panel value='isolates' pt='md'>
                                         <IsolatesTable
-                                            records={filteredIsolates}
+                                            records={filterRecords(filteredIsolates, tableFieldsMap.isolates[0].value, singleSearchQuery)}
                                             highlightedSampleIds={highlightedSampleIds}
                                             onEditClick={handleEditIsolateClick}
                                             onExpandClick={handleExpandClick}
+                                            onDeleteClick={handleDeleteIsolateClick}
                                         />
                                     </Tabs.Panel>
                                     <Tabs.Panel value='phenotypes' pt='md'>
                                         <PredictedPhenotypesTable
-                                            records={filteredPhenotypes}
+                                            records={filterRecords(filteredPhenotypes, tableFieldsMap.phenotypes[0].value, singleSearchQuery)}
                                             highlightedSampleIds={highlightedSampleIds}
                                             onEditClick={handleEditPhenotypeClick}
                                             onExpandClick={handleExpandClick}
+                                            onDeleteClick={handleDeletePhenotypeClick}
                                         />
                                     </Tabs.Panel>
                                     <Tabs.Panel value='amr' pt='md'>
                                         <AmrFindingsTable
-                                            records={filteredAmrFindings}
+                                            records={filterRecords(filteredAmrFindings, tableFieldsMap.amr[0].value, singleSearchQuery)}
                                             highlightedSampleIds={highlightedSampleIds}
                                             onEditClick={handleEditAmrFindingClick}
                                             onExpandClick={handleExpandClick}
+                                            onDeleteClick={handleDeleteAmrFindingClick}
+                                        />
+                                    </Tabs.Panel>
+                                    <Tabs.Panel value='virulence' pt='md'>
+                                        <VirulenceGenesTable
+                                            records={filterRecords(filteredVirulenceGenes, tableFieldsMap.virulence[0].value, singleSearchQuery)}
+                                            highlightedSampleIds={highlightedSampleIds}
+                                            onEditClick={handleEditVirulenceGeneClick}
+                                            onExpandClick={handleExpandClick}
+                                            onDeleteClick={handleDeleteVirulenceGeneClick}
                                         />
                                     </Tabs.Panel>
                                 </Tabs>
@@ -420,6 +544,7 @@ const CapturedData = () => {
                                                         {label: 'Isolates', value: 'isolates'},
                                                         {label: 'Predicted Phenotypes', value: 'phenotypes'},
                                                         {label: 'AMR Findings', value: 'amr'},
+                                                        {label: 'Virulence Genes', value: 'virulence'},
                                                     ]}
                                                 />
                                                 <Select
@@ -445,6 +570,7 @@ const CapturedData = () => {
                                                     highlightedSampleIds={highlightedSampleIds}
                                                     onEditClick={handleEditSampleClick}
                                                     onExpandClick={handleExpandClick}
+                                                    onDeleteClick={handleDeleteSampleClick}
                                                 />
                                             )}
                                             {primaryTable === 'isolates' && (
@@ -453,6 +579,7 @@ const CapturedData = () => {
                                                     highlightedSampleIds={highlightedSampleIds}
                                                     onEditClick={handleEditIsolateClick}
                                                     onExpandClick={handleExpandClick}
+                                                    onDeleteClick={handleDeleteIsolateClick}
                                                 />
                                             )}
                                             {primaryTable === 'phenotypes' && (
@@ -461,6 +588,7 @@ const CapturedData = () => {
                                                     highlightedSampleIds={highlightedSampleIds}
                                                     onEditClick={handleEditPhenotypeClick}
                                                     onExpandClick={handleExpandClick}
+                                                    onDeleteClick={handleDeletePhenotypeClick}
                                                 />
                                             )}
                                             {primaryTable === 'amr' && (
@@ -469,6 +597,16 @@ const CapturedData = () => {
                                                     highlightedSampleIds={highlightedSampleIds}
                                                     onEditClick={handleEditAmrFindingClick}
                                                     onExpandClick={handleExpandClick}
+                                                    onDeleteClick={handleDeleteAmrFindingClick}
+                                                />
+                                            )}
+                                            {primaryTable === 'virulence' && (
+                                                <VirulenceGenesTable
+                                                    records={filterRecords(filteredVirulenceGenes, searchFieldPrimary, searchQueryPrimary)}
+                                                    highlightedSampleIds={highlightedSampleIds}
+                                                    onEditClick={handleEditVirulenceGeneClick}
+                                                    onExpandClick={handleExpandClick}
+                                                    onDeleteClick={handleDeleteVirulenceGeneClick}
                                                 />
                                             )}
                                         </div>
@@ -487,6 +625,7 @@ const CapturedData = () => {
                                                         {label: 'Isolates', value: 'isolates'},
                                                         {label: 'Predicted Phenotypes', value: 'phenotypes'},
                                                         {label: 'AMR Findings', value: 'amr'},
+                                                        {label: 'Virulence Genes', value: 'virulence'},
                                                     ]}
                                                 />
                                                 <Select
@@ -512,6 +651,7 @@ const CapturedData = () => {
                                                     highlightedSampleIds={highlightedSampleIds}
                                                     onEditClick={handleEditSampleClick}
                                                     onExpandClick={handleExpandClick}
+                                                    onDeleteClick={handleDeleteSampleClick}
                                                 />
                                             )}
                                             {secondaryTable === 'isolates' && (
@@ -520,6 +660,7 @@ const CapturedData = () => {
                                                     highlightedSampleIds={highlightedSampleIds}
                                                     onEditClick={handleEditIsolateClick}
                                                     onExpandClick={handleExpandClick}
+                                                    onDeleteClick={handleDeleteIsolateClick}
                                                 />
                                             )}
                                             {secondaryTable === 'phenotypes' && (
@@ -528,6 +669,7 @@ const CapturedData = () => {
                                                     highlightedSampleIds={highlightedSampleIds}
                                                     onEditClick={handleEditPhenotypeClick}
                                                     onExpandClick={handleExpandClick}
+                                                    onDeleteClick={handleDeletePhenotypeClick}
                                                 />
                                             )}
                                             {secondaryTable === 'amr' && (
@@ -536,6 +678,16 @@ const CapturedData = () => {
                                                     highlightedSampleIds={highlightedSampleIds}
                                                     onEditClick={handleEditAmrFindingClick}
                                                     onExpandClick={handleExpandClick}
+                                                    onDeleteClick={handleDeleteAmrFindingClick}
+                                                />
+                                            )}
+                                            {secondaryTable === 'virulence' && (
+                                                <VirulenceGenesTable
+                                                    records={filterRecords(filteredVirulenceGenes, searchFieldSecondary, searchQuerySecondary)}
+                                                    highlightedSampleIds={highlightedSampleIds}
+                                                    onEditClick={handleEditVirulenceGeneClick}
+                                                    onExpandClick={handleExpandClick}
+                                                    onDeleteClick={handleDeleteVirulenceGeneClick}
                                                 />
                                             )}
                                         </div>
@@ -553,6 +705,7 @@ const CapturedData = () => {
                 <EditIsolateModal opened={editIsolateModalOpened} onClose={() => setEditIsolateModalOpened(false)} record={isolateToEdit} onSave={handleEditIsolateSave} />
                 <EditPhenotypeModal opened={editPhenotypeModalOpened} onClose={() => setEditPhenotypeModalOpened(false)} record={phenotypeToEdit} onSave={handleEditPhenotypeSave} />
                 <EditAmrFindingModal opened={editAmrFindingModalOpened} onClose={() => setEditAmrFindingModalOpened(false)} record={amrFindingToEdit} onSave={handleEditAmrFindingSave} />
+                <EditVirulenceGenesModal opened={editVirulenceGeneModalOpened} onClose={() => setEditVirulenceGeneModalOpened(false)} record={virulenceGeneToEdit} onSave={handleEditVirulenceGeneSave} />
 
                 <ExpandedDataModal
                     opened={expandedModalOpened}

@@ -29,6 +29,8 @@ router.post('/load-mock-data', async (req, res) => {
             // Map old field names to new schema
             const sampleData = {
                 sample_id,
+                sample_name: oldSample.sample_name || sample_id,
+                collected_by: oldSample.collected_by || null,
                 water_temp: oldSample.water_temperature ?? null,
                 ph: oldSample.ph ?? null,
                 tds: oldSample.tds ?? null,
@@ -79,7 +81,7 @@ router.post('/load-mock-data', async (req, res) => {
                                     sample_id: createdSample.sample_id,
                                     analysis_type: 'metagenomic',
                                     gene_symbol: gene,
-                                    drug_class: null,
+                                    amr_class: null,
                                     method: null,
                                     percent_identity: null,
                                 },
@@ -99,7 +101,12 @@ router.post('/load-mock-data', async (req, res) => {
                         sample_id: createdSample.sample_id,
                         organism: 'unknown',      // not stored in old mock data
                         antibiotic: 'unknown',    // not stored
-                        resistant: oldSample.predicted_sir_profile.toLowerCase() === 'resistant',
+                        predicted_sir_profile: (() => {
+                            const p = oldSample.predicted_sir_profile.toLowerCase()
+                            if (p === 'resistant') return 'Resistant'
+                            if (p === 'susceptible') return 'Susceptible'
+                            return 'Intermediate'
+                        })(),
                     },
                 })
                 predictedPhenotypeCount++

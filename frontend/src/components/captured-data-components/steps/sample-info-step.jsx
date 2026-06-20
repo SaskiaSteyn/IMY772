@@ -11,6 +11,7 @@ const SampleInfoStep = forwardRef(({formData, setFormData, onValidationChange}, 
 
     const requiredFields = {
         sample_id: formData.sample_id,
+        sample_name: formData.sample_name,
         collection_date: formData.collection_date,
         location_name: formData.location_name,
         latitude: formData.latitude,
@@ -116,6 +117,22 @@ const SampleInfoStep = forwardRef(({formData, setFormData, onValidationChange}, 
                     required
                 />
             </SimpleGrid>
+
+            <TextInput
+                label="Sample Name"
+                placeholder="e.g., Vaal River Sample A"
+                value={formData.sample_name || ''}
+                onChange={(e) => handleChange('sample_name', e.currentTarget.value)}
+                error={touched.sample_name && !formData.sample_name ? 'Sample name is required' : ''}
+                required
+            />
+
+            <TextInput
+                label="Collected By"
+                placeholder="e.g., Dr. Smith"
+                value={formData.collected_by || ''}
+                onChange={(e) => handleChange('collected_by', e.currentTarget.value)}
+            />
 
             {/* Location and Coordinates */}
             <div>

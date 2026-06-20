@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import {useEffect, useState} from 'react'
 import {
     Alert,
     Badge,
@@ -9,9 +9,9 @@ import {
     Text,
     Title,
 } from '@mantine/core'
-import { adminApi } from '../../api/admin.js'
+import {adminApi} from '../../api/admin.js'
 
-function MetricCard({ label, value }) {
+function MetricCard({label, value}) {
     return (
         <div className='admin-metric-chip'>
             <Stack gap={2}>
@@ -61,7 +61,6 @@ export default function Statistics() {
         <Stack gap='md'>
             <div className='admin-section'>
                 <Stack gap='sm'>
-                    <Title order={2}>Statistics</Title>
                     {error && (
                         <Alert color='red' variant='light'>
                             {error}
@@ -71,22 +70,12 @@ export default function Statistics() {
                     {!metrics ? (
                         <Text c='dimmed'>No summary metrics available.</Text>
                     ) : (
-                        <SimpleGrid cols={{ base: 2, sm: 3, lg: 6 }} spacing='sm'>
+                        <SimpleGrid cols={{base: 2, sm: 3, lg: 4}} spacing='sm'>
                             <MetricCard label='Users' value={metrics.usersCount} />
-                            <MetricCard
-                                label='Samples'
-                                value={metrics.samplesCount}
-                            />
-                            <MetricCard
-                                label='Metagenomic'
-                                value={metrics.metagenomicCount}
-                            />
-                            <MetricCard label='WGS' value={metrics.wgsCount} />
-                            <MetricCard label='AMR Genes' value={metrics.amrCount} />
-                            <MetricCard
-                                label='Virulence Genes'
-                                value={metrics.virulenceCount}
-                            />
+                            <MetricCard label='Samples' value={metrics.samplesCount} />
+                            <MetricCard label='Isolates' value={metrics.isolatesCount} />
+                            <MetricCard label='AMR Findings' value={metrics.amrFindingsCount} />
+                            <MetricCard label='Predicted Phenotypes' value={metrics.predictedPhenotypesCount} />
                         </SimpleGrid>
                     )}
                 </Stack>
@@ -94,7 +83,7 @@ export default function Statistics() {
 
             <div className='admin-table-shell'>
                 <Stack gap='sm'>
-                    <Title order={3}>Recent Deletions</Title>
+                    <Title order={3}>Recent deletions</Title>
                     {recentDeletions.length === 0 ? (
                         <Text c='dimmed'>No delete activity recorded yet.</Text>
                     ) : (

@@ -16,6 +16,8 @@ import samplesRouter from './routes/samples.routes.js'
 import isolatesRouter from './routes/isolates.routes.js'
 import amrFindingsRouter from './routes/amr-findings.routes.js'
 import predictedPhenotypesRouter from './routes/predicted-phenotypes.routes.js'
+import virulenceGenesRouter from './routes/virulence-genes.routes.js'
+import templateUploadRouter from './routes/template-upload.routes.js'
 import aiRouter from './routes/ai.routes.js'
 
 dotenv.config()
@@ -73,7 +75,9 @@ app.use('/api/samples', samplesRouter)
 app.use('/api/isolates', isolatesRouter)
 app.use('/api/amr-findings', amrFindingsRouter)
 app.use('/api/predicted-phenotypes', predictedPhenotypesRouter)
+app.use('/api/virulence-genes', virulenceGenesRouter)
 app.use('/api/bulk-upload', bulkUploadRouter)
+app.use('/api/template-upload', templateUploadRouter)
 app.use('/api/ai', aiRouter)
 app.use('/api', mockDataRouter)
 

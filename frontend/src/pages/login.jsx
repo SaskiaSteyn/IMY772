@@ -11,7 +11,7 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useGoogleLogin } from '@react-oauth/google';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/auth-context.jsx';
 import './auth.scss';
@@ -49,6 +49,8 @@ function GoogleSignInButton({ loading, onSuccess, onError }) {
         onSuccess,
         onError,
         flow: 'implicit',
+        ux_mode: 'redirect',
+        redirect_uri: window.location.origin + '/login',
         scope: 'openid email profile',
     });
 
@@ -103,6 +105,25 @@ export default function Login() {
     const [googleLoading, setGoogleLoading] = useState(false);
     const [error, setError] = useState('');
 
+    // Handle Google redirect callback — token lands in the URL hash
+    useEffect(() => {
+        const hash = window.location.hash;
+        if (!hash) return;
+        const params = new URLSearchParams(hash.slice(1));
+        const accessToken = params.get('access_token');
+        if (!accessToken) return;
+
+        // Clean the token out of the URL immediately
+        window.history.replaceState(null, '', window.location.pathname);
+
+        setGoogleLoading(true);
+        googleLogin({ accessToken })
+            .then(() => navigate('/dashboard'))
+            .catch((err) => setError(getLoginErrorMessage(err)))
+            .finally(() => setGoogleLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     const form = useForm({
         initialValues: { email: '', password: '', rememberMe: false },
         validate: {
@@ -117,7 +138,7 @@ export default function Login() {
         setError('');
         try {
             await login(values.email, values.password);
-            navigate('/app');
+            navigate('/dashboard');
         } catch (err) {
             setError(getLoginErrorMessage(err));
         } finally {
@@ -130,7 +151,7 @@ export default function Login() {
         setError('');
         try {
             await googleLogin({ accessToken: tokenResponse.access_token });
-            navigate('/app');
+            navigate('/dashboard');
         } catch (err) {
             setError(getLoginErrorMessage(err));
         } finally {
@@ -195,12 +216,6 @@ export default function Login() {
                         >
                             Sign In
                         </Button>
-
-                        <div className='auth-forgot'>
-                            <Anchor size='xs' href='/forgot-password'>
-                                Forgot your password?
-                            </Anchor>
-                        </div>
 
                         {isGoogleAuthEnabled && (
                             <>

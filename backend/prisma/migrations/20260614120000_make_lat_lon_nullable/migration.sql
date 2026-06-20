@@ -1,0 +1,2 @@
+ALTER TABLE "samples" ALTER COLUMN "latitude" DROP NOT NULL;
+ALTER TABLE "samples" ALTER COLUMN "longitude" DROP NOT NULL;

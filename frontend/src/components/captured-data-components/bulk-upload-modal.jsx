@@ -55,17 +55,22 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
 
     // Allowed fields for samples, isolates, phenotypes, and amr findings
     const allowedSampleFields = [
-        'sample_id', 'collection_date', 'location_name', 'latitude', 'longitude',
+        'sample_id', 'sample_name', 'collected_by', 'collection_date', 'location_name', 'latitude', 'longitude',
         'isolation_source', 'water_temp', 'ph', 'tds', 'do'
     ];
     const allowedIsolateFields = [
         'isolate_id', 'sample_id', 'organism', 'mlst_type'
     ];
     const allowedPhenotypeFields = [
-        'phenotype_id', 'sample_id', 'organism', 'antibiotic', 'resistant'
+        'phenotype_id', 'sample_id', 'organism', 'antibiotic', 'predicted_sir_profile'
     ];
     const allowedAmrFields = [
-        'finding_id', 'sample_id', 'analysis_type', 'gene_symbol', 'drug_class', 'method', 'percent_identity'
+        'finding_id', 'sample_id', 'analysis_type', 'gene_symbol', 'amr_class', 'method', 'percent_identity',
+        'sequence_name', 'element_type', 'subclass', 'percentage_coverage'
+    ];
+    const allowedVirulenceFields = [
+        'virulence_gene_id', 'sample_id', 'gene_symbol', 'method', 'percent_identity', 'coverage_percent',
+        'alignment_length', 'target_length', 'ref_seq_length', 'accession', 'sequence_name', 'element_type'
     ];
 
     const filterFields = (obj, allowed) => {
@@ -91,12 +96,14 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
         }
 
         // Check for individual table types
-        if (first.phenotype_id && !first.organism && first.resistant !== undefined) {
-            // This is phenotypes but might be mislabeled
-            return first.resistant !== undefined ? 'phenotypes' : 'unknown';
+        if (first.phenotype_id && !first.organism && first.predicted_sir_profile !== undefined) {
+            return 'phenotypes';
         }
-        if (first.finding_id && first.gene_symbol && first.drug_class) {
+        if (first.finding_id && first.gene_symbol && (first.amr_class || first.drug_class)) {
             return 'amr_findings';
+        }
+        if (first.virulence_gene_id || (first.gene_symbol && first.coverage_percent !== undefined)) {
+            return 'virulence_genes';
         }
         if (first.isolate_id && first.organism && first.mlst_type) {
             return 'isolates';
@@ -120,21 +127,35 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
                 isolates: (item.isolates || []).map(i => filterFields(i, allowedIsolateFields)),
                 phenotypes: (item.phenotypes || []).map(p => filterFields(p, allowedPhenotypeFields)),
                 amrFindings: (item.amr_findings || []).map(a => filterFields(a, allowedAmrFields)),
+                virulenceGenes: (item.virulence_genes || []).map(v => filterFields(v, allowedVirulenceFields)),
             }));
         }
 
+        if (dataType === 'virulence_genes') {
+            const byIndex = {};
+            data.forEach((gene, idx) => {
+                byIndex[idx] = {
+                    sample: {},
+                    isolates: [],
+                    phenotypes: [],
+                    amrFindings: [],
+                    virulenceGenes: [filterFields(gene, allowedVirulenceFields)],
+                };
+            });
+            return Object.values(byIndex);
+        }
+
         if (dataType === 'samples') {
-            // Transform samples array to match preview structure
             return data.map(sample => ({
                 sample: filterFields(sample, allowedSampleFields),
                 isolates: [],
                 phenotypes: [],
                 amrFindings: [],
+                virulenceGenes: [],
             }));
         }
 
         if (dataType === 'isolates') {
-            // Group isolates by sample_id
             const byIndex = {};
             data.forEach((isolate, idx) => {
                 byIndex[idx] = {
@@ -142,13 +163,13 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
                     isolates: [filterFields(isolate, allowedIsolateFields)],
                     phenotypes: [],
                     amrFindings: [],
+                    virulenceGenes: [],
                 };
             });
             return Object.values(byIndex);
         }
 
         if (dataType === 'phenotypes') {
-            // Group phenotypes by sample_id
             const byIndex = {};
             data.forEach((phenotype, idx) => {
                 byIndex[idx] = {
@@ -156,13 +177,13 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
                     isolates: [],
                     phenotypes: [filterFields(phenotype, allowedPhenotypeFields)],
                     amrFindings: [],
+                    virulenceGenes: [],
                 };
             });
             return Object.values(byIndex);
         }
 
         if (dataType === 'amr_findings') {
-            // Group AMR findings by sample_id
             const byIndex = {};
             data.forEach((finding, idx) => {
                 byIndex[idx] = {
@@ -170,6 +191,7 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
                     isolates: [],
                     phenotypes: [],
                     amrFindings: [filterFields(finding, allowedAmrFields)],
+                    virulenceGenes: [],
                 };
             });
             return Object.values(byIndex);
@@ -181,6 +203,7 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
             isolates: [],
             phenotypes: [],
             amrFindings: [],
+            virulenceGenes: [],
         }));
     };
 
@@ -201,10 +224,10 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
         if (!selectedFile) return;
 
         const fileName = selectedFile.name.toLowerCase();
-        const validExtensions = ['.csv', '.json'];
+        const validExtensions = ['.csv', '.json', '.xlsx'];
         const hasValidExtension = validExtensions.some((ext) => fileName.endsWith(ext));
         if (!hasValidExtension) {
-            setError('Invalid file type. Please upload a CSV or JSON file.');
+            setError('Invalid file type. Please upload a CSV, JSON, or Excel (.xlsx) file.');
             setFile(null);
             setSamplePreviews([]);
             return;
@@ -219,6 +242,26 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
             if (fileName.endsWith('.json')) {
                 const text = await selectedFile.text();
                 parsed = JSON.parse(text);
+            } else if (fileName.endsWith('.xlsx')) {
+                // Count rows for display only — actual parsing happens server-side
+                const arrayBuffer = await selectedFile.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer, {type: 'array'});
+                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                // range: 4 skips the 3 legend rows + 1 blank row; row 5 becomes the header row
+                const rows = XLSX.utils.sheet_to_json(sheet, {defval: null, range: 4});
+                const getSampleId = (r) => {
+                    for (const key of Object.keys(r)) {
+                        if (key.replace(/^\*/, '').trim().toLowerCase() === 'sample id') return r[key];
+                    }
+                    return r['sample_id'] || null;
+                };
+                const sampleIds = new Set(rows.map(getSampleId).filter(Boolean));
+                setFile(selectedFile);
+                setError(null);
+                setUploadResult(null);
+                setSamplePreviews([{_xlsxSummary: true, rowCount: rows.length, sampleCount: sampleIds.size}]);
+                setPreviewOpen(true);
+                return;
             } else if (fileName.endsWith('.csv')) {
                 const text = await selectedFile.text();
                 const rows = text.split(/\r?\n/).filter(r => r.trim());
@@ -234,7 +277,6 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
                     const obj = {};
                     headers.forEach((h, i) => {
                         const value = values[i];
-                        // Try to parse as number or boolean
                         if (value === 'true') obj[h] = true;
                         else if (value === 'false') obj[h] = false;
                         else if (!isNaN(value) && value !== '') obj[h] = parseFloat(value);
@@ -251,14 +293,15 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
 
         // Handle nested structure (all_tables_combined.json format)
         if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-            const {samples = [], isolates = [], predicted_phenotypes = [], amr_findings = []} = parsed;
+            const {samples = [], isolates = [], predicted_phenotypes = [], amr_findings = [], virulence_genes = []} = parsed;
 
             // Convert nested structure to array format
-            if (samples.length > 0 || isolates.length > 0 || predicted_phenotypes.length > 0 || amr_findings.length > 0) {
+            if (samples.length > 0 || isolates.length > 0 || predicted_phenotypes.length > 0 || amr_findings.length > 0 || virulence_genes.length > 0) {
                 // Build a map for quick lookup
                 const isolatesByID = {};
                 const phenotypesByID = {};
                 const amrByID = {};
+                const virulenceByID = {};
 
                 isolates.forEach(iso => {
                     if (!isolatesByID[iso.sample_id]) isolatesByID[iso.sample_id] = [];
@@ -275,19 +318,25 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
                     amrByID[amr.sample_id].push(amr);
                 });
 
+                virulence_genes.forEach(vg => {
+                    if (!virulenceByID[vg.sample_id]) virulenceByID[vg.sample_id] = [];
+                    virulenceByID[vg.sample_id].push(vg);
+                });
+
                 // Build preview array
                 const previews = samples.map(sample => ({
                     sample: filterFields(sample, allowedSampleFields),
                     isolates: (isolatesByID[sample.sample_id] || []).map(i => filterFields(i, allowedIsolateFields)),
                     phenotypes: (phenotypesByID[sample.sample_id] || []).map(p => filterFields(p, allowedPhenotypeFields)),
                     amrFindings: (amrByID[sample.sample_id] || []).map(a => filterFields(a, allowedAmrFields)),
+                    virulenceGenes: (virulenceByID[sample.sample_id] || []).map(v => filterFields(v, allowedVirulenceFields)),
                 }));
 
                 setSamplePreviews(previews);
                 setPreviewOpen(true);
                 return;
             } else {
-                setError('File contains no data. Expected samples, isolates, predicted_phenotypes, or amr_findings.');
+                setError('File contains no data. Expected samples, isolates, predicted_phenotypes, amr_findings, or virulence_genes.');
                 setSamplePreviews([]);
                 return;
             }
@@ -337,7 +386,7 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
             const data = await response.json();
 
             if (!response.ok) {
-                setError(data.details || data.error || 'Upload failed');
+                setError(data.details || data.error || data.message || 'Upload failed');
                 setUploadResult(null);
             } else {
                 // The /samples endpoint returns `results` as a per-row array
@@ -364,7 +413,11 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
             setError('Please select a file first');
             return;
         }
-        uploadFile(file);
+        if (file.name.toLowerCase().endsWith('.xlsx')) {
+            uploadFile(file, '/api/template-upload');
+        } else {
+            uploadFile(file);
+        }
     };
 
     // ── Image (multi-sample) flow ───────────────────────────────────────────
@@ -475,31 +528,25 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
                     {!uploadResult && !file && !imageSamples && (
                         <>
                             <Text size='sm' color='dimmed'>
-                                Upload a CSV or JSON file with sample data. Supported formats:
-                                <ul style={{marginTop: '8px', marginBottom: '8px'}}>
-                                    <li><strong>samples.json</strong> - Array of sample records</li>
-                                    <li><strong>isolates.json</strong> - Array of isolate records</li>
-                                    <li><strong>predicted_phenotypes.json</strong> - Array of phenotype records</li>
-                                    <li><strong>amr_findings.json</strong> - Array of AMR finding records</li>
-                                    <li><strong>all_tables_combined.json</strong> - Combined object with samples, isolates, predicted_phenotypes, and amr_findings</li>
-                                    <li><strong>CSV versions</strong> - Same structure in CSV format</li>
-                                </ul>
+                                Choose a file format below. Each format is parsed differently — pick the one that matches your data.
                             </Text>
+
+                            {/* Excel template */}
                             <div className={styles.uploadArea}>
                                 <input
                                     type='file'
                                     id='file-input'
                                     onChange={handleFileChange}
-                                    accept='.csv,.json'
+                                    accept='.csv,.json,.xlsx'
                                     style={{display: 'none'}}
                                 />
                                 <label htmlFor='file-input' className={styles.uploadLabel}>
-                                    <FileUp size={32} />
-                                    <Text weight={500}>
-                                        {file ? file.name : 'Click to select a file or drag and drop'}
-                                    </Text>
-                                    <Text size='xs' color='dimmed'>
-                                        CSV or JSON files only
+                                    <FileUp size={28} />
+                                    <Text weight={600} size='sm'>Excel / CSV / JSON</Text>
+                                    <Text size='xs' color='dimmed' style={{textAlign: 'center', maxWidth: 380}}>
+                                        <strong>.xlsx</strong> — standard dashboard template (one row per AMR gene, samples grouped automatically)<br/>
+                                        <strong>.json</strong> — <code>samples.json</code> array, or <code>all_tables_combined.json</code> with samples, isolates, phenotypes &amp; AMR findings<br/>
+                                        <strong>.csv</strong> — same flat structure as JSON
                                     </Text>
                                 </label>
                             </div>

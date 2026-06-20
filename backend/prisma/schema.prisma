@@ -20,7 +20,7 @@ model User {
   interests     Json?
   education     Json?
   experience    Json?
-  profile_image_data       Bytes?
+  profile_image_key        String?  @db.VarChar(255)
   profile_image_mime_type  String?  @db.VarChar(50)
   profile_image_size_bytes Int?
   profile_image_updated_at DateTime?
@@ -33,24 +33,27 @@ model User {
 // ─── Sample Data models ──────────────────────────────────────────────────────
 
 model Sample {
-  sample_id       String     @id @db.VarChar(255)
-  collection_date DateTime?
-  location_name   String?    @db.VarChar(255)
-  latitude        Decimal    @db.Decimal(10, 8)
-  longitude       Decimal    @db.Decimal(11, 8)
-  isolation_source String?   @db.VarChar(255)
-  water_temp      Decimal?   @db.Decimal(5, 2)
-  ph              Decimal?   @db.Decimal(4, 2)
-  tds             Decimal?   @db.Decimal(8, 2)
-  do              Decimal?   @db.Decimal(8, 2)
-  uploaded_by     Int?       @db.Integer
-  created_at      DateTime   @default(now())
-  updated_at      DateTime   @updatedAt
+  sample_id        String     @id @db.VarChar(255)
+  sample_name      String     @db.VarChar(255)
+  collected_by     String?    @db.VarChar(255)
+  collection_date  DateTime?
+  location_name    String?    @db.VarChar(255)
+  latitude         Decimal?   @db.Decimal(10, 8)
+  longitude        Decimal?   @db.Decimal(11, 8)
+  isolation_source String?    @db.VarChar(255)
+  water_temp       Decimal?   @db.Decimal(5, 2)
+  ph               Decimal?   @db.Decimal(4, 2)
+  tds              Decimal?   @db.Decimal(8, 2)
+  do               Decimal?   @db.Decimal(8, 2)
+  uploaded_by      Int?       @db.Integer
+  created_at       DateTime   @default(now())
+  updated_at       DateTime   @updatedAt
 
   // Relations
   isolates            Isolate[]
   amrFindings         AmrFinding[]
   predictedPhenotypes PredictedPhenotype[]
+  virulenceGenes      VirulenceGene[]
 
   @@map("samples")
 }
@@ -68,13 +71,22 @@ model Isolate {
 }
 
 model AmrFinding {
-  finding_id      Int     @id @default(autoincrement())
-  sample_id       String  @db.VarChar(255)
-  analysis_type   String? @db.VarChar(255)
-  gene_symbol     String? @db.VarChar(255)
-  drug_class      String? @db.VarChar(255)
-  method          String? @db.VarChar(255)
-  percent_identity Decimal? @db.Decimal(5, 2)
+  finding_id                  Int      @id @default(autoincrement())
+  sample_id                   String   @db.VarChar(255)
+  analysis_type               String?  @db.VarChar(255)
+  gene_symbol                 String?  @db.VarChar(255)
+  amr_class                   String?  @db.VarChar(255) @map("amr_class")
+  method                      String?  @db.VarChar(255)
+  percent_identity            Decimal? @db.Decimal(5, 2)
+  sequence_name               String?  @db.VarChar(255)
+  element_type                String?  @db.VarChar(255)
+  subclass                    String?  @db.VarChar(255)
+  target_length               Int?
+  reference_sequence_length   Int?
+  percentage_coverage         Decimal? @db.Decimal(5, 2)
+  accession_of_closest_sequence String? @db.VarChar(255)
+  created_at                  DateTime @default(now())
+  updated_at                  DateTime @updatedAt
 
   sample Sample @relation(fields: [sample_id], references: [sample_id])
 
@@ -83,18 +95,42 @@ model AmrFinding {
 }
 
 model PredictedPhenotype {
-  phenotype_id Int     @id @default(autoincrement())
-  sample_id    String  @db.VarChar(255)
-  organism     String? @db.VarChar(255)
-  antibiotic   String? @db.VarChar(255)
-  resistant    Boolean?
-  ai_resistant Boolean?
-  is_manual_override Boolean @default(false)
+  phenotype_id        Int      @id @default(autoincrement())
+  sample_id           String   @db.VarChar(255)
+  organism            String?  @db.VarChar(255)
+  antibiotic          String?  @db.VarChar(255)
+  predicted_sir_profile String? @db.VarChar(50)
+  ai_resistant        Boolean?
+  is_manual_override  Boolean  @default(false)
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
 
   sample Sample @relation(fields: [sample_id], references: [sample_id])
 
   @@index([sample_id])
   @@map("predicted_phenotypes")
+}
+
+model VirulenceGene {
+  virulence_gene_id Int      @id @default(autoincrement())
+  sample_id         String   @db.VarChar(255)
+  gene_symbol       String   @db.VarChar(255)
+  method            String?  @db.VarChar(255)
+  percent_identity  Decimal? @db.Decimal(5, 2)
+  coverage_percent  Decimal? @db.Decimal(5, 2)
+  alignment_length  Int?
+  target_length     Int?
+  ref_seq_length    Int?
+  accession         String?  @db.VarChar(255)
+  sequence_name     String?  @db.VarChar(255)
+  element_type      String?  @db.VarChar(255)
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  sample Sample @relation(fields: [sample_id], references: [sample_id])
+
+  @@index([sample_id])
+  @@map("virulence_genes")
 }
 
 model AdminDeleteAudit {

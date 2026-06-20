@@ -19,6 +19,21 @@ jest.unstable_mockModule('../lib/prisma.js', () => ({
     default: { user: mockPrismaUser },
 }))
 
+// S3 is mocked so profile-image tests make no real AWS calls. The presigned URL
+// is a stable fake we can assert against.
+const mockPutObject = jest.fn()
+const mockGetPresignedUrl = jest.fn(
+    async (key) => `https://s3.example.test/${key}?signature=test`,
+)
+const mockDeleteObject = jest.fn()
+
+jest.unstable_mockModule('../lib/s3.js', () => ({
+    putObject: mockPutObject,
+    getPresignedUrl: mockGetPresignedUrl,
+    deleteObject: mockDeleteObject,
+    S3_BUCKET: 'microtrack-images',
+}))
+
 jest.unstable_mockModule('google-auth-library', () => ({
     OAuth2Client: class {
         verifyIdToken(...args) {
@@ -67,7 +82,7 @@ function makeUser(overrides = {}) {
         interests: [],
         education: [],
         experience: [],
-        profile_image_data: null,
+        profile_image_key: null,
         profile_image_mime_type: null,
         profile_image_size_bytes: null,
         profile_image_updated_at: null,
@@ -95,6 +110,10 @@ beforeEach(() => {
 
 afterAll(() => {
     delete global.fetch
+})
+
+afterEach(() => {
+    process.env.NODE_ENV = 'test'
 })
 
 describe('POST /api/auth/register', () => {
@@ -141,6 +160,23 @@ describe('POST /api/auth/register', () => {
         expect(res.status).toBe(201)
         expect(res.body.user.email).toBe('newuser@example.com')
         expect(res.headers['set-cookie']).toBeDefined()
+    })
+
+    test('uses cross-site cookie attributes in production registration responses', async () => {
+        process.env.NODE_ENV = 'production'
+        mockPrismaUser.findUnique.mockResolvedValue(null)
+        mockPrismaUser.create.mockResolvedValue(makeUser({ email: 'produser@example.com' }))
+
+        const res = await api().post('/api/auth/register').send({
+            name: 'Prod',
+            surname: 'User',
+            email: 'produser@example.com',
+            password: 'securepass123',
+        })
+
+        expect(res.status).toBe(201)
+        expect(res.headers['set-cookie'][0]).toContain('SameSite=None')
+        expect(res.headers['set-cookie'][0]).toContain('Secure')
     })
 
     test('returns 500 when registration fails unexpectedly', async () => {
@@ -230,6 +266,16 @@ describe('POST /api/auth/logout', () => {
         expect(res.status).toBe(200)
         expect(res.body.message).toMatch(/logged out/i)
     })
+
+    test('uses matching cross-site cookie attributes in production logout responses', async () => {
+        process.env.NODE_ENV = 'production'
+
+        const res = await api().post('/api/auth/logout')
+
+        expect(res.status).toBe(200)
+        expect(res.headers['set-cookie'][0]).toContain('SameSite=None')
+        expect(res.headers['set-cookie'][0]).toContain('Secure')
+    })
 })
 
 describe('GET /api/auth/me', () => {
@@ -270,14 +316,14 @@ describe('GET /api/auth/me', () => {
 
     test('returns authenticated user details when lookup succeeds', async () => {
         mockPrismaUser.findUnique.mockResolvedValue(makeUser({
-            profile_image_data: Buffer.from('hello'),
+            profile_image_key: 'profile-images/1',
             profile_image_mime_type: 'image/png',
         }))
 
         const res = await api().get('/api/auth/me').set('Cookie', authCookie())
 
         expect(res.status).toBe(200)
-        expect(res.body.user.profileImage).toMatch(/^data:image\/png;base64,/)
+        expect(res.body.user.profileImage).toMatch(/^https:\/\/s3\.example\.test\/profile-images\/1/)
         expect(res.body.user.hasProfileImage).toBe(true)
     })
 })
@@ -514,7 +560,7 @@ describe('PUT /api/auth/profile-image', () => {
 
     test('returns 200 when profile image is updated', async () => {
         mockPrismaUser.update.mockResolvedValue(makeUser({
-            profile_image_data: Buffer.from('image-data'),
+            profile_image_key: 'profile-images/1',
             profile_image_mime_type: 'image/png',
             profile_image_size_bytes: 10,
         }))
@@ -533,7 +579,7 @@ describe('PUT /api/auth/profile-image', () => {
 
     test('returns 200 when a jpeg profile image is updated', async () => {
         mockPrismaUser.update.mockResolvedValue(makeUser({
-            profile_image_data: Buffer.from('jpeg-image-data'),
+            profile_image_key: 'profile-images/1',
             profile_image_mime_type: 'image/jpeg',
             profile_image_size_bytes: 15,
         }))
@@ -555,7 +601,7 @@ describe('PUT /api/auth/profile-image', () => {
             .attach('image', jpegBuffer, { filename: 'avatar.jpg', contentType: 'image/jpeg' })
 
         expect(res.status).toBe(200)
-        expect(res.body.profile.profileImage).toMatch(/^data:image\/jpeg;base64,/) 
+        expect(res.body.profile.profileImage).toMatch(/^https:\/\/s3\.example\.test\/profile-images\/1/)
     })
 
     test('returns 503 when image storage columns are unavailable', async () => {

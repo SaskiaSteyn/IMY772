@@ -70,12 +70,11 @@ export default function ProfileExperienceCard({
             action={
                 isEditing ? (
                     <ActionIcon
-                        variant='light'
-                        radius='xl'
+                        variant='subtle'
                         size='sm'
                         onClick={onAddEntry}
                     >
-                        <Plus size={14} />
+                        <Plus size={16} />
                     </ActionIcon>
                 ) : null
             }
@@ -106,14 +105,13 @@ export default function ProfileExperienceCard({
                                         </Text>
                                         <ActionIcon
                                             color='red'
-                                            variant='light'
-                                            radius='xl'
+                                            variant='subtle'
                                             size='sm'
                                             onClick={() =>
                                                 onRemoveEntry(originalIndex)
                                             }
                                         >
-                                            <Trash2 size={14} />
+                                            <Trash2 size={16} />
                                         </ActionIcon>
                                     </Group>
                                     <TextInput
