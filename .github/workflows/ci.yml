@@ -9,10 +9,9 @@ on:
 jobs:
     backend-tests:
         runs-on: ubuntu-latest
-        # Only run if backend files changed
-        if: |
-            github.event_name == 'push' && contains(github.event.head_commit.modified, 'backend/') ||
-            github.event_name == 'pull_request'
+        # Always run on push and PR. (Path-based skipping via head_commit.modified
+        # is unreliable for merge commits — pushes to main are merges, so it would
+        # wrongly skip and make the run conclude 'skipped', blocking the deploy gate.)
 
         services:
             postgres:
@@ -99,10 +98,7 @@ jobs:
 
     frontend-tests:
         runs-on: ubuntu-latest
-        # Only run if frontend files changed
-        if: |
-            github.event_name == 'push' && contains(github.event.head_commit.modified, 'frontend/') ||
-            github.event_name == 'pull_request'
+        # Always run on push and PR — see note on backend-tests above.
 
         steps:
             - uses: actions/checkout@v4
