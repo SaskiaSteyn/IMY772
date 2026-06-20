@@ -170,7 +170,7 @@ export default function Users() {
         <>
             <div className='admin-section'>
                 <Stack gap='sm'>
-                    <Group justify='space-between' align='center' wrap='wrap'>
+                    <Group justify='flex-end' align='center' wrap='wrap'>
                         <TextInput
                             leftSection={<Search size={16} />}
                             placeholder='Search users'

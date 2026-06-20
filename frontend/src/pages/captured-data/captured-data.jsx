@@ -414,7 +414,7 @@ const CapturedData = () => {
     return (
         <div className='captured-data-page'>
             <DashboardNavbar />
-            <Container size='xl' py='xl' className='captured-data-container'>
+            <Container size='full' pt='xl' className='captured-data-container'>
                 <Stack gap='lg'>
                     <Group justify='space-between' align='flex-start'>
                         <Stack gap={0}>
