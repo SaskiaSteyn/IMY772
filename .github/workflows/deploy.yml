@@ -1,10 +1,19 @@
 name: Deploy to AWS (EC2)
 
-# Manual deploy to the MicroTrack EC2 host via SSM (no SSH). Gated on CI passing
-# for the deployed commit. Needs repo secrets AWS_ACCESS_KEY_ID /
-# AWS_SECRET_ACCESS_KEY; see deploy/README.md for the IAM policy.
+# Deploys the MicroTrack EC2 host via SSM (no SSH). Auto-runs after CI passes on
+# 'main', and can also be dispatched manually. Needs repo secrets
+# AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY; see deploy/README.md for the IAM
+# policy.
+#
+# NOTE: workflow_run only fires when this file is on the repo's DEFAULT branch
+# (currently 'dev'), so this workflow must be merged into dev to auto-deploy —
+# even though the commit it ships comes from 'main'.
 
 on:
+    workflow_run:
+        workflows: ['CI - Build & Test']
+        types: [completed]
+        branches: [main]
     workflow_dispatch: {}
 
 concurrency:
@@ -18,29 +27,57 @@ env:
 jobs:
     deploy:
         runs-on: ubuntu-latest
+        # On the workflow_run path, only proceed when CI actually succeeded.
+        # Manual dispatch is gated separately below.
+        if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
         permissions:
             actions: read
             contents: read
         steps:
-            - name: Require CI to have passed for the commit being deployed
+            - name: Resolve the commit to deploy
+              id: target
               env:
-                  GH_TOKEN: ${{ github.token }}
-                  REPO: ${{ github.repository }}
-                  REF_NAME: ${{ github.ref_name }}
-                  TARGET_SHA: ${{ github.sha }}
+                  EVENT_NAME: ${{ github.event_name }}
+                  # workflow_run: github.sha is the DEFAULT branch head, not the
+                  # commit that passed CI — use the triggering run's head instead.
+                  WR_SHA: ${{ github.event.workflow_run.head_sha }}
+                  WR_BRANCH: ${{ github.event.workflow_run.head_branch }}
+                  DISPATCH_SHA: ${{ github.sha }}
+                  DISPATCH_REF: ${{ github.ref_name }}
               run: |
                   set -euo pipefail
 
-                  # deploy.sh always ships dev; refuse dispatch from any other branch
-                  if [ "$REF_NAME" != "dev" ]; then
-                    echo "::error::Deploy must be run from the 'dev' branch (got '$REF_NAME')."
+                  if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+                    REF_NAME="$DISPATCH_REF"
+                    TARGET_SHA="$DISPATCH_SHA"
+                  else
+                    REF_NAME="$WR_BRANCH"
+                    TARGET_SHA="$WR_SHA"
+                  fi
+
+                  # deploy.sh ships main; refuse anything else
+                  if [ "$REF_NAME" != "main" ]; then
+                    echo "::error::Deploy only ships the 'main' branch (got '$REF_NAME')."
                     exit 1
                   fi
 
-                  # gate on CI for the exact commit being deployed, not the latest branch run
                   echo "Commit to deploy: $TARGET_SHA"
+                  echo "ref_name=$REF_NAME" >> "$GITHUB_OUTPUT"
+                  echo "target_sha=$TARGET_SHA" >> "$GITHUB_OUTPUT"
+
+            - name: Require CI to have passed (manual dispatch only)
+              # The workflow_run path is already gated on success by the job `if`.
+              if: ${{ github.event_name == 'workflow_dispatch' }}
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  REPO: ${{ github.repository }}
+                  TARGET_SHA: ${{ steps.target.outputs.target_sha }}
+              run: |
+                  set -euo pipefail
+
+                  # gate on CI for the exact commit being deployed, not the latest branch run
                   CONCLUSION=$(gh run list --repo "$REPO" \
-                    --workflow "CI - Build & Test" --branch dev \
+                    --workflow "CI - Build & Test" --branch main \
                     --json headSha,status,conclusion \
                     --jq "[.[] | select(.headSha==\"$TARGET_SHA\" and .status==\"completed\")][0].conclusion // \"none\"")
                   echo "CI conclusion for $TARGET_SHA: $CONCLUSION"
@@ -58,7 +95,7 @@ jobs:
 
             - name: Run deploy on EC2 via SSM
               env:
-                  TARGET_SHA: ${{ github.sha }}
+                  TARGET_SHA: ${{ steps.target.outputs.target_sha }}
               run: |
                   set -euo pipefail
 
@@ -66,7 +103,7 @@ jobs:
                   read -r -d '' BOOTSTRAP <<EOS || true
                   set -e
                   cd /home/ubuntu/IMY772
-                  sudo -u ubuntu git fetch --prune origin dev
+                  sudo -u ubuntu git fetch --prune origin main
                   sudo -u ubuntu git checkout ${TARGET_SHA} -- deploy/deploy.sh
                   chmod +x deploy/deploy.sh
                   bash deploy/deploy.sh --no-fetch --ref ${TARGET_SHA}
@@ -79,7 +116,7 @@ jobs:
                   CID=$(aws ssm send-command \
                     --instance-ids "$INSTANCE_ID" \
                     --document-name "AWS-RunShellScript" \
-                    --comment "GH deploy ${GITHUB_SHA::7}" \
+                    --comment "GH deploy ${TARGET_SHA::7}" \
                     --parameters file:///tmp/ssm-params.json \
                     --query "Command.CommandId" --output text)
                   echo "CommandId=$CID"
