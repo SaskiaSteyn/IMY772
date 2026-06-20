@@ -4,14 +4,14 @@
 # (as root); safe to run by hand.
 #
 # Usage: deploy.sh [--no-fetch] [--ref <git-ref>]
-#   --no-fetch   caller already fetched origin/dev.
-#   --ref <ref>  deploy this exact ref (default origin/dev).
+#   --no-fetch   caller already fetched origin/main.
+#   --ref <ref>  deploy this exact ref (default origin/main).
 
 set -euo pipefail
 
 APP_DIR=/home/ubuntu/IMY772
 WEB_ROOT=/var/www/microtrack
-BRANCH=dev
+BRANCH=main
 APP_USER=ubuntu
 HEALTH_URL=http://localhost:3000/api/auth/me
 HEALTH_TIMEOUT=180
