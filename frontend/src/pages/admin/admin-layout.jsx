@@ -1,12 +1,12 @@
-import { Container, Group, Title } from '@mantine/core';
-import { NavLink, Outlet } from 'react-router-dom';
+import {Container, Group, Title} from '@mantine/core';
+import {NavLink, Outlet} from 'react-router-dom';
 import DashboardNavbar from '../../components/dashboard/dashboard-navbar.jsx';
 import './admin.scss';
 
 const links = [
-    { to: '/admin/water-data', label: 'Water Data' },
-    { to: '/admin/users', label: 'Users' },
-    { to: '/admin/statistics', label: 'Statistics' },
+    {to: '/admin/water-data', label: 'Water Data'},
+    {to: '/admin/users', label: 'Users'},
+    {to: '/admin/statistics', label: 'Statistics'},
 ];
 
 export default function AdminLayout() {
@@ -22,7 +22,7 @@ export default function AdminLayout() {
                                 key={link.to}
                                 to={link.to}
                                 end
-                                className={({ isActive }) =>
+                                className={({isActive}) =>
                                     `admin-tab-link${isActive ? ' admin-tab-link-active' : ''}`
                                 }
                             >
