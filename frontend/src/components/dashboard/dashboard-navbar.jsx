@@ -9,7 +9,7 @@ import {
     Shield,
     User,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/auth-context.jsx';
 import LogoutConfirmationModal from '../logout-confirmation-modal.jsx';
@@ -28,6 +28,9 @@ const AVATAR_COLORS = [
 ];
 
 export default function DashboardNavbar() {
+    const dividerRef = useRef(null);
+    const [toggleTop, setToggleTop] = useState(undefined);
+
     const [sidebarOpen, setSidebarOpen] = useState(() => {
         const saved = localStorage.getItem('sidebarOpen');
         return saved !== null ? JSON.parse(saved) : true;
@@ -53,6 +56,24 @@ export default function DashboardNavbar() {
     useEffect(() => {
         localStorage.setItem('sidebarOpen', JSON.stringify(sidebarOpen));
     }, [sidebarOpen]);
+
+    // Measure divider position so toggle aligns exactly with it
+    useEffect(() => {
+        if (!dividerRef.current) {
+            setToggleTop(undefined);
+            return;
+        }
+        const update = () => {
+            const el = dividerRef.current;
+            if (!el) return;
+            // offsetTop is relative to the sidebar (its nearest positioned ancestor)
+            setToggleTop(el.offsetTop + el.offsetHeight / 2);
+        };
+        update();
+        const ro = new ResizeObserver(update);
+        ro.observe(document.documentElement);
+        return () => ro.disconnect();
+    }, [isAuthenticated]);
 
     const handleLogout = () => {
         setLogoutModalOpened(true);
@@ -134,6 +155,7 @@ export default function DashboardNavbar() {
                 className={`sidebar-edge-toggle${sidebarOpen ? '' : ' sidebar-edge-toggle--collapsed'}`}
                 onClick={() => setSidebarOpen(!sidebarOpen)}
                 title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+                style={toggleTop !== undefined ? { top: toggleTop, bottom: 'auto', transform: sidebarOpen ? 'translateY(-50%)' : 'translate(50%, -50%)' } : undefined}
             >
                 {sidebarOpen ? (
                     <ChevronLeft size={20} />
@@ -183,7 +205,6 @@ export default function DashboardNavbar() {
             {/* Login Section for Unauthenticated Users */}
             {!isAuthenticated && (
                 <div className='sidebar-footer'>
-                    <Divider mb='md' />
                     {sidebarOpen ? (
                         <Button
                             variant='filled'
@@ -208,7 +229,7 @@ export default function DashboardNavbar() {
             {/* User Profile Section */}
             {isAuthenticated && (
                 <div className='sidebar-footer'>
-                    <Divider mb='md' />
+                    <Divider mb='md' ref={dividerRef} />
                     <button
                         className='profile-button'
                         onClick={handleProfileClick}

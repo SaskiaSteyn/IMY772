@@ -62,14 +62,16 @@
 
     .sidebar-edge-toggle {
         position: absolute;
-        bottom: 120px;
+        bottom: 60px;
         top: auto;
         right: -14px;
+        transform: none;
 
         &--collapsed {
             right: 50%;
             transform: translateX(50%);
         }
+
         width: 40px;
         height: 40px;
         border-radius: 50%;
@@ -210,4 +212,5 @@
             width: 100% !important;
         }
     }
+
 }
