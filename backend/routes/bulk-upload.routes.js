@@ -8,6 +8,14 @@ import {parseBulkUploadFile} from '../lib/file-parser.js'
 const router = Router()
 const upload = multer({storage: multer.memoryStorage(), limits: {fileSize: 10 * 1024 * 1024}}) // 10MB
 
+// Parse a numeric field, returning null for missing/blank/unparseable values so
+// optional columns (e.g. coordinates) are stored as NULL rather than NaN.
+const toNullableFloat = (value) => {
+    if (value === undefined || value === null || value === '') return null
+    const parsed = parseFloat(value)
+    return Number.isNaN(parsed) ? null : parsed
+}
+
 // POST /api/bulk-upload/samples
 // Expects a CSV/Excel file with columns matching the new Sample schema + nested isolates/amr/phenotypes
 router.post(
@@ -43,9 +51,10 @@ router.post(
 
             const results = []
             for (const sampleData of samples) {
-                // Validate required fields
-                if (!sampleData.sample_id || sampleData.latitude === undefined || sampleData.longitude === undefined) {
-                    results.push({success: false, sample_id: sampleData.sample_id || 'unknown', error: 'Missing required fields: sample_id, latitude, longitude'})
+                // Validate required fields. Coordinates are optional — samples
+                // without them are stored but simply won't show on the map.
+                if (!sampleData.sample_id) {
+                    results.push({success: false, sample_id: sampleData.sample_id || 'unknown', error: 'Missing required field: sample_id'})
                     continue
                 }
 
@@ -63,8 +72,8 @@ router.post(
                     isolation_source: sampleData.isolation_source || null,
                     collection_date: sampleData.collection_date ? new Date(sampleData.collection_date) : null,
                     location_name: sampleData.location_name || null,
-                    latitude: parseFloat(sampleData.latitude),
-                    longitude: parseFloat(sampleData.longitude),
+                    latitude: toNullableFloat(sampleData.latitude),
+                    longitude: toNullableFloat(sampleData.longitude),
                 }
 
                 try {
