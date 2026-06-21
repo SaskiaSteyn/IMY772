@@ -435,7 +435,7 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
             const {samples} = await extractSamplesFromImage(selected);
             if (!samples || samples.length === 0) {
                 setError(
-                    'No sample rows were found. Use a photo of a table with one sample per row, including Latitude and Longitude columns.',
+                    'No sample rows were found. This uploader expects a table with one sample per row and a clear header row. For a single sample (one field per row), use "Add new entry" instead.',
                 );
                 setImageSamples(null);
             } else {
@@ -467,30 +467,36 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
 
     const handleImageUpload = () => {
         const isFilled = (v) => v !== '' && v !== null && v !== undefined;
-        // Require sample_id as well now
-        const valid = (imageSamples || []).filter(
-            (s) => isFilled(s.latitude) && isFilled(s.longitude) && isFilled(s.sample_id),
-        );
+        // Only a Sample ID is required — latitude/longitude are optional. Samples
+        // without coordinates upload fine; they just won't appear on the map.
+        const valid = (imageSamples || []).filter((s) => isFilled(s.sample_id));
         if (valid.length === 0) {
-            setError('Each sample needs a Sample ID, Latitude, and Longitude before uploading.');
+            setError('Each sample needs a Sample ID before uploading.');
             return;
         }
 
-        // Convert the simple format { sample_id, ... } into the format expected by the CSV parser 
+        // Convert the simple format { sample_id, ... } into the format expected by the CSV parser
         // (which is just an array of flat objects, that's what PapaParse output would look like)
         // AND the backend only reads CSV or Excel for `/samples` now. Wait!
-        
-        // Let's generate CSV string
-        const header = Object.keys(valid[0]).join(',');
-        const rows = valid.map(obj => 
-            Object.values(obj).map(val => {
-                if (val === null || val === undefined) return '';
-                // Quote strings if they contain commas
-                const str = String(val);
-                return str.includes(',') ? `"${str}"` : str;
-            }).join(',')
-        ).join('\n');
-        
+
+        // Build the header from the union of every sample's keys so rows that omit
+        // a field (e.g. missing coordinates) still line up with the right columns.
+        const columns = Array.from(
+            valid.reduce((set, obj) => {
+                Object.keys(obj).forEach((k) => set.add(k));
+                return set;
+            }, new Set()),
+        );
+        const escape = (val) => {
+            if (val === null || val === undefined) return '';
+            const str = String(val);
+            return str.includes(',') ? `"${str}"` : str;
+        };
+        const header = columns.join(',');
+        const rows = valid
+            .map((obj) => columns.map((col) => escape(obj[col])).join(','))
+            .join('\n');
+
         const csvContent = `${header}\n${rows}`;
         
         const csvFile = new File(
@@ -567,7 +573,7 @@ export default function BulkUploadModal({isOpen, onClose, onUploadSuccess}) {
                                         Upload a photo of a table
                                     </Text>
                                     <Text size='xs' color='dimmed'>
-                                        One sample per row (must include Latitude & Longitude)
+                                        One sample per row (Latitude & Longitude optional)
                                     </Text>
                                 </label>
                             </div>

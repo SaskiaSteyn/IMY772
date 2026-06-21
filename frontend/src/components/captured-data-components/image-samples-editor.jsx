@@ -12,8 +12,8 @@ import { Trash2 } from 'lucide-react';
 const COLUMNS = [
     { key: 'sample_id', label: 'Sample ID *', type: 'text' },
     { key: 'location_name', label: 'Location', type: 'text' },
-    { key: 'latitude', label: 'Latitude *', type: 'number' },
-    { key: 'longitude', label: 'Longitude *', type: 'number' },
+    { key: 'latitude', label: 'Latitude', type: 'number' },
+    { key: 'longitude', label: 'Longitude', type: 'number' },
     { key: 'water_temperature', label: 'Temp (°C)', type: 'number' },
     { key: 'ph', label: 'pH', type: 'number' },
     { key: 'tds', label: 'TDS', type: 'number' },
@@ -29,8 +29,9 @@ export default function ImageSamplesEditor({ samples, onUpdate, onRemove }) {
         <Stack gap='xs'>
             <Text size='sm' c='dimmed'>
                 Review and edit the {samples.length} extracted sample
-                {samples.length === 1 ? '' : 's'} below. Sample ID, Latitude and
-                Longitude are required for each row.
+                {samples.length === 1 ? '' : 's'} below. Sample ID is required for
+                each row. Latitude and Longitude are optional — rows without them
+                upload fine but won't appear on the dashboard map.
             </Text>
             <ScrollArea type='auto' offsetScrollbars>
                 <Table striped withTableBorder withColumnBorders miw={1250}>

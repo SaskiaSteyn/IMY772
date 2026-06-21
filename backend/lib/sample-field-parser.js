@@ -494,6 +494,10 @@ export function extractAllFromWords(words) {
 
 const MIN_SAMPLE_TABLE_COLUMNS = 3
 
+// A data row needs at least this many recognised fields to count as a real
+// sample (unless it has a coordinate). Filters out OCR noise / stray cells.
+const MIN_SAMPLE_ROW_FIELDS = 2
+
 function findSampleHeaderRow(rows) {
     let best = null
     rows.forEach((row, rowIdx) => {
@@ -518,8 +522,9 @@ function findSampleHeaderRow(rows) {
 
 /**
  * Extracts one sample per data row from a wide sample table. Returns an array of
- * typed Sample field objects; rows without a valid latitude AND longitude are
- * dropped (those are required to create a sample).
+ * typed Sample field objects. Rows are kept as long as they carry at least one
+ * recognised field — coordinates are optional, so samples without latitude or
+ * longitude are still returned (they just won't appear on the dashboard map).
  */
 export function extractSampleRows(words) {
     const rows = clusterRows(words || [])
@@ -553,7 +558,12 @@ export function extractSampleRows(words) {
             }
         }
 
-        if (sample.latitude != null && sample.longitude != null) {
+        // Keep the row if it carries real content. Coordinates are optional, but
+        // a single stray field (e.g. an unrelated sub-table's cell drifting into a
+        // column) is treated as OCR noise and dropped. A valid coordinate on its
+        // own is enough to count as a real sample row.
+        const hasCoordinate = sample.latitude != null || sample.longitude != null
+        if (Object.keys(sample).length >= MIN_SAMPLE_ROW_FIELDS || hasCoordinate) {
             samples.push(sample)
         }
     }

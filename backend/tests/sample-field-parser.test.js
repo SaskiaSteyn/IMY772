@@ -232,26 +232,28 @@ describe('extractSampleRows (one row per sample)', () => {
         ])
     })
 
-    it('drops rows without both latitude and longitude', () => {
+    it('keeps rows without coordinates (they upload without a map marker)', () => {
         const words = [
             word('Location', 20, 10, 140, 30),
             word('Latitude', 200, 10, 330, 30),
             word('Longitude', 360, 10, 500, 30),
             word('pH', 560, 10, 610, 30),
-            // valid row
+            // fully-populated row
             word('LakeA', 20, 50, 110, 70),
             word('-25.5', 200, 50, 290, 70),
             word('28.1', 360, 50, 440, 70),
             word('7.2', 560, 50, 610, 70),
-            // row missing longitude -> dropped
+            // row missing longitude -> still kept, just without coordinates
             word('LakeB', 20, 90, 110, 110),
             word('-26.0', 200, 90, 290, 110),
             word('8.0', 560, 90, 610, 110),
         ]
 
         const samples = extractSampleRows(words)
-        expect(samples).toHaveLength(1)
+        expect(samples).toHaveLength(2)
         expect(samples[0].location_name).toBe('LakeA')
+        expect(samples[1].location_name).toBe('LakeB')
+        expect(samples[1].longitude).toBeUndefined()
     })
 
     it('returns [] for a single-sample key/value layout', () => {
