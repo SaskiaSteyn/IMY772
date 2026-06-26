@@ -373,6 +373,7 @@ router.delete('/water/samples/:sample_id', async (req, res) => {
             await tx.isolate.deleteMany({where: {sample_id}})
             await tx.amrFinding.deleteMany({where: {sample_id}})
             await tx.predictedPhenotype.deleteMany({where: {sample_id}})
+            await tx.virulenceGene.deleteMany({where: {sample_id}})
             await tx.sample.delete({where: {sample_id}})
             await tx.adminDeleteAudit.create({
                 data: {
