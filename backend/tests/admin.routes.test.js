@@ -55,6 +55,14 @@ const mockPrisma = {
         updateMany: jest.fn(),
         findFirst: jest.fn(),
     },
+    virulenceGene: {
+        findMany: jest.fn(),
+        create: jest.fn(),
+        deleteMany: jest.fn(),
+        count: jest.fn(),
+        updateMany: jest.fn(),
+        findFirst: jest.fn(),
+    },
     adminDeleteAudit: {
         create: jest.fn(),
         findMany: jest.fn(),
@@ -365,6 +373,20 @@ describe('Admin – Water Samples CRUD', () => {
             .send({reason: 'valid deletion reason'})
         expect(res.status).toBe(200)
         expect(mockPrisma.adminDeleteAudit.create).toHaveBeenCalled()
+    })
+
+    test('DELETE /water/samples/:sample_id – clears all child rows before deleting sample', async () => {
+        const res = await api()
+            .delete('/api/admin/water/samples/SAMPLE-001')
+            .set('Cookie', authCookie())
+            .send({reason: 'valid deletion reason'})
+        expect(res.status).toBe(200)
+        // All four child relations must be cleared, else the FK RESTRICT throws a 500.
+        expect(mockPrisma.isolate.deleteMany).toHaveBeenCalledWith({where: {sample_id: 'SAMPLE-001'}})
+        expect(mockPrisma.amrFinding.deleteMany).toHaveBeenCalledWith({where: {sample_id: 'SAMPLE-001'}})
+        expect(mockPrisma.predictedPhenotype.deleteMany).toHaveBeenCalledWith({where: {sample_id: 'SAMPLE-001'}})
+        expect(mockPrisma.virulenceGene.deleteMany).toHaveBeenCalledWith({where: {sample_id: 'SAMPLE-001'}})
+        expect(mockPrisma.sample.delete).toHaveBeenCalledWith({where: {sample_id: 'SAMPLE-001'}})
     })
 
     test('DELETE /water/samples/:sample_id – 400 missing reason', async () => {
