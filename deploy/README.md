@@ -45,9 +45,9 @@ Don't use Render's free Postgres, it is deleted after 30 days.
    | `S3_ENDPOINT` | leave empty for AWS S3; set for R2 |
 
    `JWT_SECRET` is generated automatically. Note: a new secret logs everyone out once.
-3. Note the service URL. If it isn't `https://microtrack-backend.onrender.com`
-   (Render adds a suffix when the name is taken), update the `/api` rewrite in
-   [`frontend/vercel.json`](../frontend/vercel.json).
+3. The service lives at `https://microtrack-backend-mohl.onrender.com` (Render added
+   the suffix). If the service is ever recreated with a different URL, update the
+   `/api` rewrite in [`frontend/vercel.json`](../frontend/vercel.json).
 
 Boot runs `fix-migration` → `prisma migrate deploy` → admin seed → `npm start`,
 mirroring `docker-compose.yml`. Render only deploys once GitHub CI checks pass
