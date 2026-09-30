@@ -51,10 +51,8 @@ docker ps -a
 
 ## Deployment Notes (Auth + API)
 
-When deploying frontend and backend separately (for example frontend on Vercel and backend on Render), set these environment variables carefully:
+Production runs on Vercel (frontend) + Render (backend) + Neon (Postgres). See [deploy/README.md](deploy/README.md) for the full setup.
 
-- Frontend: `VITE_API_URL=https://your-backend-domain.com` (no trailing slash)
+- Frontend: leave `VITE_API_URL` unset — Vercel proxies `/api` to Render so the auth cookie stays same-origin.
 - Backend: `FRONTEND_URL=https://your-frontend-domain.com` (can be a comma-separated list for multiple frontends)
 - Backend: set `NODE_ENV=production`
-
-If `VITE_API_URL` includes a trailing slash (for example `https://api.example.com/`), some requests can become malformed and return 404s. The frontend now normalizes this, but using a slash-free value is still recommended.
