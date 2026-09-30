@@ -4,6 +4,7 @@ services:
       name: microtrack-backend
       runtime: node
       plan: free
+      region: frankfurt # closest free region to SA; cannot be changed after creation
       rootDir: backend
       # --include=dev: prisma CLI is a devDependency and NODE_ENV=production would skip it
       buildCommand: npm install --include=dev && npx prisma generate
