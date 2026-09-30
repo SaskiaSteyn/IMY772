@@ -8,9 +8,9 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 //
-// Credentials are resolved by the AWS SDK's default provider chain. In production
-// the EC2 instance role (microtrack-ec2-role) supplies them automatically — no
-// access keys live in code or env. Region/bucket are configurable via env.
+// Credentials are resolved by the AWS SDK's default provider chain, i.e. the
+// AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY env vars on Render. Region/bucket are
+// configurable via env; set S3_ENDPOINT to use an S3-compatible store (e.g. R2).
 
 const REGION = process.env.AWS_REGION || 'us-east-1'
 export const S3_BUCKET = process.env.S3_BUCKET || 'microtrack-images'
@@ -20,7 +20,7 @@ let s3Client = null
 
 function getS3Client() {
     if (!s3Client) {
-        s3Client = new S3Client({ region: REGION })
+        s3Client = new S3Client({ region: REGION, endpoint: process.env.S3_ENDPOINT || undefined })
     }
     return s3Client
 }

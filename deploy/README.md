@@ -1,98 +1,86 @@
-# MicroTrack — Auto-deploy to AWS
+# MicroTrack — Deploying (Vercel + Render + Neon)
 
-Deploy to the production EC2 host (`micro-track.co.za`) is **manual**: click
-**Run workflow** on the "Deploy to AWS (EC2)" Action. The deploy **refuses to run
-unless the latest "CI - Build & Test" run on the branch passed**, so a red build
-can never reach prod. The pipeline is `.github/workflows/deploy.yml`; the work
-runs on the box via `deploy/deploy.sh`.
-
-## How it works
+Free-tier setup. Both hosts auto-deploy from GitHub; there is no deploy workflow
+in this repo.
 
 ```
-push to dev ──▶ CI - Build & Test          (automatic)
-manual click ──▶ Deploy workflow ──▶ gate: latest CI == success?
-                                     └▶ aws ssm send-command ──▶ EC2 runs deploy/deploy.sh
-                (no SSH, no inbound ports — uses the SSM agent already on the box)
+browser ──▶ Vercel (frontend/, static Vite build)
+              └─ /api/* rewrite ──▶ Render (backend/, Express) ──▶ Neon Postgres
+                                                           └────▶ S3 / R2 (profile images)
 ```
 
-`deploy.sh` on the instance, in order (build before touching live services):
+**Why the `/api` rewrite:** the login token is an httpOnly cookie. If the browser
+called `*.onrender.com` directly it would be a third-party cookie, which Safari
+and Firefox block. Proxying through Vercel keeps everything same-origin, so
+**leave `VITE_API_URL` unset** in production (the client falls back to relative
+`/api` paths).
 
-1. `git reset --hard origin/dev`, **preserving the box-local `docker-compose.yml`**
-   (prod uses RDS + CloudWatch `awslogs`; the committed compose has a throwaway
-   local Postgres that must never reach prod).
-2. Builds the frontend with `NODE_OPTIONS=--max-old-space-size=768` (the box is a
-   2 GB t3.small). A build failure aborts here, leaving prod untouched.
-3. Publishes `dist/` to `/var/www/microtrack` via an **atomic directory swap**
-   (no empty-web-root window), keeping the last 3 timestamped backups.
-4. Restarts the backend container (`docker compose down && up -d`) — backend code
-   is bind-mounted, so the container reinstalls deps and re-runs migrations on boot.
-5. **Health-gates** the backend: polls `:3000/api/auth/me` for up to 180 s and
-   **fails the deploy** (red pipeline) if the container never serves — so a bad
-   migration can't leave prod silently down behind a green build.
+## 1. Database — Neon
 
-Secrets live only in the box's gitignored `.env`; the pipeline never reads or
-writes them.
+Don't use Render's free Postgres, it is deleted after 30 days.
 
-## Verified facts this is built on
+1. Create a project at [neon.tech](https://neon.tech) and copy the connection
+   string (it includes `?sslmode=require`).
+2. Copy existing data across (skip for a fresh DB — the backend migrates and seeds
+   on boot):
 
-| Item | Value |
-| --- | --- |
-| Instance | `i-014127f47881b6eea` (us-east-1, SSM Online, Ubuntu) |
-| Deployed branch | `dev` (box HEAD == `origin/dev`; reflog only ever `pull origin dev`) |
-| Backend | container `imy772-backend`, code bind-mounted from `backend/`, talks to RDS `microtrack-db` |
-| Frontend | nginx serves `/var/www/microtrack`; `/api/` proxied to `localhost:3000` |
-| Account | `184353711080` |
+   ```bash
+   pg_dump --no-owner --no-acl -Fc "$OLD_DATABASE_URL" -f microtrack.dump
+   pg_restore --no-owner --no-acl -d "$NEON_DATABASE_URL" microtrack.dump
+   ```
 
-## One-time setup (repo owner)
+## 2. Backend — Render
 
-### 1. Create a scoped CI IAM user
+1. Render ▸ **New ▸ Blueprint** ▸ pick this repo. It reads [`render.yaml`](../render.yaml).
+2. Fill in the prompted env vars:
 
-IAM ▸ Users ▸ **Create user** (e.g. `microtrack-ci-deploy`), no console access.
-Attach this inline policy:
+   | Var | Value |
+   | --- | --- |
+   | `DATABASE_URL`, `PRISMA_DATABASE_URL` | Neon connection string (same value for both) |
+   | `FRONTEND_URL` | `https://<your-app>.vercel.app` (comma-separate extras) |
+   | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | from Google Cloud Console |
+   | `GEMINI_API_KEY`, `OPENAI_API_KEY` | AI features |
+   | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | admin account created/updated on boot |
+   | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `S3_BUCKET` | image storage, see step 4 |
+   | `S3_ENDPOINT` | leave empty for AWS S3; set for R2 |
 
-```json
-{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Sid": "SendDeployCommand",
-            "Effect": "Allow",
-            "Action": "ssm:SendCommand",
-            "Resource": [
-                "arn:aws:ec2:us-east-1:184353711080:instance/i-014127f47881b6eea",
-                "arn:aws:ssm:us-east-1::document/AWS-RunShellScript"
-            ]
-        },
-        {
-            "Sid": "ReadCommandResult",
-            "Effect": "Allow",
-            "Action": [
-                "ssm:GetCommandInvocation",
-                "ssm:ListCommandInvocations"
-            ],
-            "Resource": "*"
-        }
-    ]
-}
-```
+   `JWT_SECRET` is generated automatically. Note: a new secret logs everyone out once.
+3. Note the service URL. If it isn't `https://microtrack-backend.onrender.com`
+   (Render adds a suffix when the name is taken), update the `/api` rewrite in
+   [`frontend/vercel.json`](../frontend/vercel.json).
 
-Create an access key for it (use case: Application running outside AWS).
+Boot runs `fix-migration` → `prisma migrate deploy` → admin seed → `npm start`,
+mirroring `docker-compose.yml`. Render only deploys once GitHub CI checks pass
+(`autoDeployTrigger: checksPass`).
 
-### 2. Add the key as GitHub repo secrets
+**Free-tier limits:** sleeps after 15 min idle (first request takes ~30–60 s —
+open the site before a demo), 512 MB RAM (OCR image upload is the heaviest route).
 
-Repo ▸ Settings ▸ Secrets and variables ▸ Actions ▸ **New repository secret**:
+## 3. Frontend — Vercel
 
-- `AWS_ACCESS_KEY_ID`
-- `AWS_SECRET_ACCESS_KEY`
+1. Vercel ▸ **Add New ▸ Project** ▸ this repo.
+2. **Root Directory:** `frontend`. Framework preset: Vite (auto-detected).
+3. Env var: `VITE_GOOGLE_CLIENT_ID`. Do **not** set `VITE_API_URL`.
+4. Google Cloud Console ▸ OAuth client ▸ add `https://<your-app>.vercel.app` to
+   **Authorized JavaScript origins**.
 
-### 3. Test
+## 4. Image storage
 
-Actions ▸ **Deploy to AWS (EC2)** ▸ **Run workflow** (manual dispatch). Watch the
-job log — it streams the on-box stdout/stderr and fails if the SSM command fails.
+Profile images use the S3 API ([`backend/lib/s3.js`](../backend/lib/s3.js)). Pick one:
 
-## Upgrade path (optional, more secure)
+- **Keep AWS S3** — create an IAM user with `s3:PutObject/GetObject/DeleteObject`
+  on `arn:aws:s3:::microtrack-images/*` and put its access key in Render. Costs
+  cents at this size.
+- **Cloudflare R2** (10 GB free) — create a bucket and an R2 API token, then set
+  `S3_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com`, `AWS_REGION=auto`,
+  `S3_BUCKET=<bucket>`, and the token's key pair as `AWS_ACCESS_KEY_ID` /
+  `AWS_SECRET_ACCESS_KEY`. Existing images need copying across (e.g. `rclone`).
 
-Replace the static access key with GitHub OIDC: create an IAM role trusting
-`token.actions.githubusercontent.com`, give the workflow `permissions: id-token: write`,
-and swap the `configure-aws-credentials` inputs to `role-to-assume`. Removes the
-long-lived secret entirely.
+The thumbnail Lambda in `lambda/image-processor` is optional — the app doesn't
+read the thumbnails.
+
+## 5. Shut down AWS
+
+Once the new site works: stop/terminate the EC2 instance, snapshot then delete the
+RDS instance, and delete the `microtrack-ci-deploy` IAM user and the
+`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` GitHub repo secrets.
