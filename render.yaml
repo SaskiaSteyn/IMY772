@@ -1,0 +1,51 @@
+# Render Blueprint for the MicroTrack backend (free tier). See deploy/README.md.
+services:
+    - type: web
+      name: microtrack-backend
+      runtime: node
+      plan: free
+      rootDir: backend
+      # --include=dev: prisma CLI is a devDependency and NODE_ENV=production would skip it
+      buildCommand: npm install --include=dev && npx prisma generate
+      # pre-deploy commands are paid-only on Render, so migrations run on boot (same as docker-compose)
+      startCommand: node scripts/fix-migration.js && npx prisma migrate deploy && (node src/utils/seed-admin.js || true) && npm start
+      healthCheckPath: /health
+      autoDeployTrigger: checksPass
+      envVars:
+          - key: NODE_ENV
+            value: production
+          - key: NODE_VERSION
+            value: '20'
+          - key: JWT_EXPIRES_IN
+            value: 7d
+          # set in the Render dashboard (sync: false = prompted on first deploy, never committed)
+          - key: DATABASE_URL
+            sync: false
+          - key: PRISMA_DATABASE_URL
+            sync: false
+          - key: JWT_SECRET
+            generateValue: true
+          - key: FRONTEND_URL
+            sync: false
+          - key: GOOGLE_CLIENT_ID
+            sync: false
+          - key: GOOGLE_CLIENT_SECRET
+            sync: false
+          - key: GEMINI_API_KEY
+            sync: false
+          - key: OPENAI_API_KEY
+            sync: false
+          - key: ADMIN_EMAIL
+            sync: false
+          - key: ADMIN_PASSWORD
+            sync: false
+          - key: AWS_ACCESS_KEY_ID
+            sync: false
+          - key: AWS_SECRET_ACCESS_KEY
+            sync: false
+          - key: AWS_REGION
+            sync: false
+          - key: S3_BUCKET
+            sync: false
+          - key: S3_ENDPOINT
+            sync: false
